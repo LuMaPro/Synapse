@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Synapse · Identidade visual e protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Base */
+    --fundo: #0b0d1a;
+    --superficie: #141730;
+    --superficie-2: #1c2042;
+    --borda: #2a2f55;
+    --texto: #ecedf7;
+    --texto-suave: #9ca1c6;
+    --texto-fraco: #6b7097;
+    /* Marca */
+    --sinapse: #8b7bff;
+    --impulso: #3ee6e0;
+    /* Estados */
+    --vivo: #5be49b;
+    --poda: #ff5c7a;
+    --podado: #4a4f6e;
+    --atp: #ffc857;
+
+    --fonte-titulo: 'Space Grotesk', system-ui, sans-serif;
+    --fonte-texto: 'Inter', system-ui, sans-serif;
+    --fonte-numero: 'JetBrains Mono', ui-monospace, monospace;
+    --raio: 14px;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    background: var(--fundo);
+    color: var(--texto);
+    font-family: var(--fonte-texto);
+    line-height: 1.5;
+  }
+  h1, h2, h3 { font-family: var(--fonte-titulo); line-height: 1.15; margin: 0; }
+  a { color: var(--impulso); }
+
+  /* ---------- página ---------- */
+  .pagina { max-width: 1240px; margin: 0 auto; padding: 48px 16px 96px; }
+  .topo { display: flex; align-items: center; gap: 20px; margin-bottom: 12px; }
+  .topo h1 { font-size: clamp(28px, 4vw, 40px); }
+  .subtitulo { color: var(--texto-suave); max-width: 720px; margin: 0 0 48px; }
+  section.bloco { margin-top: 72px; }
+  section.bloco > h2 { font-size: 26px; margin-bottom: 8px; }
+  section.bloco > p.intro { color: var(--texto-suave); margin: 0 0 28px; max-width: 760px; }
+  .cartao {
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: 20px;
+    padding: 24px;
+  }
+  .grade { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  ul.lista { margin: 0; padding-left: 20px; color: var(--texto-suave); }
+  ul.lista li { margin-bottom: 8px; }
+  ul.lista strong { color: var(--texto); }
+
+  /* ---------- logo ---------- */
+  .logo-linha { display: flex; flex-wrap: wrap; gap: 20px; }
+  .logo-caixa {
+    flex: 1 1 260px; min-height: 180px; border-radius: 20px; border: 1px solid var(--borda);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    padding: 24px;
+  }
+  .logo-caixa small { color: var(--texto-fraco); font-size: 12px; }
+  .logo-caixa.claro { background: #f4f4fb; }
+  .marca-texto { font-family: var(--fonte-titulo); font-weight: 700; letter-spacing: -0.01em; }
+
+  /* ---------- paleta ---------- */
+  .paleta-grupo h3 { font-size: 15px; color: var(--texto-suave); font-family: var(--fonte-texto); font-weight: 600; margin-bottom: 12px; }
+  .amostras { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+  .amostra { width: 132px; }
+  .amostra .cor { height: 72px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); }
+  .amostra b { display: block; font-size: 13px; margin-top: 8px; }
+  .amostra code { font-family: var(--fonte-numero); font-size: 12px; color: var(--texto-suave); }
+  .amostra span { display: block; font-size: 12px; color: var(--texto-fraco); }
+
+  /* ---------- tipografia ---------- */
+  .tipo-linha { display: grid; grid-template-columns: 180px 1fr; gap: 16px; align-items: baseline; padding: 16px 0; border-top: 1px solid var(--borda); }
+  .tipo-linha:first-child { border-top: 0; }
+  .tipo-linha .rotulo { color: var(--texto-fraco); font-size: 13px; }
+  @media (max-width: 640px) { .tipo-linha { grid-template-columns: 1fr; gap: 4px; } }
+
+  /* ---------- neurônios ---------- */
+  .neuronios { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .neuronio-caixa { text-align: center; }
+  .neuronio-caixa svg { display: block; width: 100%; max-width: 200px; height: auto; margin: 0 auto; }
+  .neuronio-caixa b { display: block; font-family: var(--fonte-titulo); }
+  .neuronio-caixa span { font-size: 13px; color: var(--texto-suave); }
+  .crescimento { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+  .crescimento > div { flex: 1 1 120px; text-align: center; font-size: 12px; color: var(--texto-fraco); }
+  .crescimento svg { display: block; width: 100%; max-width: 140px; height: auto; margin: 0 auto 6px; }
+  .controle { display: flex; align-items: center; gap: 12px; margin-top: 12px; color: var(--texto-suave); font-size: 13px; }
+  .controle input { flex: 1; accent-color: var(--sinapse); }
+
+  /* ---------- telas (celular) ---------- */
+  .telas { display: flex; flex-wrap: wrap; gap: 40px 32px; }
+  figure.tela { margin: 0; }
+  figure.tela figcaption { margin-top: 14px; font-size: 14px; color: var(--texto-suave); max-width: 360px; }
+  figure.tela figcaption b { color: var(--texto); }
+  .celular {
+    width: min(360px, calc(100vw - 32px));
+    height: 760px;
+    border-radius: 40px;
+    border: 1px solid var(--borda);
+    background: var(--fundo);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  }
+  .status { height: 40px; flex: none; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 26px 4px; font-size: 12px; font-weight: 600; color: var(--texto-suave); }
+  .corpo { flex: 1; min-height: 0; padding: 14px 22px 18px; display: flex; flex-direction: column; gap: 16px; }
+  .cab { display: flex; justify-content: space-between; align-items: center; }
+  .cab h2 { font-size: 22px; }
+  .abas { height: 72px; flex: none; border-top: 1px solid var(--borda); background: var(--superficie); display: flex; justify-content: space-around; align-items: center; padding-bottom: 6px; }
+  .aba { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--texto-fraco); }
+  .aba svg { width: 22px; height: 22px; }
+  .aba.ativa { color: var(--sinapse); }
+
+  .selo { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--superficie-2); color: var(--texto-suave); }
+  .selo.sequencia { color: var(--atp); }
+  .selo.atp { color: var(--atp); }
+  .rotulo-campo { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--texto-fraco); margin-bottom: 8px; }
+
+  .botao { display: flex; align-items: center; justify-content: center; gap: 8px; height: 52px; border-radius: var(--raio); border: 0; font: 600 16px var(--fonte-texto); cursor: pointer; width: 100%; }
+  .botao.primario { background: var(--sinapse); color: var(--fundo); box-shadow: 0 0 24px rgba(139, 123, 255, 0.35); }
+  .botao.secundario { background: var(--superficie-2); color: var(--texto); border: 1px solid var(--borda); }
+  .botao.fantasma { background: transparent; color: var(--texto-suave); height: 40px; }
+  .botao.perigo { background: var(--poda); color: var(--fundo); }
+
+  .campo { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--texto-suave); }
+  .campo .entrada { height: 50px; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--superficie); display: flex; align-items: center; padding: 0 16px; color: var(--texto); font-size: 15px; }
+  .campo .entrada.foco { border-color: var(--sinapse); box-shadow: 0 0 0 3px rgba(139, 123, 255, 0.2); }
+  .campo .entrada.vazio { color: var(--texto-fraco); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--borda); background: var(--superficie); font-size: 14px; color: var(--texto-suave); }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .chip.ativo { border-color: var(--sinapse); color: var(--texto); background: rgba(139, 123, 255, 0.14); }
+
+  .segmentado { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .segmento { border: 1px solid var(--borda); border-radius: var(--raio); padding: 10px 12px; background: var(--superficie); }
+  .segmento b { display: block; font-size: 14px; }
+  .segmento span { font-size: 12px; color: var(--texto-fraco); line-height: 1.35; display: block; }
+  .segmento.ativo { border-color: var(--sinapse); background: rgba(139, 123, 255, 0.14); }
+
+  .seletor-duracao { display: flex; align-items: center; justify-content: center; gap: 22px; }
+  .seletor-duracao .menos, .seletor-duracao .mais { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--borda); background: var(--superficie); display: grid; place-items: center; font-size: 22px; color: var(--texto-suave); }
+
+  .timer { font-family: var(--fonte-numero); font-weight: 700; font-size: 64px; letter-spacing: -0.02em; text-align: center; line-height: 1; }
+  .centro { text-align: center; }
+  .suave { color: var(--texto-suave); }
+  .fraco { color: var(--texto-fraco); font-size: 13px; }
+  .aviso { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--raio); background: var(--superficie); border: 1px solid var(--borda); font-size: 13px; color: var(--texto-suave); }
+
+  .toast { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--raio); background: linear-gradient(90deg, rgba(255, 200, 87, 0.16), rgba(255, 200, 87, 0.04)); border: 1px solid rgba(255, 200, 87, 0.4); }
+  .toast .icone { width: 36px; height: 36px; border-radius: 10px; background: rgba(255, 200, 87, 0.2); display: grid; place-items: center; color: var(--atp); }
+  .toast b { display: block; font-size: 14px; }
+  .toast span { font-size: 12px; color: var(--texto-suave); }
+
+  .numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .numero { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; }
+  .numero b { font-family: var(--fonte-numero); font-size: 22px; display: block; }
+  .numero span { font-size: 12px; color: var(--texto-fraco); }
+
+  .filtros { display: flex; gap: 8px; overflow: hidden; }
+  .filtros .chip { height: 32px; font-size: 13px; padding: 0 12px; }
+
+  .rede-area { flex: 1; min-height: 0; border-radius: 20px; background: radial-gradient(circle at 50% 45%, #171a38 0%, var(--fundo) 70%); border: 1px solid var(--borda); position: relative; overflow: hidden; }
+  .rede-area svg { width: 100%; height: 100%; display: block; }
+  .dica-no { position: absolute; padding: 8px 12px; border-radius: 12px; background: var(--superficie-2); border: 1px solid var(--borda); font-size: 12px; pointer-events: none; white-space: nowrap; }
+  .dica-no b { display: block; font-size: 13px; }
+  .no { cursor: pointer; transition: opacity 0.2s; }
+  .aresta { transition: stroke 0.2s, opacity 0.2s; }
+
+  .dialogo-fundo { position: absolute; inset: 0; background: rgba(5, 6, 14, 0.72); display: flex; align-items: flex-end; }
+  .dialogo { width: 100%; background: var(--superficie); border-top: 1px solid var(--borda); border-radius: 28px 28px 0 0; padding: 24px 22px 28px; display: flex; flex-direction: column; gap: 14px; }
+
+  .componentes { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .componentes > div { flex: 1 1 260px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ---------- modo isolado (?so=...) para exportar PNG ---------- */
+  body.isolado .pagina { padding: 20px; max-width: none; }
+  body.isolado [data-bloco] { display: none; }
+  body.isolado [data-bloco].mostrar { display: block; margin: 0; }
+  body.isolado .topo, body.isolado .subtitulo, body.isolado figcaption { display: none; }
+  body.isolado [data-bloco="telas"] > h2, body.isolado [data-bloco="telas"] > p.intro { display: none; }
+  body.isolado section.bloco { margin: 0; }
+  body.isolado .celular { box-shadow: none; }
+</style>
+</head>
+<body>
+<!-- Definições compartilhadas pelos SVGs da página -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <defs>
+    <filter id="brilho" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.6" result="borrado" />
+      <feMerge><feMergeNode in="borrado" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+    <filter id="brilho-forte" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5" result="borrado" />
+      <feMerge><feMergeNode in="borrado" /><feMergeNode in="borrado" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+    <linearGradient id="grad-marca" gradientUnits="userSpaceOnUse" x1="8" y1="6" x2="56" y2="58">
+      <stop offset="0" stop-color="#8b7bff" />
+      <stop offset="1" stop-color="#3ee6e0" />
+    </linearGradient>
+    <symbol id="simbolo" viewBox="0 0 64 64">
+      <g fill="none" stroke="url(#grad-marca)" stroke-width="3.4" stroke-linecap="round">
+        <path d="M29 25 C27 18 22 13 15 10" />
+        <path d="M21 14 L19 6" />
+        <path d="M35 25 C37 18 42 14 49 11" />
+        <path d="M43 15 L48 6" />
+        <path d="M26 31 C19 31 13 35 7 32" />
+        <path d="M38 31 C45 31 51 34 57 31" />
+        <path d="M32 37 L32 51" />
+      </g>
+      <circle cx="32" cy="30" r="7.5" fill="url(#grad-marca)" />
+      <circle cx="32" cy="56" r="4" fill="#3ee6e0" />
+    </symbol>
+    <symbol id="i-foco" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M9 2h6" /></g></symbol>
+    <symbol id="i-rede" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="7" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="12" cy="18" r="2.5" /><path d="M8.3 8.2 10.8 15.7M15.9 7.7 13.2 15.8M8.5 6.8 15.5 6.2" /></g></symbol>
+    <symbol id="i-historico" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></g></symbol>
+    <symbol id="i-estat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V12M12 20V5M19 20v-9" /></g></symbol>
+    <symbol id="i-mais" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></g></symbol>
+    <symbol id="i-trofeu" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H4.5a3.5 3.5 0 0 0 3.8 4M16 6h3.5a3.5 3.5 0 0 1-3.8 4M12 13v4M8.5 20h7" /></g></symbol>
+    <symbol id="i-chama" viewBox="0 0 24 24"><path fill="currentColor" d="M12.5 2.5c.5 3-1.6 4.6-3 6.4C8.2 10.6 7 12.3 7 14.6A5 5 0 0 0 12 20a5 5 0 0 0 5-5.2c0-2.3-1.2-3.7-2.1-4.9-.3 1.3-1 2.2-2 2.6.6-2.9.4-6.6-.4-10Z" /></symbol>
+    <symbol id="i-olho" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /></g></symbol>
+  </defs>
+</svg>
+
+<div class="pagina">
+  <header class="topo">
+    <svg width="56" height="56" aria-hidden="true"><use href="#simbolo" /></svg>
+    <h1>Identidade visual e protótipo</h1>
+  </header>
+  <p class="subtitulo">Proposta para a issue #8. Tudo aqui é sugestão para o grupo discutir e aprovar: cores, fontes, logo, o desenho do neurônio e as principais telas no celular.</p>
+
+  <!-- ================= CONCEITO ================= -->
+  <section class="bloco" data-bloco="conceito">
+    <h2>Conceito</h2>
+    <p class="intro">Um cérebro à noite: fundo escuro e calmo, com neurônios que brilham como bioluminescência. O app deve parecer silencioso enquanto você foca, e "acender" quando você conquista algo.</p>
+    <div class="grade">
+      <div class="cartao"><ul class="lista">
+        <li><strong>Escuro por padrão.</strong> Menos estímulo visual durante o foco, e o brilho das sinapses se destaca. O tema claro fica para a issue #37.</li>
+        <li><strong>O brilho é a recompensa.</strong> Só o que está "vivo" brilha: neurônios formados, sinapses acesas, conquistas. Neurônios podados ficam opacos e cinzas.</li>
+      </ul></div>
+      <div class="cartao"><ul class="lista">
+        <li><strong>Celular primeiro.</strong> O vício é sobretudo no celular (#35), então as telas foram pensadas para 360 px de largura.</li>
+        <li><strong>Forma = tipo, cor = matéria.</strong> A forma do neurônio diz quanto tempo durou a sessão (#22); a cor diz qual matéria foi estudada (#28).</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- ================= LOGO ================= -->
+  <section class="bloco" data-bloco="identidade">
+    <h2>Logo</h2>
+    <p class="intro">Um neurônio simplificado: corpo celular, dendritos para cima e para os lados, e o axônio terminando num botão sináptico ciano, o ponto onde a conexão acontece. O degradê vai do violeta (sinapse) ao ciano (impulso).</p>
+    <div class="logo-linha">
+      <div class="logo-caixa" style="background: var(--fundo)">
+        <div style="display: flex; align-items: center; gap: 14px">
+          <svg width="64" height="64" aria-hidden="true"><use href="#simbolo" /></svg>
+          <span class="marca-texto" style="font-size: 40px">synapse</span>
+        </div>
+        <small>Principal, sobre fundo escuro</small>
+      </div>
+      <div class="logo-caixa claro">
+        <div style="display: flex; align-items: center; gap: 14px">
+          <svg width="64" height="64" aria-hidden="true"><use href="#simbolo" /></svg>
+          <span class="marca-texto" style="font-size: 40px; color: #141730">synapse</span>
+        </div>
+        <small style="color: #6b7097">Sobre fundo claro</small>
+      </div>
+      <div class="logo-caixa" style="background: var(--superficie)">
+        <div style="display: flex; align-items: flex-end; gap: 22px">
+          <svg width="96" height="96" aria-hidden="true"><use href="#simbolo" /></svg>
+          <svg width="32" height="32" aria-hidden="true"><use href="#simbolo" /></svg>
+          <svg width="16" height="16" aria-hidden="true"><use href="#simbolo" /></svg>
+        </div>
+        <small>Só o símbolo: ícone do app e favicon</small>
+      </div>
+    </div>
+
+    <h2 style="margin-top: 56px; font-size: 26px">Paleta</h2>
+    <p class="intro" style="color: var(--texto-suave); margin: 8px 0 28px">Base escura em tons de azul-noite. Duas cores de marca e quatro cores de estado, cada uma com um papel fixo.</p>
+    <div class="paleta-grupo" id="paleta"></div>
+
+    <h2 style="margin-top: 32px; font-size: 26px">Tipografia</h2>
+    <p class="intro" style="color: var(--texto-suave); margin: 8px 0 28px">Três famílias gratuitas do Google Fonts. Space Grotesk tem um ar técnico e científico, Inter é muito legível em tela pequena, e a JetBrains Mono deixa os números do timer com largura fixa, para eles não "pularem".</p>
+    <div class="cartao">
+      <div class="tipo-linha"><span class="rotulo">Space Grotesk 700<br />títulos e logo</span><span style="font-family: var(--fonte-titulo); font-weight: 700; font-size: 34px">Sua rede cresceu</span></div>
+      <div class="tipo-linha"><span class="rotulo">Space Grotesk 500<br />subtítulos</span><span style="font-family: var(--fonte-titulo); font-weight: 500; font-size: 22px">Piramidal · 45 min · Cálculo</span></div>
+      <div class="tipo-linha"><span class="rotulo">Inter 400 / 600<br />textos e botões</span><span style="font-size: 16px">Se você sair da tela, o neurônio desta sessão será <b>podado</b>.</span></div>
+      <div class="tipo-linha"><span class="rotulo">JetBrains Mono 700<br />timer e números</span><span style="font-family: var(--fonte-numero); font-weight: 700; font-size: 44px">24:13</span></div>
+    </div>
+  </section>
+
+  <!-- ================= NEURÔNIOS ================= -->
+  <section class="bloco" data-bloco="neuronios">
+    <h2>O neurônio</h2>
+    <p class="intro">O elemento central do app. Cada tipo (#22) tem uma forma inspirada no neurônio real, e todos são gerados por código a partir de três parâmetros: tipo, progresso da sessão e cor da matéria.</p>
+    <div class="neuronios cartao" style="margin-bottom: 20px">
+      <div class="neuronio-caixa"><svg data-neuronio="granular" data-progresso="1" data-cor="#3ee6e0"></svg><b>Granular</b><span>sessões de 10 a 24 min</span></div>
+      <div class="neuronio-caixa"><svg data-neuronio="piramidal" data-progresso="1" data-cor="#8b7bff"></svg><b>Piramidal</b><span>sessões de 25 a 59 min</span></div>
+      <div class="neuronio-caixa"><svg data-neuronio="purkinje" data-progresso="1" data-cor="#ffc857"></svg><b>Purkinje</b><span>sessões de 60 min ou mais</span></div>
+      <div class="neuronio-caixa"><svg data-neuronio="piramidal" data-progresso="1" data-podado="1"></svg><b>Podado</b><span>sessão interrompida: cinza, retraído e sem brilho</span></div>
+    </div>
+    <div class="cartao">
+      <div class="rotulo-campo">Crescimento durante a sessão (#19)</div>
+      <div class="crescimento">
+        <div><svg data-neuronio="piramidal" data-progresso="0.08" data-cor="#8b7bff"></svg>início: corpo celular</div>
+        <div><svg data-neuronio="piramidal" data-progresso="0.35" data-cor="#8b7bff"></svg>dendritos principais</div>
+        <div><svg data-neuronio="piramidal" data-progresso="0.65" data-cor="#8b7bff"></svg>ramificações</div>
+        <div><svg data-neuronio="piramidal" data-progresso="0.88" data-cor="#8b7bff"></svg>axônio</div>
+        <div><svg data-neuronio="piramidal" data-progresso="1" data-cor="#8b7bff"></svg>completo e brilhando</div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center; margin-top: 24px">
+        <svg id="neuronio-vivo" style="width: 200px; height: 200px"></svg>
+        <div style="flex: 1 1 260px">
+          <div class="rotulo-campo">Experimente</div>
+          <div class="controle"><span>Progresso</span><input id="ctl-progresso" type="range" min="0" max="100" value="0" /><span id="ctl-valor" style="font-family: var(--fonte-numero); width: 44px">0%</span></div>
+          <div class="chips" style="margin-top: 12px" id="ctl-tipos">
+            <span class="chip" data-tipo="granular">Granular</span>
+            <span class="chip ativo" data-tipo="piramidal">Piramidal</span>
+            <span class="chip" data-tipo="purkinje">Purkinje</span>
+            <span class="chip" data-tipo="podado">Podar</span>
+          </div>
+          <p class="fraco" style="margin-top: 12px">O neurônio cresce sozinho em loop; arraste para controlar.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TELAS ================= -->
+  <section class="bloco" data-bloco="telas">
+    <h2>Telas</h2>
+    <p class="intro">As telas que a issue #8 pede, mais a de desistência e a de sucesso. A navegação é por abas embaixo: <b>Foco</b>, <b>Rede</b>, <b>Histórico</b> e <b>Estatísticas</b>; matérias, conquistas e loja ficam em "Mais".</p>
+    <div class="telas">
+
+      <!-- 1. LOGIN -->
+      <figure class="tela" data-bloco="tela-login">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo" style="justify-content: center; gap: 22px; position: relative">
+            <svg data-rede-fundo style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5; -webkit-mask-image: linear-gradient(#000 0%, transparent 34%, transparent 92%, #000 100%); mask-image: linear-gradient(#000 0%, transparent 34%, transparent 92%, #000 100%)"></svg>
+            <div class="centro" style="position: relative">
+              <svg width="72" height="72" aria-hidden="true"><use href="#simbolo" /></svg>
+              <div class="marca-texto" style="font-size: 34px">synapse</div>
+              <p class="suave" style="margin: 6px 0 0">Cada minuto de foco vira uma conexão.</p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px; position: relative">
+              <label class="campo">E-mail<div class="entrada">ana@email.com</div></label>
+              <label class="campo">Senha<div class="entrada foco" style="justify-content: space-between">●●●●●●●●●<svg width="20" height="20" style="color: var(--texto-fraco)"><use href="#i-olho" /></svg></div></label>
+              <button class="botao primario" style="margin-top: 6px">Entrar</button>
+              <p class="centro suave" style="margin: 4px 0 0; font-size: 14px">Não tem conta? <a href="#">Criar conta</a></p>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>1. Login.</b> A rede ao fundo antecipa a recompensa. O cadastro (#15) segue o mesmo visual, com o campo "Nome" a mais.</figcaption>
+      </figure>
+
+      <!-- 2. FOCO: CONFIGURAÇÃO -->
+      <figure class="tela" data-bloco="tela-foco">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo">
+            <div class="cab"><h2>Focar</h2><span class="selo sequencia"><svg width="14" height="14"><use href="#i-chama" /></svg>5 dias seguidos</span></div>
+            <div class="centro" style="padding-top: 4px">
+              <div class="seletor-duracao">
+                <span class="menos">−</span>
+                <div style="position: relative; width: 168px; height: 168px">
+                  <svg viewBox="0 0 168 168" width="168" height="168">
+                    <circle cx="84" cy="84" r="72" fill="none" stroke="var(--superficie-2)" stroke-width="10" />
+                    <circle cx="84" cy="84" r="72" fill="none" stroke="var(--sinapse)" stroke-width="10" stroke-linecap="round" pathLength="120" stroke-dasharray="45 120" transform="rotate(-90 84 84)" filter="url(#brilho)" />
+                  </svg>
+                  <div style="position: absolute; inset: 0; display: grid; place-content: center">
+                    <span style="font-family: var(--fonte-numero); font-weight: 700; font-size: 44px; line-height: 1">45</span>
+                    <span class="fraco">minutos</span>
+                  </div>
+                </div>
+                <span class="mais">+</span>
+              </div>
+              <p class="fraco" style="margin: 8px 0 0">De 10 a 120 min · gera um neurônio <b style="color: var(--texto-suave)">Piramidal</b></p>
+            </div>
+            <div>
+              <div class="rotulo-campo">Matéria</div>
+              <div class="chips">
+                <span class="chip ativo"><i style="background: #8b7bff"></i>Cálculo</span>
+                <span class="chip"><i style="background: #3ee6e0"></i>POO</span>
+                <span class="chip"><i style="background: #ffc857"></i>Física</span>
+                <span class="chip">Sem matéria</span>
+              </div>
+            </div>
+            <div>
+              <div class="rotulo-campo">Modo</div>
+              <div class="segmentado">
+                <div class="segmento ativo"><b>Estrito</b><span>Saiu da tela, o neurônio é podado na hora.</span></div>
+                <div class="segmento"><b>Tolerante</b><span>Até 10 s fora são perdoados.</span></div>
+              </div>
+            </div>
+            <button class="botao primario" style="margin-top: auto">Começar a focar</button>
+          </div>
+          <nav class="abas">
+            <span class="aba ativa"><svg><use href="#i-foco" /></svg>Foco</span>
+            <span class="aba"><svg><use href="#i-rede" /></svg>Rede</span>
+            <span class="aba"><svg><use href="#i-historico" /></svg>Histórico</span>
+            <span class="aba"><svg><use href="#i-estat" /></svg>Estatísticas</span>
+            <span class="aba"><svg><use href="#i-mais" /></svg>Mais</span>
+          </nav>
+        </div>
+        <figcaption><b>2. Foco: antes de começar.</b> Duração, matéria e modo em uma tela só. A sequência de dias (#33) fica sempre visível.</figcaption>
+      </figure>
+
+      <!-- 3. FOCO: EM ANDAMENTO -->
+      <figure class="tela" data-bloco="tela-sessao">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo" style="justify-content: space-between">
+            <div class="centro"><span class="selo"><i style="width: 8px; height: 8px; border-radius: 50%; background: #8b7bff; display: inline-block"></i>Cálculo · Modo estrito</span></div>
+            <div class="centro">
+              <svg data-neuronio="piramidal" data-progresso="0.55" data-cor="#8b7bff" style="width: 260px; height: 260px"></svg>
+            </div>
+            <div>
+              <div class="timer">24:13</div>
+              <p class="centro fraco" style="margin: 8px 0 0">de 45:00 · seu neurônio está crescendo</p>
+            </div>
+            <div class="aviso"><svg width="18" height="18" style="flex: none; color: var(--impulso)"><use href="#i-olho" /></svg>Trocar de aba, de app ou sair da tela cheia poda este neurônio.</div>
+            <button class="botao fantasma">Desistir</button>
+          </div>
+        </div>
+        <figcaption><b>3. Sessão em andamento.</b> Tela cheia e sem abas: nada para clicar além de "Desistir". O neurônio cresce junto com o timer (#17, #19).</figcaption>
+      </figure>
+
+      <!-- 4. DESISTIR -->
+      <figure class="tela" data-bloco="tela-desistir">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo" style="justify-content: space-between; opacity: 0.5">
+            <div class="centro"><span class="selo">Cálculo · Modo estrito</span></div>
+            <div class="centro"><svg data-neuronio="piramidal" data-progresso="0.55" data-cor="#8b7bff" style="width: 260px; height: 260px"></svg></div>
+            <div class="timer">24:13</div>
+            <div style="height: 120px"></div>
+          </div>
+          <div class="dialogo-fundo">
+            <div class="dialogo">
+              <h2 style="font-size: 22px">Desistir agora?</h2>
+              <p class="suave" style="margin: 0">Seu neurônio vai morrer. A sessão conta como podada e não entra na sua rede.</p>
+              <button class="botao primario">Continuar focando</button>
+              <button class="botao secundario" style="color: var(--poda)">Desistir e podar</button>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>4. Confirmação de desistência.</b> A ação recomendada (continuar) é o botão de destaque; desistir exige um segundo toque (#17).</figcaption>
+      </figure>
+
+      <!-- 5. SUCESSO -->
+      <figure class="tela" data-bloco="tela-sucesso">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo" style="justify-content: space-between">
+            <div class="centro" style="padding-top: 10px">
+              <p class="rotulo-campo" style="color: var(--vivo)">Sessão concluída</p>
+              <h2 style="font-size: 28px">Neurônio formado!</h2>
+            </div>
+            <div class="centro"><svg data-neuronio="piramidal" data-progresso="1" data-cor="#8b7bff" data-brilho="forte" style="width: 240px; height: 240px"></svg></div>
+            <div class="centro">
+              <div style="font-family: var(--fonte-titulo); font-size: 18px; font-weight: 500">Piramidal · 45 min · Cálculo</div>
+              <p class="fraco" style="margin: 6px 0 12px">Conectado a 3 neurônios da sua rede</p>
+              <span class="selo atp">+45 ATP</span>
+            </div>
+            <div class="toast">
+              <span class="icone"><svg width="20" height="20"><use href="#i-trofeu" /></svg></span>
+              <div><b>Conquista desbloqueada</b><span>7 dias seguidos</span></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <button class="botao primario">Ver na minha rede</button>
+              <button class="botao fantasma">Focar de novo</button>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>5. Sucesso.</b> O neurônio completo brilha, e logo abaixo aparecem a recompensa em ATP (#34) e a conquista (#33).</figcaption>
+      </figure>
+
+      <!-- 6. PODA -->
+      <figure class="tela" data-bloco="tela-poda">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo" style="justify-content: space-between">
+            <div class="centro" style="padding-top: 10px">
+              <p class="rotulo-campo" style="color: var(--poda)">Poda sináptica</p>
+              <h2 style="font-size: 28px">A conexão se perdeu</h2>
+            </div>
+            <div class="centro"><svg data-neuronio="piramidal" data-progresso="1" data-podado="1" style="width: 240px; height: 240px"></svg></div>
+            <div class="centro">
+              <p class="suave" style="margin: 0">Você saiu da tela aos <b style="color: var(--texto); font-family: var(--fonte-numero)">20:47</b>.</p>
+              <p class="fraco" style="margin: 8px 0 0">Este neurônio fica na sua rede como podado, sem conexões. Acontece, o importante é voltar.</p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <button class="botao primario">Tentar de novo</button>
+              <button class="botao fantasma">Ver histórico</button>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>6. Poda.</b> O mesmo neurônio, retraído e cinza. O tom é de incentivo, não de bronca: o público luta contra um vício (#6).</figcaption>
+      </figure>
+
+      <!-- 7. REDE -->
+      <figure class="tela" data-bloco="tela-rede">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo">
+            <div class="cab"><h2>Sua rede</h2><span class="selo" id="rede-resumo"></span></div>
+            <div class="filtros">
+              <span class="chip ativo">Tudo</span>
+              <span class="chip"><i style="background: #8b7bff"></i>Cálculo</span>
+              <span class="chip"><i style="background: #3ee6e0"></i>POO</span>
+              <span class="chip"><i style="background: #ffc857"></i>Física</span>
+            </div>
+            <div class="rede-area" id="rede-area">
+              <svg id="rede" viewBox="0 0 316 470" preserveAspectRatio="xMidYMid meet"></svg>
+              <div class="dica-no" id="rede-dica"></div>
+            </div>
+            <p class="fraco centro" style="margin: 0">Toque num neurônio para acender suas conexões</p>
+          </div>
+          <nav class="abas">
+            <span class="aba"><svg><use href="#i-foco" /></svg>Foco</span>
+            <span class="aba ativa"><svg><use href="#i-rede" /></svg>Rede</span>
+            <span class="aba"><svg><use href="#i-historico" /></svg>Histórico</span>
+            <span class="aba"><svg><use href="#i-estat" /></svg>Estatísticas</span>
+            <span class="aba"><svg><use href="#i-mais" /></svg>Mais</span>
+          </nav>
+        </div>
+        <figcaption><b>7. Rede neural.</b> Gerada com a regra da #23: cada neurônio se liga aos 2 mais recentes e ao último da mesma matéria. <b>Nesta página, passe o mouse sobre os neurônios.</b></figcaption>
+      </figure>
+
+      <!-- 8. ESTATÍSTICAS -->
+      <figure class="tela" data-bloco="tela-estatisticas">
+        <div class="celular">
+          <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div>
+          <div class="corpo" style="gap: 14px">
+            <div class="cab"><h2>Estatísticas</h2></div>
+            <div class="segmentado" style="grid-template-columns: repeat(3, 1fr)">
+              <div class="segmento centro" style="padding: 8px"><b>Dia</b></div>
+              <div class="segmento ativo centro" style="padding: 8px"><b>Semana</b></div>
+              <div class="segmento centro" style="padding: 8px"><b>Mês</b></div>
+            </div>
+            <div class="numeros">
+              <div class="numero"><b>7h 00</b><span>tempo focado</span></div>
+              <div class="numero"><b style="color: var(--vivo)">82%</b><span>sessões concluídas</span></div>
+              <div class="numero"><b style="color: var(--atp)">5 dias</b><span>sequência atual</span></div>
+              <div class="numero"><b>19h–21h</b><span>seu melhor horário</span></div>
+            </div>
+            <div class="cartao" style="padding: 14px; border-radius: var(--raio)">
+              <div class="rotulo-campo">Minutos por dia</div>
+              <svg id="grafico-barras" viewBox="0 0 290 120" style="width: 100%; height: auto"></svg>
+            </div>
+            <div class="cartao" style="padding: 14px; border-radius: var(--raio); display: flex; gap: 16px; align-items: center">
+              <svg id="grafico-rosca" viewBox="0 0 100 100" style="width: 92px; height: 92px; flex: none"></svg>
+              <div id="legenda-rosca" style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; flex: 1"></div>
+            </div>
+          </div>
+          <nav class="abas">
+            <span class="aba"><svg><use href="#i-foco" /></svg>Foco</span>
+            <span class="aba"><svg><use href="#i-rede" /></svg>Rede</span>
+            <span class="aba"><svg><use href="#i-historico" /></svg>Histórico</span>
+            <span class="aba ativa"><svg><use href="#i-estat" /></svg>Estatísticas</span>
+            <span class="aba"><svg><use href="#i-mais" /></svg>Mais</span>
+          </nav>
+        </div>
+        <figcaption><b>8. Estatísticas.</b> Os quatro números de destaque e os dois gráficos previstos na #31, com as cores das matérias.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= COMPONENTES ================= -->
+  <section class="bloco" data-bloco="componentes">
+    <h2>Componentes</h2>
+    <p class="intro">As peças que se repetem nas telas. Cantos arredondados de 14 px, botões com 52 px de altura (bom alvo de toque) e foco visível em tudo que é clicável (#36).</p>
+    <div class="cartao componentes">
+      <div>
+        <div class="rotulo-campo">Botões</div>
+        <button class="botao primario">Primário</button>
+        <button class="botao secundario">Secundário</button>
+        <button class="botao perigo">Perigo</button>
+        <button class="botao fantasma">Fantasma</button>
+      </div>
+      <div>
+        <div class="rotulo-campo">Campos</div>
+        <label class="campo">Normal<div class="entrada vazio">seu@email.com</div></label>
+        <label class="campo">Em foco<div class="entrada foco">ana@email.com</div></label>
+        <label class="campo" style="color: var(--poda)">Com erro<div class="entrada" style="border-color: var(--poda)">ana@</div><span style="font-size: 12px">Digite um e-mail válido.</span></label>
+      </div>
+      <div>
+        <div class="rotulo-campo">Chips e selos</div>
+        <div class="chips">
+          <span class="chip ativo"><i style="background: #8b7bff"></i>Selecionado</span>
+          <span class="chip"><i style="background: #3ee6e0"></i>Normal</span>
+        </div>
+        <div class="chips">
+          <span class="selo sequencia"><svg width="14" height="14"><use href="#i-chama" /></svg>5 dias seguidos</span>
+          <span class="selo atp">+45 ATP</span>
+          <span class="selo">Cálculo · Estrito</span>
+        </div>
+        <div class="toast" style="margin-top: 4px">
+          <span class="icone"><svg width="20" height="20"><use href="#i-trofeu" /></svg></span>
+          <div><b>Conquista desbloqueada</b><span>Primeiro neurônio</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REFERÊNCIAS ================= -->
+  <section class="bloco" data-bloco="referencias">
+    <h2>Referências visuais</h2>
+    <p class="intro">De onde vieram as ideias, para quem for desenhar ou implementar as telas.</p>
+    <div class="grade">
+      <div class="cartao"><ul class="lista">
+        <li><strong>Desenhos de Ramón y Cajal</strong>: as ilustrações clássicas de neurônios (piramidais, Purkinje) que inspiraram as três formas. <a href="https://commons.wikimedia.org/wiki/Category:Santiago_Ram%C3%B3n_y_Cajal_drawings">Wikimedia Commons</a></li>
+        <li><strong>Imagens de neurônios por fluorescência</strong>: a ideia de "brilho sobre fundo escuro" vem da microscopia, com estruturas que acendem em cores sobre o preto.</li>
+      </ul></div>
+      <div class="cartao"><ul class="lista">
+        <li><strong>Forest</strong>: o fluxo foco → crescimento → recompensa e a tela de árvore morta, que aqui vira a poda sináptica.</li>
+        <li><strong>Visualizações de grafo com força (d3-force)</strong>: base para a rede interativa da issue #26. <a href="https://d3js.org/d3-force">d3js.org/d3-force</a></li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- ================= DECISÕES ================= -->
+  <section class="bloco" data-bloco="decisoes">
+    <h2>Para o grupo decidir</h2>
+    <p class="intro">Este protótipo assume algumas respostas para pontos que as issues deixam em aberto. Se o grupo discordar, é só ajustar.</p>
+    <div class="cartao"><ul class="lista">
+      <li><strong>Cor do neurônio:</strong> o protótipo usa a cor da <em>matéria</em>, e o <em>tipo</em> muda só a forma. Sem matéria, o neurônio usa o violeta da marca.</li>
+      <li><strong>Modo padrão (#11):</strong> o seletor Estrito/Tolerante fica na própria tela de foco e lembra a última escolha, sem precisar de uma tela de perfil.</li>
+      <li><strong>Abas:</strong> Foco, Rede, Histórico, Estatísticas e Mais (matérias, conquistas, loja, tema, sair).</li>
+      <li><strong>Loja de ATP (#34):</strong> ainda sem tela no protótipo. A sugestão é que os tipos comprados sejam <em>variações de cor ou de brilho</em>, mantendo a forma ligada à duração.</li>
+    </ul></div>
+  </section>
+</div>
+
+<script>
+  // ---------------------------------------------------------------- utilidades
+  const NS = 'http://www.w3.org/2000/svg'
+  const PAPEL = { podado: '#4a4f6e', marca: '#8b7bff' }
+
+  function aleatorio(semente) {
+    // mulberry32: números "aleatórios" reproduzíveis, para o desenho ser sempre o mesmo
+    return function () {
+      semente |= 0
+      semente = (semente + 0x6d2b79f5) | 0
+      let t = Math.imul(semente ^ (semente >>> 15), 1 | semente)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  const limitar = (v) => Math.max(0, Math.min(1, v))
+  const rad = (graus) => (graus * Math.PI) / 180
+
+  // ---------------------------------------------------------------- neurônio
+  // Cada tipo: forma do corpo celular, troncos de dendritos e comprimento do axônio
+  const TIPOS = {
+    granular: {
+      semente: 7, corpo: 'circulo', raio: 8, centroY: 0, axonio: 44, largura: 2.4, abertura: 0.6, encurta: 0.62,
+      troncos: [{ ang: -140, len: 28, prof: 1 }, { ang: -50, len: 26, prof: 1 }, { ang: 30, len: 24, prof: 1 }, { ang: 150, len: 26, prof: 1 }],
+    },
+    piramidal: {
+      semente: 11, corpo: 'triangulo', raio: 13, centroY: 14, axonio: 50, largura: 2.8, abertura: 0.52, encurta: 0.68,
+      troncos: [{ ang: -90, len: 31, prof: 3 }, { ang: 155, len: 26, prof: 1 }, { ang: 25, len: 26, prof: 1 }, { ang: 120, len: 18, prof: 0 }],
+    },
+    purkinje: {
+      semente: 5, corpo: 'circulo', raio: 11, centroY: 22, axonio: 46, largura: 2.6, abertura: 0.42, encurta: 0.74,
+      troncos: [{ ang: -118, len: 26, prof: 4 }, { ang: -62, len: 26, prof: 4 }],
+    },
+  }
+
+  function gerarRamos(tipo) {
+    const cfg = TIPOS[tipo]
+    const rnd = aleatorio(cfg.semente)
+    const segmentos = []
+    function ramo(x, y, ang, len, prof, nivel) {
+      const a = ang + (rnd() - 0.5) * 0.25
+      const x2 = x + Math.cos(a) * len
+      const y2 = y + Math.sin(a) * len
+      const curva = (rnd() - 0.5) * len * 0.35
+      const cx = (x + x2) / 2 - Math.sin(a) * curva
+      const cy = (y + y2) / 2 + Math.cos(a) * curva
+      segmentos.push({ d: `M${x.toFixed(1)} ${y.toFixed(1)}Q${cx.toFixed(1)} ${cy.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`, nivel, largura: Math.max(0.9, cfg.largura * (1 - nivel * 0.2)), fim: [x2, y2] })
+      if (prof > 0) {
+        ramo(x2, y2, a - cfg.abertura + (rnd() - 0.5) * 0.2, len * cfg.encurta, prof - 1, nivel + 1)
+        ramo(x2, y2, a + cfg.abertura + (rnd() - 0.5) * 0.2, len * cfg.encurta, prof - 1, nivel + 1)
+      }
+    }
+    for (const t of cfg.troncos) {
+      const a = rad(t.ang)
+      ramo(Math.cos(a) * cfg.raio * 0.8, cfg.centroY + Math.sin(a) * cfg.raio * 0.8, a, t.len, t.prof, 0)
+    }
+    const niveis = Math.max(...segmentos.map((s) => s.nivel)) + 1
+    return { cfg, segmentos, niveis }
+  }
+  const CACHE_RAMOS = {}
+
+  function desenharNeuronio(svg, { tipo = 'piramidal', progresso = 1, cor = PAPEL.marca, podado = false, brilho = 'normal' }) {
+    const { cfg, segmentos, niveis } = (CACHE_RAMOS[tipo] ??= gerarRamos(tipo))
+    // Podado: o neurônio "recolhe" até ~40% e perde a cor
+    const p = podado ? Math.min(progresso, 0.42) : progresso
+    const corFinal = podado ? PAPEL.podado : cor
+    const vivoCompleto = !podado && p >= 1
+    const janela = 0.66 / niveis
+    const partes = []
+
+    for (const s of segmentos) {
+      const t = limitar((p - 0.12 - s.nivel * janela) / janela)
+      if (t <= 0) continue
+      partes.push(`<path d="${s.d}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${(1 - t).toFixed(3)}" stroke-width="${s.largura.toFixed(2)}"/>`)
+      if (t >= 1 && s.nivel === niveis - 1 && !podado) partes.push(`<circle cx="${s.fim[0].toFixed(1)}" cy="${s.fim[1].toFixed(1)}" r="1.4" fill="${corFinal}" stroke="none"/>`)
+    }
+    const tAx = limitar((p - 0.8) / 0.2)
+    const yIni = cfg.centroY + cfg.raio * 0.8
+    if (tAx > 0) {
+      const yFim = yIni + cfg.axonio
+      partes.push(`<path d="M0 ${yIni}C4 ${yIni + cfg.axonio * 0.4} -4 ${yIni + cfg.axonio * 0.7} 0 ${yFim}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="${(1 - tAx).toFixed(3)}" stroke-width="${cfg.largura * 0.8}"/>`)
+      if (tAx >= 1) partes.push(`<circle cx="0" cy="${yFim + 3}" r="3.6" fill="${podado ? PAPEL.podado : '#3ee6e0'}" stroke="none"/>`)
+    }
+    const escala = limitar(p / 0.12)
+    const r = cfg.raio * (0.4 + 0.6 * escala)
+    const corpo = cfg.corpo === 'triangulo'
+      ? `<path d="M0 ${cfg.centroY - r * 1.25}L${r * 1.05} ${cfg.centroY + r * 0.75}L${-r * 1.05} ${cfg.centroY + r * 0.75}Z" stroke-linejoin="round" stroke-width="2" fill="${corFinal}"/>`
+      : `<circle cx="0" cy="${cfg.centroY}" r="${r.toFixed(2)}" fill="${corFinal}" stroke="none"/>`
+    const filtro = podado ? '' : vivoCompleto && brilho === 'forte' ? 'url(#brilho-forte)' : 'url(#brilho)'
+
+    svg.setAttribute('viewBox', '-80 -80 160 160')
+    svg.setAttribute('role', 'img')
+    svg.setAttribute('aria-label', `Neurônio ${tipo}${podado ? ' podado' : ''}, ${Math.round(p * 100)}% formado`)
+    svg.innerHTML = `<g fill="none" stroke="${corFinal}" stroke-linecap="round" opacity="${podado ? 0.75 : 1}" ${filtro ? `filter="${filtro}"` : ''}>${partes.join('')}${corpo}</g>`
+  }
+
+  document.querySelectorAll('svg[data-neuronio]').forEach((svg) => {
+    desenharNeuronio(svg, {
+      tipo: svg.dataset.neuronio,
+      progresso: Number(svg.dataset.progresso ?? 1),
+      cor: svg.dataset.cor,
+      podado: svg.dataset.podado === '1',
+      brilho: svg.dataset.brilho,
+    })
+  })
+
+  // Neurônio interativo
+  ;(function () {
+    const svg = document.getElementById('neuronio-vivo')
+    const slider = document.getElementById('ctl-progresso')
+    const valor = document.getElementById('ctl-valor')
+    const cores = { granular: '#3ee6e0', piramidal: '#8b7bff', purkinje: '#ffc857' }
+    let tipo = 'piramidal'
+    let podado = false
+    let automatico = true
+    let p = 0 // vai até 1.25: o neurônio fica completo por um instante antes de recomeçar
+    function render() {
+      const progresso = Math.min(p, 1)
+      desenharNeuronio(svg, { tipo, progresso, cor: cores[tipo], podado })
+      slider.value = Math.round(progresso * 100)
+      valor.textContent = `${Math.round(progresso * 100)}%`
+    }
+    slider.addEventListener('input', () => { automatico = false; p = slider.value / 100; render() })
+    document.querySelectorAll('#ctl-tipos .chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        if (chip.dataset.tipo === 'podado') { podado = !podado; chip.classList.toggle('ativo', podado) }
+        else {
+          tipo = chip.dataset.tipo
+          document.querySelectorAll('#ctl-tipos .chip:not([data-tipo="podado"])').forEach((c) => c.classList.toggle('ativo', c === chip))
+        }
+        render()
+      })
+    })
+    let ultimo = performance.now()
+    function quadro(agora) {
+      if (automatico) {
+        p = (p + (agora - ultimo) / 6000) % 1.25
+        render()
+      }
+      ultimo = agora
+      requestAnimationFrame(quadro)
+    }
+    const semAnimacao = matchMedia('(prefers-reduced-motion: reduce)').matches || new URLSearchParams(location.search).has('so')
+    if (semAnimacao) p = 1
+    render()
+    if (!semAnimacao) requestAnimationFrame(quadro)
+  })()
+
+  // ---------------------------------------------------------------- paleta
+  ;(function () {
+    const grupos = [
+      ['Base', [
+        ['Fundo', '#0B0D1A', 'telas'], ['Superfície', '#141730', 'cartões, abas'], ['Superfície 2', '#1C2042', 'diálogos, selos'],
+        ['Borda', '#2A2F55', 'contornos'], ['Texto', '#ECEDF7', 'texto principal'], ['Texto suave', '#9CA1C6', 'secundário'], ['Texto fraco', '#6B7097', 'legendas'],
+      ]],
+      ['Marca', [['Sinapse', '#8B7BFF', 'ação principal'], ['Impulso', '#3EE6E0', 'brilho, conexões acesas']]],
+      ['Estados', [['Vivo', '#5BE49B', 'sucesso'], ['Poda', '#FF5C7A', 'erro, poda'], ['Podado', '#4A4F6E', 'neurônio morto'], ['ATP', '#FFC857', 'moeda, sequência, conquistas']]],
+      ['Matérias (o estudante escolhe uma)', [
+        ['Violeta', '#8B7BFF', ''], ['Ciano', '#3EE6E0', ''], ['Verde', '#5BE49B', ''], ['Âmbar', '#FFC857', ''],
+        ['Laranja', '#FF8A5C', ''], ['Rosa', '#FF6FB5', ''], ['Azul', '#6FA8FF', ''], ['Lima', '#C3E86B', ''],
+      ]],
+    ]
+    document.getElementById('paleta').innerHTML = grupos.map(([titulo, cores]) => `
+      <h3>${titulo}</h3>
+      <div class="amostras">${cores.map(([nome, hex, uso]) => `
+        <div class="amostra"><div class="cor" style="background:${hex}"></div><b>${nome}</b><code>${hex}</code>${uso ? `<span>${uso}</span>` : ''}</div>`).join('')}
+      </div>`).join('')
+  })()
+
+  // ---------------------------------------------------------------- rede (regra da issue #23)
+  const MATERIAS = [
+    { nome: 'Cálculo', cor: '#8b7bff' },
+    { nome: 'POO', cor: '#3ee6e0' },
+    { nome: 'Física', cor: '#ffc857' },
+  ]
+  function tipoPorDuracao(min) { return min < 25 ? 'granular' : min < 60 ? 'piramidal' : 'purkinje' }
+
+  function gerarRede(qtd, semente, largura, altura) {
+    const rnd = aleatorio(semente)
+    const duracoes = [15, 20, 25, 30, 45, 50, 60, 90]
+    const nos = []
+    const arestas = []
+    for (let i = 0; i < qtd; i++) {
+      const duracao = duracoes[Math.floor(rnd() * duracoes.length)]
+      const vivo = i < 2 || rnd() > 0.16
+      const data = new Date(2026, 9, 2 - (qtd - 1 - i)) // a última sessão é "hoje"
+      nos.push({
+        id: i, materia: Math.floor(rnd() * MATERIAS.length), duracao, vivo, tipo: tipoPorDuracao(duracao),
+        x: rnd() * largura, y: rnd() * altura,
+        data: `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}`,
+      })
+    }
+    const chaves = new Set()
+    function ligar(a, b, peso) {
+      if (a === b) return
+      const k = a < b ? `${a}-${b}` : `${b}-${a}`
+      if (chaves.has(k)) return
+      chaves.add(k)
+      arestas.push({ a, b, peso })
+    }
+    const vivosAnteriores = []
+    for (const no of nos) {
+      if (no.vivo) {
+        vivosAnteriores.slice(-2).forEach((ant) => ligar(ant.id, no.id, ant.materia === no.materia ? 2 : 1))
+        const mesmaMateria = [...vivosAnteriores].reverse().find((ant) => ant.materia === no.materia)
+        if (mesmaMateria) ligar(mesmaMateria.id, no.id, 2)
+        vivosAnteriores.push(no)
+      }
+    }
+    posicionar(nos, arestas, largura, altura)
+    return { nos, arestas }
+  }
+
+  // Layout por forças (o mesmo princípio do d3-force sugerido na #26):
+  // neurônios se repelem, sinapses puxam como molas e tudo é atraído levemente para o centro
+  function posicionar(nos, arestas, largura, altura) {
+    const cx = largura / 2, cy = altura / 2
+    for (let passo = 0; passo < 400; passo++) {
+      const calor = 1 - passo / 400
+      const forca = nos.map(() => [0, 0])
+      for (let i = 0; i < nos.length; i++) {
+        for (let j = i + 1; j < nos.length; j++) {
+          const dx = nos[i].x - nos[j].x, dy = nos[i].y - nos[j].y
+          const d2 = Math.max(dx * dx + dy * dy, 4)
+          const f = 1600 / d2
+          const d = Math.sqrt(d2)
+          forca[i][0] += (dx / d) * f; forca[i][1] += (dy / d) * f
+          forca[j][0] -= (dx / d) * f; forca[j][1] -= (dy / d) * f
+        }
+      }
+      for (const e of arestas) {
+        const a = nos[e.a], b = nos[e.b]
+        const dx = b.x - a.x, dy = b.y - a.y
+        const d = Math.max(Math.hypot(dx, dy), 1)
+        const f = (d - 46) * 0.06
+        forca[e.a][0] += (dx / d) * f; forca[e.a][1] += (dy / d) * f
+        forca[e.b][0] -= (dx / d) * f; forca[e.b][1] -= (dy / d) * f
+      }
+      nos.forEach((n, i) => {
+        const fx = forca[i][0] + (cx - n.x) * 0.012
+        const fy = forca[i][1] + (cy - n.y) * 0.012
+        const tam = Math.hypot(fx, fy)
+        const max = 6 * calor + 0.5
+        const k = tam > max ? max / tam : 1
+        n.x += fx * k
+        n.y += fy * k
+      })
+    }
+    // Encaixa a rede na área disponível, com margem
+    const margem = 22
+    const xs = nos.map((n) => n.x), ys = nos.map((n) => n.y)
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys)
+    nos.forEach((n) => {
+      n.x = margem + ((n.x - minX) / (maxX - minX || 1)) * (largura - 2 * margem)
+      n.y = margem + ((n.y - minY) / (maxY - minY || 1)) * (altura - 2 * margem)
+    })
+  }
+
+  const RAIO_TIPO = { granular: 4.5, piramidal: 6.5, purkinje: 9 }
+
+  function desenharRede(svg, rede, { interativa = false, realce = null, dica = null } = {}) {
+    const { nos, arestas } = rede
+    svg.innerHTML = `
+      <g class="arestas">${arestas.map((e) => {
+        const a = nos[e.a], b = nos[e.b]
+        return `<line class="aresta" data-a="${e.a}" data-b="${e.b}" x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#2f3566" stroke-width="${e.peso === 2 ? 1.8 : 1}" stroke-linecap="round"/>`
+      }).join('')}</g>
+      <g class="nos">${nos.map((n) => {
+        const r = RAIO_TIPO[n.tipo]
+        return n.vivo
+          ? `<circle class="no" data-id="${n.id}" cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${r}" fill="${MATERIAS[n.materia].cor}" opacity="0.8"/>`
+          : `<circle class="no" data-id="${n.id}" cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${r * 0.8}" fill="none" stroke="#4a4f6e" stroke-width="1.4" stroke-dasharray="2 2"/>`
+      }).join('')}</g>`
+
+    function realcar(id) {
+      const vizinhos = new Set([id])
+      const segundo = new Set()
+      arestas.forEach((e) => { if (e.a === id) vizinhos.add(e.b); if (e.b === id) vizinhos.add(e.a) })
+      arestas.forEach((e) => { if (vizinhos.has(e.a) && !vizinhos.has(e.b)) segundo.add(e.b); if (vizinhos.has(e.b) && !vizinhos.has(e.a)) segundo.add(e.a) })
+      svg.querySelectorAll('.aresta').forEach((l) => {
+        const a = +l.dataset.a, b = +l.dataset.b
+        const direta = a === id || b === id
+        const indireta = !direta && vizinhos.has(a) && vizinhos.has(b) || (vizinhos.has(a) && segundo.has(b)) || (vizinhos.has(b) && segundo.has(a))
+        l.setAttribute('stroke', direta ? '#3ee6e0' : indireta ? '#2b8f9a' : '#2f3566')
+        l.setAttribute('opacity', direta || indireta ? 1 : 0.45)
+        l.setAttribute('filter', direta ? 'url(#brilho)' : '')
+      })
+      svg.querySelectorAll('.no').forEach((c) => {
+        const n = nos[+c.dataset.id]
+        if (!n.vivo) { c.setAttribute('opacity', 0.6); return }
+        const aceso = vizinhos.has(n.id)
+        c.setAttribute('opacity', aceso ? 1 : segundo.has(n.id) ? 0.8 : 0.35)
+        c.setAttribute('filter', n.id === id ? 'url(#brilho-forte)' : aceso ? 'url(#brilho)' : '')
+        c.setAttribute('r', RAIO_TIPO[n.tipo] * (n.id === id ? 1.35 : 1))
+      })
+      if (dica) {
+        const n = nos[id]
+        const caixa = svg.getBoundingClientRect()
+        const escala = Math.min(caixa.width / 316, caixa.height / 470)
+        const offX = (caixa.width - 316 * escala) / 2
+        const offY = (caixa.height - 470 * escala) / 2
+        const nomeTipo = n.tipo[0].toUpperCase() + n.tipo.slice(1)
+        dica.innerHTML = `<b>${MATERIAS[n.materia].nome} · ${n.duracao} min</b>${nomeTipo} · ${n.data}`
+        const px = offX + n.x * escala
+        const py = offY + n.y * escala
+        dica.style.left = `${Math.min(Math.max(px - 60, 8), caixa.width - 150)}px`
+        dica.style.top = `${py > caixa.height - 80 ? py - 62 : py + 16}px`
+        dica.style.display = 'block'
+      }
+    }
+    if (realce !== null) realcar(realce)
+    if (interativa) {
+      svg.querySelectorAll('.no').forEach((c) => {
+        const id = +c.dataset.id
+        if (!nos[id].vivo) return
+        c.addEventListener('pointerenter', () => realcar(id))
+        c.addEventListener('click', () => realcar(id))
+      })
+    }
+    return realcar
+  }
+
+  ;(function () {
+    const rede = gerarRede(26, 42, 316, 470)
+    const svg = document.getElementById('rede')
+    const ultimoVivo = [...rede.nos].reverse().find((n) => n.vivo).id
+    const realcar = desenharRede(svg, rede, { interativa: true, dica: document.getElementById('rede-dica') })
+    const vivos = rede.nos.filter((n) => n.vivo).length
+    document.getElementById('rede-resumo').textContent = `${rede.nos.length} neurônios · ${rede.arestas.length} sinapses`
+    svg.setAttribute('role', 'img')
+    svg.setAttribute('aria-label', `Rede com ${vivos} neurônios vivos, ${rede.nos.length - vivos} podados e ${rede.arestas.length} sinapses em ${MATERIAS.length} matérias`)
+    requestAnimationFrame(() => realcar(ultimoVivo))
+
+    // Rede decorativa no fundo do login
+    document.querySelectorAll('svg[data-rede-fundo]').forEach((fundo) => {
+      fundo.setAttribute('viewBox', '0 0 316 680')
+      fundo.setAttribute('preserveAspectRatio', 'xMidYMid slice')
+      const r = gerarRede(34, 9, 316, 680)
+      desenharRede(fundo, r, { realce: [...r.nos].reverse().find((n) => n.vivo).id })
+    })
+  })()
+
+  // ---------------------------------------------------------------- estatísticas
+  ;(function () {
+    const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+    // minutos por matéria em cada dia: [Cálculo, POO, Física]
+    const dados = [[30, 15, 0], [45, 30, 15], [0, 30, 0], [0, 0, 0], [60, 30, 30], [45, 0, 30], [30, 30, 0]]
+    const max = 120, base = 100, larg = 26, passo = 290 / 7
+    let barras = ''
+    dados.forEach((d, i) => {
+      let y = base
+      const x = i * passo + (passo - larg) / 2
+      d.forEach((min, m) => {
+        if (!min) return
+        const h = (min / max) * 88
+        y -= h
+        barras += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${larg}" height="${(h - 1.5).toFixed(1)}" rx="4" fill="${MATERIAS[m].cor}"/>`
+      })
+      if (!d.some(Boolean)) barras += `<rect x="${x.toFixed(1)}" y="${base - 3}" width="${larg}" height="3" rx="1.5" fill="#2a2f55"/>`
+      barras += `<text x="${(x + larg / 2).toFixed(1)}" y="116" text-anchor="middle" font-size="10" fill="#6b7097" font-family="Inter, sans-serif">${dias[i]}</text>`
+    })
+    document.getElementById('grafico-barras').innerHTML = `<line x1="0" y1="${base}" x2="290" y2="${base}" stroke="#2a2f55"/>${barras}`
+
+    const totais = MATERIAS.map((_, m) => dados.reduce((s, d) => s + d[m], 0))
+    const soma = totais.reduce((a, b) => a + b, 0)
+    let inicio = 0
+    const arcos = totais.map((t, m) => {
+      const fatia = (t / soma) * 100
+      const arco = `<circle cx="50" cy="50" r="38" fill="none" stroke="${MATERIAS[m].cor}" stroke-width="14" pathLength="100" stroke-dasharray="${(fatia - 1).toFixed(2)} 100" stroke-dashoffset="${(-inicio).toFixed(2)}" transform="rotate(-90 50 50)"/>`
+      inicio += fatia
+      return arco
+    })
+    document.getElementById('grafico-rosca').innerHTML = arcos.join('')
+    document.getElementById('legenda-rosca').innerHTML = totais.map((t, m) => `
+      <div style="display:flex;align-items:center;gap:8px"><i style="width:9px;height:9px;border-radius:50%;background:${MATERIAS[m].cor};display:inline-block"></i>
+      <span style="flex:1">${MATERIAS[m].nome}</span><b style="font-family:var(--fonte-numero)">${Math.floor(t / 60)}h${String(t % 60).padStart(2, '0')}</b></div>`).join('')
+  })()
+
+  // ---------------------------------------------------------------- modo isolado (?so=tela-login etc.)
+  ;(function () {
+    const so = new URLSearchParams(location.search).get('so')
+    if (!so) return
+    document.body.classList.add('isolado')
+    document.querySelectorAll(`[data-bloco="${so}"]`).forEach((el) => {
+      el.classList.add('mostrar')
+      let pai = el.parentElement.closest('[data-bloco]')
+      while (pai) { pai.classList.add('mostrar'); pai = pai.parentElement.closest('[data-bloco]') }
+    })
+  })()
+</script>
+</body>
+</html>
