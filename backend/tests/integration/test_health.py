@@ -5,4 +5,4 @@ def test_health():
     resposta = APIClient().get("/health")
 
     assert resposta.status_code == 200
-    assert resposta.json() == {"status": "erro"}
+    assert resposta.json() == {"status": "ok"}
