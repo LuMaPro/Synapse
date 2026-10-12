@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 # traz o uv para dentro da imagem
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
 
 # o ambiente virtual fica fora de /app (explico abaixo)
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \

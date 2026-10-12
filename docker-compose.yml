@@ -22,6 +22,9 @@ services:
       DEBUG: "True"
       ALLOWED_HOSTS: localhost,127.0.0.1
       DATABASE_URL: postgres://synapse:synapse@db:5432/synapse
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     ports:
