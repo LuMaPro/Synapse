@@ -1,0 +1,41 @@
+@startuml
+left to right direction
+
+actor "Visitante" as visitante
+actor "Estudante" as estudante
+actor "Sistema\n(relógio)" as sistema
+
+package "Aplicação" {
+  usecase "Cadastrar-se" as UC_Cadastrar
+  usecase "Entrar" as UC_Entrar
+  
+  usecase "Iniciar sessão de foco" as UC_Iniciar
+  usecase "Concluir sessão" as UC_Concluir
+  usecase "Abandonar sessão" as UC_Abandonar
+  usecase "Sofrer poda" as UC_Poda
+  
+  usecase "Ver rede neural" as UC_Rede
+  usecase "Gerenciar matérias" as UC_Materias
+  usecase "Ver histórico" as UC_Historico
+  usecase "Ver estatísticas" as UC_Estatisticas
+  usecase "Ver conquistas" as UC_Conquistas
+}
+
+visitante --> UC_Cadastrar
+visitante --> UC_Entrar
+
+estudante --> UC_Iniciar
+estudante --> UC_Rede
+estudante --> UC_Materias
+estudante --> UC_Historico
+estudante --> UC_Estatisticas
+estudante --> UC_Conquistas
+
+' Relações de extend/include conforme a issue
+UC_Poda .> UC_Iniciar : <<extend>>
+UC_Concluir .> UC_Iniciar : <<extend>>
+UC_Abandonar .> UC_Iniciar : <<extend>>
+
+sistema --> UC_Poda
+sistema --> UC_Concluir
+@enduml
