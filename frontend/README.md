@@ -44,7 +44,8 @@ src/
 ├── components/   # componentes reutilizáveis (Layout, ...)
 ├── hooks/        # hooks próprios (useAuth, useSessaoFoco, ...)
 ├── services/     # comunicação com a API (api.ts)
-├── styles/       # CSS global
+├── utils/        # funções puras de apoio (formatarTempo, ...)
+├── styles/       # CSS global e de cada tela (foco.css, ...)
 ├── App.tsx       # definição das rotas
 └── main.tsx      # ponto de entrada
 ```

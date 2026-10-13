@@ -1,0 +1,381 @@
+/* Tela de foco (issue #17). Classes e medidas seguem docs/design/prototipo.html. */
+
+.foco {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.foco h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.foco p,
+.tela-sessao p {
+  margin: 0;
+}
+
+.centro {
+  text-align: center;
+}
+
+.numero {
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
+}
+
+.texto-suave {
+  color: var(--cor-texto-suave);
+}
+
+.texto-fraco {
+  color: var(--cor-texto-fraco);
+  font-size: 13px;
+}
+
+.texto-forte {
+  color: var(--cor-texto);
+}
+
+.destaque-suave {
+  color: var(--cor-texto-suave);
+}
+
+.texto-sucesso {
+  color: var(--cor-sucesso);
+}
+
+.texto-perigo {
+  color: var(--cor-perigo);
+}
+
+.rotulo-campo {
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--cor-texto-fraco);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rotulo-campo.texto-sucesso {
+  color: var(--cor-sucesso);
+}
+
+.rotulo-campo.texto-perigo {
+  color: var(--cor-perigo);
+}
+
+/* Anel de progresso */
+
+.anel {
+  position: relative;
+  flex: none;
+}
+
+.anel svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.anel circle {
+  fill: none;
+  stroke-width: 10;
+}
+
+.anel-trilho {
+  stroke: var(--cor-superficie-2);
+}
+
+.anel-preenchimento {
+  stroke: var(--cor-destaque);
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgb(139 123 255 / 70%));
+  transition: stroke-dashoffset 0.3s linear;
+}
+
+.anel-conteudo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+/* Seletor de duração */
+
+.seletor-duracao {
+  padding-top: 4px;
+  text-align: center;
+}
+
+.seletor-duracao-controles {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+}
+
+.seletor-duracao-valor {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.seletor-duracao > p {
+  margin-top: 8px;
+}
+
+.botao-redondo {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 50%;
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+  font: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.botao-redondo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Seletor de modo (segmentado) */
+
+.seletor-modo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.seletor-modo legend {
+  float: left;
+  grid-column: 1 / -1;
+}
+
+.segmento {
+  position: relative;
+  padding: 10px 12px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  cursor: pointer;
+}
+
+.segmento:has(input:checked) {
+  border-color: var(--cor-destaque);
+  background: rgb(139 123 255 / 14%);
+}
+
+.segmento:has(input:focus-visible) {
+  outline: 2px solid var(--cor-impulso);
+  outline-offset: 2px;
+}
+
+.segmento input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmento b {
+  display: block;
+  font-size: 14px;
+}
+
+.segmento span {
+  display: block;
+  color: var(--cor-texto-fraco);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* Botões */
+
+.botao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: var(--raio);
+  font: 600 16px var(--fonte-texto);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.botao.primario {
+  background: var(--cor-destaque);
+  color: var(--cor-fundo);
+  box-shadow: 0 0 24px rgb(139 123 255 / 35%);
+}
+
+.botao.secundario {
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto);
+}
+
+.botao.secundario.texto-perigo {
+  color: var(--cor-perigo);
+}
+
+.botao.fantasma {
+  height: 40px;
+  background: transparent;
+  color: var(--cor-texto-suave);
+}
+
+.botao:focus-visible,
+.botao-redondo:focus-visible {
+  outline: 2px solid var(--cor-impulso);
+  outline-offset: 3px;
+}
+
+/* Sessão em andamento e resultado: tela toda, sem menu (sem distrações) */
+
+.tela-sessao {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 40px 22px 18px;
+  overflow-y: auto;
+  background: var(--cor-fundo);
+}
+
+.tela-sessao > * {
+  width: 100%;
+  max-width: 420px;
+}
+
+.tela-sessao > .anel,
+.tela-sessao > .selo {
+  width: auto;
+}
+
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto-suave);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.timer {
+  font-size: 64px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.timer + p {
+  margin-top: 8px;
+}
+
+.aviso {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+  font-size: 13px;
+}
+
+.aviso svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--cor-impulso);
+}
+
+.titulo-resultado {
+  margin: 0;
+  font-size: 28px;
+}
+
+.subtitulo-resultado {
+  font-family: var(--fonte-titulo);
+  font-size: 18px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.centro > p + p {
+  margin-top: 8px;
+}
+
+/* Diálogo de desistência */
+
+.dialogo-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  max-width: none;
+  background: rgb(5 6 14 / 72%);
+}
+
+.dialogo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 480px;
+  padding: 24px 22px 28px;
+  border-top: 1px solid var(--cor-borda);
+  border-radius: 28px 28px 0 0;
+  background: var(--cor-superficie);
+}
+
+.dialogo h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+/* Texto só para leitores de tela */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -15,7 +15,7 @@ function renderizarEm(rota: string) {
 describe('rotas', () => {
   it('redireciona a raiz para a tela de foco', () => {
     renderizarEm('/')
-    expect(screen.getByRole('heading', { name: 'Foco' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Focar' })).toBeInTheDocument()
   })
 
   it('navega entre as telas pelo menu', async () => {
@@ -32,7 +32,7 @@ describe('rotas', () => {
   it.each([
     ['/login', 'Entrar'],
     ['/cadastro', 'Criar conta'],
-    ['/foco', 'Foco'],
+    ['/foco', 'Focar'],
     ['/rede', 'Rede neural'],
     ['/estatisticas', 'Estatísticas'],
   ])('abre %s', (rota, titulo) => {

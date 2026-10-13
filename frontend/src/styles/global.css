@@ -1,18 +1,29 @@
-/* Estilos base provisórios. A identidade visual definitiva vem da issue #8. */
+/* Identidade visual da issue #8: paleta, fontes e medidas de docs/design/README.md. */
 :root {
-  --cor-fundo: #0f1020;
-  --cor-superficie: #1a1b33;
-  --cor-texto: #e8e8f0;
-  --cor-texto-suave: #a0a3c0;
-  --cor-destaque: #7c5cff;
+  /* Base */
+  --cor-fundo: #0b0d1a;
+  --cor-superficie: #141730;
+  --cor-superficie-2: #1c2042;
+  --cor-borda: #2a2f55;
+  --cor-texto: #ecedf7;
+  --cor-texto-suave: #9ca1c6;
+  --cor-texto-fraco: #6b7097;
+  /* Marca */
+  --cor-destaque: #8b7bff;
+  --cor-impulso: #3ee6e0;
+  /* Estados */
+  --cor-sucesso: #5be49b;
+  --cor-perigo: #ff5c7a;
+  --cor-podado: #4a4f6e;
+  --cor-atp: #ffc857;
+
+  --fonte-titulo: 'Space Grotesk', system-ui, sans-serif;
+  --fonte-texto: 'Inter', system-ui, sans-serif;
+  --fonte-numero: 'JetBrains Mono', ui-monospace, monospace;
+  --raio: 14px;
 
   color-scheme: dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--fonte-texto);
   line-height: 1.5;
   color: var(--cor-texto);
   background: var(--cor-fundo);
@@ -25,6 +36,13 @@
 body {
   margin: 0;
   min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--fonte-titulo);
+  line-height: 1.15;
 }
 
 .cabecalho {
