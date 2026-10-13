@@ -8,6 +8,9 @@ Cada PR que adicionar testes registra aqui o que foi testado e em qual nível. A
 
 ### Testes unitários
 
+- **Domínio** (`backend/tests/unit/domain/`, issue #9): um arquivo por classe (`Usuario`, `SessaoFoco`, `Neuronio`, `Duracao` e as exceções). Cobrem valores válidos e inválidos (com `pytest.mark.parametrize`), atributos somente leitura e igualdade por identidade. Não usam banco nem Django.
+- **Arquitetura** (`backend/tests/unit/domain/test_dominio_puro.py`, issue #9): lê os imports de cada arquivo de `app/domain/` com o módulo `ast` e falha se algum importar `django` ou `rest_framework`.
+
 ### Testes de integração
 
 ### Testes de aceitação (E2E)

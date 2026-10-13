@@ -18,6 +18,8 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
 
 ## Separação em camadas
 
+- **Domínio puro** (`backend/app/domain/`, issue #9): entidades, objetos de valor e exceções não dependem do Django nem do DRF, então as regras de negócio são testadas sem banco e sem servidor. A regra é verificada automaticamente por `backend/tests/unit/domain/test_dominio_puro.py`.
+
 ## Baixo acoplamento e alta coesão
 
 ## Nomenclatura
