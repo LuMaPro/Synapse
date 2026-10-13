@@ -23,6 +23,8 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
 
 ## Baixo acoplamento e alta coesão
 
+- **Neurônio em três partes** (issue #19): a geometria é uma função pura em `frontend/src/utils/geometriaNeuronio.ts` (recebe tipo, progresso e se está podado e devolve o que desenhar), o componente `frontend/src/components/NeuronioAnimado.tsx` só transforma esse resultado em SVG, e a animação fica no CSS (`frontend/src/styles/neuronio.css`). Cada parte muda sem afetar as outras: a #22 pode trocar as formas dos tipos sem tocar no componente, e o `prefers-reduced-motion` desliga as transições sem mexer em código.
+
 ## Nomenclatura
 
 ## Tratamento de erros nas bordas

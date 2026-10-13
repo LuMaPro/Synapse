@@ -89,8 +89,18 @@ describe('tela de foco', () => {
 
     expect(screen.getByRole('timer', { name: 'Tempo restante' })).toHaveTextContent('25:00')
     expect(screen.getByText('Modo tolerante')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Neurônio Piramidal, 0% formado' })).toBeInTheDocument()
     act(() => vi.advanceTimersByTime(MINUTO + 1_000))
     expect(screen.getByRole('timer')).toHaveTextContent('23:59')
+  })
+
+  it('o neurônio cresce junto com o timer', async () => {
+    const usuario = renderizar()
+    await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+
+    act(() => vi.advanceTimersByTime(12.5 * MINUTO))
+
+    expect(screen.getByRole('img', { name: 'Neurônio Piramidal, 50% formado' })).toBeInTheDocument()
   })
 
   it('pede confirmação antes de desistir e permite continuar', async () => {
@@ -128,6 +138,7 @@ describe('tela de foco', () => {
 
     expect(screen.getByRole('heading', { name: 'A conexão se perdeu' })).toBeInTheDocument()
     expect(screen.getByText(/Você desistiu aos/)).toHaveTextContent('Você desistiu aos 03:00.')
+    expect(screen.getByRole('img', { name: 'Neurônio Piramidal podado' })).toBeInTheDocument()
 
     await usuario.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(screen.getByRole('button', { name: 'Começar a focar' })).toBeInTheDocument()
@@ -142,6 +153,7 @@ describe('tela de foco', () => {
 
     expect(screen.getByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
     expect(screen.getByText('Granular · 20 min')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Neurônio Granular, 100% formado' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver na minha rede' })).toHaveAttribute('href', '/rede')
 
     await usuario.click(screen.getByRole('button', { name: 'Focar de novo' }))

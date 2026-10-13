@@ -2,12 +2,15 @@ import { Link } from 'react-router'
 import type { MotivoPoda } from '../hooks/useSessaoFoco'
 import { NOME_TIPO_NEURONIO, tipoNeuronio } from '../utils/neuronio'
 import { formatarTempo } from '../utils/tempo'
+import { NeuronioAnimado } from './NeuronioAnimado'
 
 interface ResultadoSessaoProps {
   sucesso: boolean
   duracaoMin: number
   motivoPoda: MotivoPoda | null
   decorridoMs: number
+  /** Quanto o neurônio tinha crescido quando a sessão terminou. */
+  progresso: number
   onFocarDeNovo: () => void
 }
 
@@ -17,8 +20,11 @@ export function ResultadoSessao({
   duracaoMin,
   motivoPoda,
   decorridoMs,
+  progresso,
   onFocarDeNovo,
 }: ResultadoSessaoProps) {
+  const tipo = tipoNeuronio(duracaoMin)
+
   if (sucesso) {
     return (
       <section className="tela-sessao" aria-labelledby="resultado-titulo">
@@ -28,8 +34,9 @@ export function ResultadoSessao({
             Neurônio formado!
           </h1>
         </div>
+        <NeuronioAnimado tipo={tipo} progresso={1} brilho="forte" tamanho={240} />
         <p className="subtitulo-resultado">
-          {NOME_TIPO_NEURONIO[tipoNeuronio(duracaoMin)]} · {duracaoMin} min
+          {NOME_TIPO_NEURONIO[tipo]} · {duracaoMin} min
         </p>
         <div className="acoes">
           <Link className="botao primario" to="/rede">
@@ -53,6 +60,7 @@ export function ResultadoSessao({
           A conexão se perdeu
         </h1>
       </div>
+      <NeuronioAnimado tipo={tipo} progresso={progresso} podado tamanho={240} />
       <div className="centro">
         <p className="texto-suave">
           Você {acao} aos <b className="numero texto-forte">{formatarTempo(decorridoMs)}</b>.

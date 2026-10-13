@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { AnelProgresso } from '../components/AnelProgresso'
 import { AvisoSaida } from '../components/AvisoSaida'
 import { DialogoDesistir } from '../components/DialogoDesistir'
+import { NeuronioAnimado } from '../components/NeuronioAnimado'
 import { ResultadoSessao } from '../components/ResultadoSessao'
 import { SeletorDuracao } from '../components/SeletorDuracao'
 import { SeletorModo } from '../components/SeletorModo'
 import { PROPORCAO_TOLERANCIA, useSessaoFoco } from '../hooks/useSessaoFoco'
 import '../styles/foco.css'
+import { tipoNeuronio } from '../utils/neuronio'
 import { formatarTempo } from '../utils/tempo'
 
 const MS_POR_MINUTO = 60_000
@@ -42,8 +43,7 @@ export function Foco() {
     return (
       <section className="tela-sessao" aria-label="Sessão de foco">
         <p className="selo">Modo {sessao.modo}</p>
-        {/* Lugar do neurônio crescendo (issue #19) */}
-        <AnelProgresso progresso={sessao.progresso} tamanho={260} />
+        <NeuronioAnimado tipo={tipoNeuronio(sessao.duracaoMin)} progresso={sessao.progresso} />
         <div className="centro">
           <p className="timer numero" role="timer" aria-label="Tempo restante">
             {formatarTempo(sessao.restanteMs)}
@@ -79,6 +79,7 @@ export function Foco() {
       duracaoMin={sessao.duracaoMin}
       motivoPoda={sessao.motivoPoda}
       decorridoMs={sessao.decorridoMs}
+      progresso={sessao.progresso}
       onFocarDeNovo={() => {
         setConfirmandoDesistencia(false)
         sessao.focarDeNovo()

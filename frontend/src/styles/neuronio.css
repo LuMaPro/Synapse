@@ -1,0 +1,96 @@
+/* Neurônio animado (issue #19). Cores e brilho seguem docs/design (issue #8). */
+
+.neuronio {
+  --cor-neuronio: var(--cor-destaque);
+  --duracao-poda: 1.2s;
+
+  display: block;
+  flex: none;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  transition: opacity var(--duracao-poda) ease;
+}
+
+/* Brilho de bioluminescência: duas sombras para poder animar entre normal, forte e
+   sem brilho (filtros só animam entre listas do mesmo tamanho). */
+.neuronio-desenho {
+  filter: drop-shadow(0 0 var(--raio-brilho) var(--cor-neuronio)) drop-shadow(0 0 0 transparent);
+  transition: filter var(--duracao-poda) ease;
+}
+
+.neuronio-brilho-forte .neuronio-desenho {
+  filter: drop-shadow(0 0 calc(var(--raio-brilho) * 2.5) var(--cor-neuronio))
+    drop-shadow(0 0 var(--raio-brilho) var(--cor-neuronio));
+}
+
+.neuronio-traco {
+  fill: none;
+  stroke: var(--cor-neuronio);
+  stroke-linecap: round;
+  /* O progresso muda a cada 250 ms; a transição preenche o intervalo sem saltos. */
+  transition:
+    stroke-dashoffset 0.3s linear,
+    stroke var(--duracao-poda) ease;
+}
+
+/* Traço que ainda não começou: sem isto, a ponta arredondada aparece como um ponto solto. */
+.neuronio-traco-vazio {
+  opacity: 0;
+}
+
+.neuronio-ponta,
+.neuronio-corpo {
+  fill: var(--cor-neuronio);
+}
+
+.neuronio-ponta,
+.neuronio-terminal {
+  transition:
+    opacity 0.4s ease,
+    fill var(--duracao-poda) ease;
+}
+
+.neuronio-terminal {
+  fill: var(--cor-impulso);
+}
+
+.neuronio-corpo {
+  stroke: var(--cor-neuronio);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 0.3s linear,
+    fill var(--duracao-poda) ease,
+    stroke var(--duracao-poda) ease;
+}
+
+/* Poda: os ramos recolhem devagar, a cor vira cinza e o brilho apaga. */
+.neuronio-podado {
+  --cor-neuronio: var(--cor-podado);
+
+  opacity: 0.75;
+}
+
+.neuronio-podado .neuronio-desenho {
+  filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent);
+}
+
+.neuronio-podado .neuronio-traco {
+  /* O traço só some depois de terminar de recolher. */
+  transition:
+    stroke-dashoffset var(--duracao-poda) ease-in-out,
+    stroke var(--duracao-poda) ease,
+    opacity 0s linear var(--duracao-poda);
+}
+
+.neuronio-podado .neuronio-terminal {
+  fill: var(--cor-podado);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neuronio,
+  .neuronio * {
+    transition: none !important;
+  }
+}
