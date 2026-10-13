@@ -97,6 +97,7 @@ O protótipo assume algumas respostas para pontos que as issues deixam em aberto
 
 - **Cor do neurônio:** usa a cor da *matéria*, e o *tipo* muda só a forma. Sem matéria, usa o violeta da marca.
 - **Modo padrão (#11):** o seletor Estrito/Tolerante fica na tela de foco e lembra a última escolha, sem precisar de tela de perfil.
+- **Modo tolerante (#11, #18):** o estudante pode passar até 10% da duração da sessão fora da tela, somando todas as saídas (ex.: 1 min numa sessão de 10 min). O saldo não volta ao valor inicial e aparece durante a sessão, no aviso abaixo do timer.
 - **Abas:** Foco, Rede, Histórico, Estatísticas e Mais.
 - **Loja de ATP (#34):** ainda sem tela. A sugestão é que os tipos comprados sejam variações de cor ou de brilho, mantendo a forma ligada à duração.
 
