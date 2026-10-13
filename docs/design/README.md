@@ -13,7 +13,7 @@ Um cérebro à noite: fundo escuro e calmo, com neurônios que brilham como biol
 - **Escuro por padrão.** Menos estímulo durante o foco, e o brilho se destaca. O tema claro fica para a #37.
 - **O brilho é a recompensa.** Só o que está vivo brilha: neurônios formados, sinapses acesas, conquistas. Neurônios podados ficam cinzas e opacos.
 - **Celular primeiro.** As telas foram pensadas para 360 px de largura (#35).
-- **Forma = tipo, cor = matéria.** A forma do neurônio mostra a duração da sessão (#22); a cor mostra a matéria (#28).
+- **Forma = tipo; cor = tipo ou matéria.** A forma do neurônio mostra a duração da sessão (#22). Cada tipo tem uma cor padrão (tabela abaixo), substituída pela cor da matéria quando a sessão tiver uma (#28).
 
 ## Telas
 
@@ -39,12 +39,12 @@ Navegação por abas: **Foco, Rede, Histórico, Estatísticas e Mais** (matéria
 
 ![Neurônios](imagens/neuronios.png)
 
-| Tipo | Duração da sessão | Forma |
-| ---- | ----------------- | ----- |
-| Granular | 10 a 24 min | corpo redondo pequeno, dendritos curtos em estrela |
-| Piramidal | 25 a 59 min | corpo triangular, um dendrito longo para cima e outros para os lados |
-| Purkinje | 60 min ou mais | corpo grande, árvore de dendritos em leque |
-| Podado | sessão interrompida | cinza, retraído (cerca de 40% do tamanho) e sem brilho |
+| Tipo | Duração da sessão | Forma | Cor padrão |
+| ---- | ----------------- | ----- | ---------- |
+| Granular | 10 a 24 min | corpo redondo pequeno, dendritos curtos em estrela | ciano `#3EE6E0` |
+| Piramidal | 25 a 59 min | corpo triangular, um dendrito longo para cima e outros para os lados | violeta `#8B7BFF` |
+| Purkinje | 60 min ou mais | corpo grande, árvore de dendritos em leque | âmbar `#FFC857` |
+| Podado | sessão interrompida | cinza, retraído (cerca de 40% do tamanho) e sem brilho | cinza `#4A4F6E` (sempre) |
 
 Durante a sessão o neurônio cresce em etapas: corpo celular, dendritos principais, ramificações, axônio e, por fim, o brilho. No protótipo ele é desenhado por código a partir de três parâmetros (tipo, progresso e cor). A mesma ideia pode ser reaproveitada no componente da #19.
 
@@ -95,7 +95,7 @@ Cantos arredondados de 14 px, botões com 52 px de altura (bom alvo de toque) e 
 
 O protótipo assume algumas respostas para pontos que as issues deixam em aberto:
 
-- **Cor do neurônio:** usa a cor da *matéria*, e o *tipo* muda só a forma. Sem matéria, usa o violeta da marca.
+- **Cor do neurônio:** cada tipo tem uma cor padrão (granular ciano, piramidal violeta, Purkinje âmbar). Quando a sessão tiver uma *matéria* (#28), a cor da matéria substitui a padrão. Podado é sempre cinza.
 - **Modo padrão (#11):** o seletor Estrito/Tolerante fica na tela de foco e lembra a última escolha, sem precisar de tela de perfil.
 - **Modo tolerante (#11, #18):** o estudante pode passar até 10% da duração da sessão fora da tela, somando todas as saídas (ex.: 1 min numa sessão de 10 min). O saldo não volta ao valor inicial e aparece durante a sessão, no aviso abaixo do timer.
 - **Abas:** Foco, Rede, Histórico, Estatísticas e Mais.
