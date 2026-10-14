@@ -5,6 +5,7 @@ import { NeuronioAnimado } from '../components/NeuronioAnimado'
 import { ResultadoSessao } from '../components/ResultadoSessao'
 import { SeletorDuracao } from '../components/SeletorDuracao'
 import { SeletorModo } from '../components/SeletorModo'
+import { useDeteccaoSaida } from '../hooks/useDeteccaoSaida'
 import { PROPORCAO_TOLERANCIA, useSessaoFoco } from '../hooks/useSessaoFoco'
 import '../styles/foco.css'
 import { tipoNeuronio } from '../utils/neuronio'
@@ -15,6 +16,10 @@ const MS_POR_MINUTO = 60_000
 export function Foco() {
   const sessao = useSessaoFoco()
   const [confirmandoDesistencia, setConfirmandoDesistencia] = useState(false)
+  const { foraDaTelaCheia } = useDeteccaoSaida(sessao.fase === 'em_andamento', {
+    onSaida: sessao.sairDaTela,
+    onRetorno: sessao.voltarParaTela,
+  })
 
   if (sessao.fase === 'configurando') {
     return (
@@ -52,7 +57,12 @@ export function Foco() {
             de {formatarTempo(sessao.duracaoMin * MS_POR_MINUTO)} · seu neurônio está crescendo
           </p>
         </div>
-        <AvisoSaida modo={sessao.modo} toleranciaRestanteMs={sessao.toleranciaRestanteMs} />
+        <AvisoSaida
+          modo={sessao.modo}
+          toleranciaRestanteMs={sessao.toleranciaRestanteMs}
+          foraDaTelaCheia={foraDaTelaCheia}
+          onVoltarParaTelaCheia={sessao.voltarParaTelaCheia}
+        />
         <button
           type="button"
           className="botao fantasma"

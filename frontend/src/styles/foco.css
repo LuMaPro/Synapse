@@ -298,6 +298,12 @@
   margin-top: 8px;
 }
 
+.aviso-saida {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .aviso {
   display: flex;
   gap: 10px;

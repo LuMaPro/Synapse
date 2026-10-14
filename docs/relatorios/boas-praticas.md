@@ -28,3 +28,6 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
 ## Nomenclatura
 
 ## Tratamento de erros nas bordas
+
+- **Envio em segundo plano que nunca lança erro** (`frontend/src/services/api.ts`, função `postEmSegundoPlano`, issue #18): avisa o servidor de uma saída da tela com `fetch(..., { keepalive: true })`, que continua mesmo se a aba fechar. Como a página pode estar sumindo, falhas de rede ou recusas do servidor viram `false` em vez de exceção.
+- **Eventos do navegador que chegam fora de hora** (`frontend/src/hooks/useSessaoFoco.ts`, issue #18): o fim da sessão sai da tela cheia, e o `fullscreenchange` resultante pode chegar antes do próximo render. Um `ref` atualizado na hora (`emAndamentoRef`) faz a sessão ignorar saídas depois que ela terminou.

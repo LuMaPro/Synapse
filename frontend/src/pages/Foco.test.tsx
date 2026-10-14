@@ -159,4 +159,101 @@ describe('tela de foco', () => {
     await usuario.click(screen.getByRole('button', { name: 'Focar de novo' }))
     expect(screen.getByRole('status')).toHaveTextContent('20 minutos')
   })
+
+  describe('saída da tela (issue #18)', () => {
+    const SEGUNDO = 1_000
+
+    function definirAba(estado: 'visible' | 'hidden') {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => estado })
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+    }
+
+    function definirTelaCheia(emTelaCheia: boolean) {
+      Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        get: () => (emTelaCheia ? document.documentElement : null),
+      })
+      act(() => {
+        document.dispatchEvent(new Event('fullscreenchange'))
+      })
+    }
+
+    /** Esconde a aba por `ms` (o relógio anda, mas o timer não dispara) e volta. */
+    function sairDaAbaPor(ms: number) {
+      definirAba('hidden')
+      vi.setSystemTime(Date.now() + ms)
+      definirAba('visible')
+    }
+
+    async function comecarTolerante10Min(usuario: ReturnType<typeof renderizar>) {
+      await usuario.click(screen.getByRole('radio', { name: /Tolerante/ }))
+      for (let i = 0; i < 3; i++) {
+        await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))
+      }
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+    }
+
+    beforeEach(() => {
+      vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+      Reflect.deleteProperty(document, 'visibilityState')
+      Reflect.deleteProperty(document, 'fullscreenElement')
+      Reflect.deleteProperty(document.documentElement, 'requestFullscreen')
+    })
+
+    it('critério de aceite: trocar de aba no modo estrito poda a sessão', async () => {
+      const usuario = renderizar()
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+      act(() => vi.advanceTimersByTime(2 * MINUTO))
+
+      sairDaAbaPor(5 * SEGUNDO)
+
+      expect(screen.getByRole('heading', { name: 'A conexão se perdeu' })).toBeInTheDocument()
+      expect(screen.getByText(/Você saiu da tela aos/)).toHaveTextContent(
+        'Você saiu da tela aos 02:00.',
+      )
+    })
+
+    it('critério de aceite: no tolerante, saídas somando até 10% mantêm a sessão viva e o saldo aparece', async () => {
+      const usuario = renderizar()
+      await comecarTolerante10Min(usuario)
+      expect(screen.getByText(/Você ainda pode ficar/)).toHaveTextContent('01:00')
+
+      sairDaAbaPor(20 * SEGUNDO)
+      expect(screen.getByRole('timer')).toBeInTheDocument()
+      expect(screen.getByText(/Você ainda pode ficar/)).toHaveTextContent('00:40')
+
+      sairDaAbaPor(30 * SEGUNDO)
+      expect(screen.getByRole('timer')).toBeInTheDocument()
+      expect(screen.getByText(/Você ainda pode ficar/)).toHaveTextContent('00:10')
+
+      sairDaAbaPor(15 * SEGUNDO)
+      expect(screen.getByRole('heading', { name: 'A conexão se perdeu' })).toBeInTheDocument()
+    })
+
+    it('no tolerante, fora da tela cheia, avisa o tempo contando e oferece voltar', async () => {
+      const requestFullscreen = vi.fn().mockResolvedValue(undefined)
+      Object.assign(document.documentElement, { requestFullscreen })
+      const usuario = renderizar()
+      await comecarTolerante10Min(usuario)
+      definirTelaCheia(true)
+
+      definirTelaCheia(false)
+      act(() => vi.advanceTimersByTime(12 * SEGUNDO))
+
+      expect(screen.getByText(/Você saiu da tela cheia/)).toHaveTextContent('restam 00:48')
+      requestFullscreen.mockClear()
+      await usuario.click(screen.getByRole('button', { name: 'Voltar para a tela cheia' }))
+      expect(requestFullscreen).toHaveBeenCalledOnce()
+
+      definirTelaCheia(true)
+      expect(screen.queryByRole('button', { name: 'Voltar para a tela cheia' })).toBeNull()
+      expect(screen.getByText(/Você ainda pode ficar/)).toHaveTextContent('00:48')
+    })
+  })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type ModoSessao = 'estrito' | 'tolerante'
 export type FaseSessao = 'configurando' | 'em_andamento' | 'concluida' | 'podada'
@@ -58,26 +58,52 @@ export function useSessaoFoco() {
   const [modo, setModo] = useState<ModoSessao>(lerModoSalvo)
   const [fimEm, setFimEm] = useState<number | null>(null)
   const [agora, setAgora] = useState(0)
+  /** Tempo fora já descontado do saldo, somando as saídas que terminaram. */
   const [foraMs, setForaMs] = useState(0)
+  /** Início da saída em curso (modo tolerante); null quando o estudante está na tela. */
+  const [saidaEm, setSaidaEm] = useState<number | null>(null)
   const [motivoPoda, setMotivoPoda] = useState<MotivoPoda | null>(null)
+  // Os eventos de saída chegam de fora do React (ex.: fullscreenchange disparado pelo
+  // próprio fim da sessão) e podem vir antes do próximo render; o ref é atualizado na hora.
+  const emAndamentoRef = useRef(false)
 
   const duracaoMs = duracaoMin * MS_POR_MINUTO
   const restanteMs = fimEm === null ? duracaoMs : Math.max(0, fimEm - agora)
   const decorridoMs = duracaoMs - restanteMs
   const toleranciaMs = modo === 'tolerante' ? duracaoMs * PROPORCAO_TOLERANCIA : 0
-  const toleranciaRestanteMs = Math.max(0, toleranciaMs - foraMs)
+  const foraAgoraMs = saidaEm === null ? 0 : Math.max(0, agora - saidaEm)
+  const toleranciaRestanteMs = Math.max(0, toleranciaMs - foraMs - foraAgoraMs)
+
+  const concluir = useCallback(() => {
+    emAndamentoRef.current = false
+    setSaidaEm(null)
+    setFase('concluida')
+    sairDaTelaCheia()
+  }, [])
+
+  const podar = useCallback((instante: number, motivo: MotivoPoda) => {
+    emAndamentoRef.current = false
+    setAgora(instante)
+    setSaidaEm(null)
+    setMotivoPoda(motivo)
+    setFase('podada')
+    sairDaTelaCheia()
+  }, [])
 
   useEffect(() => {
     if (fase !== 'em_andamento' || fimEm === null) return
     const fim = fimEm
+    // Fora da tela no modo tolerante: o saldo acaba neste instante, volte ele ou não.
+    const saldoAcabaEm = saidaEm === null ? null : saidaEm + Math.max(0, toleranciaMs - foraMs)
 
     function tick() {
       const instante = Date.now()
-      setAgora(instante)
-      if (instante >= fim) {
-        setFase('concluida')
-        sairDaTelaCheia()
+      if (saldoAcabaEm !== null && instante > saldoAcabaEm && saldoAcabaEm < fim) {
+        podar(saldoAcabaEm, 'saiu')
+        return
       }
+      setAgora(instante)
+      if (instante >= fim) concluir()
     }
 
     // Ao voltar para a aba, atualiza na hora em vez de esperar o próximo intervalo.
@@ -91,7 +117,7 @@ export function useSessaoFoco() {
       clearInterval(intervalo)
       document.removeEventListener('visibilitychange', aoMudarVisibilidade)
     }
-  }, [fase, fimEm])
+  }, [fase, fimEm, saidaEm, foraMs, toleranciaMs, podar, concluir])
 
   // Saindo da tela de foco no meio da sessão, não deixa o navegador preso na tela cheia.
   useEffect(() => sairDaTelaCheia, [])
@@ -114,47 +140,63 @@ export function useSessaoFoco() {
     setAgora(instante)
     setFimEm(instante + duracaoMin * MS_POR_MINUTO)
     setForaMs(0)
+    setSaidaEm(null)
     setMotivoPoda(null)
     setFase('em_andamento')
+    emAndamentoRef.current = true
     entrarEmTelaCheia()
   }, [duracaoMin])
 
-  const podar = useCallback((instante: number, motivo: MotivoPoda) => {
-    setAgora(instante)
-    setMotivoPoda(motivo)
-    setFase('podada')
-    sairDaTelaCheia()
-  }, [])
-
   const desistir = useCallback(() => podar(Date.now(), 'desistiu'), [podar])
 
-  /**
-   * Registra que o estudante saiu da tela entre `inicio` e `fim` (horários em ms).
-   * Quem detecta a saída é a issue #18; aqui fica só a regra de cada modo.
-   *
-   * - Estrito: qualquer saída poda, no instante em que ele saiu.
-   * - Tolerante: o tempo fora vai sendo descontado de um saldo de 10% da sessão, que
-   *   não volta ao valor inicial. Se a saída passar do saldo, poda no instante em que
-   *   o saldo acabou.
-   */
-  const registrarSaida = useCallback(
-    (inicio: number, fim: number) => {
-      if (fase !== 'em_andamento' || fimEm === null) return
-      const duracaoFora = Math.max(0, fim - inicio)
+  /** Botão para voltar à tela cheia: o navegador só aceita a partir de um clique. */
+  const voltarParaTelaCheia = useCallback(() => entrarEmTelaCheia(), [])
 
-      if (modo === 'estrito') {
-        podar(Math.min(inicio, fimEm), 'saiu')
-      } else if (duracaoFora > toleranciaRestanteMs) {
-        podar(Math.min(inicio + toleranciaRestanteMs, fimEm), 'saiu')
+  /**
+   * O estudante saiu da tela no instante `inicio` (ms). Quem detecta é o
+   * useDeteccaoSaida; aqui fica a regra de cada modo.
+   *
+   * - Estrito: poda na hora, no instante em que ele saiu.
+   * - Tolerante: começa a descontar do saldo de 10% da sessão (ver `voltarParaTela`).
+   */
+  const sairDaTela = useCallback(
+    (inicio: number) => {
+      if (!emAndamentoRef.current || fimEm === null) return
+      if (inicio >= fimEm) concluir()
+      else if (modo === 'estrito') podar(inicio, 'saiu')
+      else setSaidaEm((atual) => atual ?? inicio)
+    },
+    [fimEm, modo, podar, concluir],
+  )
+
+  /**
+   * O estudante voltou para a tela no instante `fim` (ms). O tempo fora é descontado
+   * do saldo, que não volta ao valor inicial. Se passou do saldo, a poda vale a partir
+   * do instante em que o saldo acabou.
+   */
+  const voltarParaTela = useCallback(
+    (fim: number) => {
+      if (!emAndamentoRef.current || saidaEm === null || fimEm === null) return
+      const duracaoFora = Math.max(0, fim - saidaEm)
+      const saldoAcabaEm = saidaEm + Math.max(0, toleranciaMs - foraMs)
+
+      setSaidaEm(null)
+      if (fim > saldoAcabaEm && saldoAcabaEm < fimEm) {
+        podar(saldoAcabaEm, 'saiu')
+      } else if (fim >= fimEm) {
+        concluir()
       } else {
         setForaMs((atual) => atual + duracaoFora)
+        setAgora(fim)
       }
     },
-    [fase, fimEm, modo, toleranciaRestanteMs, podar],
+    [saidaEm, fimEm, toleranciaMs, foraMs, podar, concluir],
   )
 
   const focarDeNovo = useCallback(() => {
+    emAndamentoRef.current = false
     setFimEm(null)
+    setSaidaEm(null)
     setFase('configurando')
   }, [])
 
@@ -168,6 +210,7 @@ export function useSessaoFoco() {
     toleranciaMs,
     toleranciaRestanteMs,
     motivoPoda,
+    foraDaTela: saidaEm !== null,
     podeDiminuir: duracaoMin > DURACAO_MINIMA,
     podeAumentar: duracaoMin < DURACAO_MAXIMA,
     diminuirDuracao,
@@ -175,7 +218,9 @@ export function useSessaoFoco() {
     escolherModo,
     iniciar,
     desistir,
-    registrarSaida,
+    sairDaTela,
+    voltarParaTela,
+    voltarParaTelaCheia,
     focarDeNovo,
   }
 }

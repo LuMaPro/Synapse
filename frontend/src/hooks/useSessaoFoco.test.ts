@@ -156,11 +156,12 @@ describe('useSessaoFoco', () => {
       return hook
     }
 
-    /** Simula o estudante saindo agora e voltando depois de `ms`. */
+    /** Simula o estudante saindo agora e voltando depois de `ms`, sem o timer disparar. */
     function sairPor(hook: ReturnType<typeof iniciarSessao>, ms: number) {
       const inicio = Date.now()
+      act(() => hook.result.current.sairDaTela(inicio))
       vi.setSystemTime(inicio + ms)
-      act(() => hook.result.current.registrarSaida(inicio, inicio + ms))
+      act(() => hook.result.current.voltarParaTela(inicio + ms))
     }
 
     it('no modo tolerante, o saldo é 10% da duração da sessão', () => {
@@ -210,15 +211,48 @@ describe('useSessaoFoco', () => {
       expect(hook.result.current.decorridoMs).toBe(3 * MINUTO)
     })
 
-    it('no modo estrito, qualquer saída poda no instante em que ele saiu', () => {
+    it('no modo estrito, poda na hora em que ele sai, sem esperar a volta', () => {
       const hook = iniciarSessao('estrito')
       act(() => vi.advanceTimersByTime(MINUTO))
 
-      sairPor(hook, 2 * SEGUNDO)
+      act(() => hook.result.current.sairDaTela(Date.now()))
 
       expect(hook.result.current.fase).toBe('podada')
       expect(hook.result.current.motivoPoda).toBe('saiu')
       expect(hook.result.current.decorridoMs).toBe(MINUTO)
+    })
+
+    it('no modo tolerante, o saldo diminui ao vivo enquanto ele está fora', () => {
+      const hook = iniciarSessao('tolerante', 10)
+      act(() => hook.result.current.sairDaTela(Date.now()))
+
+      act(() => vi.advanceTimersByTime(15 * SEGUNDO))
+
+      expect(hook.result.current.foraDaTela).toBe(true)
+      expect(hook.result.current.toleranciaRestanteMs).toBe(45 * SEGUNDO)
+      expect(hook.result.current.fase).toBe('em_andamento')
+    })
+
+    it('no modo tolerante, poda quando o saldo acaba, mesmo que ele não volte', () => {
+      const hook = iniciarSessao('tolerante', 10)
+      act(() => vi.advanceTimersByTime(2 * MINUTO))
+      act(() => hook.result.current.sairDaTela(Date.now()))
+
+      act(() => vi.advanceTimersByTime(MINUTO + SEGUNDO))
+
+      expect(hook.result.current.fase).toBe('podada')
+      expect(hook.result.current.motivoPoda).toBe('saiu')
+      expect(hook.result.current.decorridoMs).toBe(3 * MINUTO)
+    })
+
+    it('fora da tela, mas dentro do saldo, quando o tempo acaba: a sessão conclui', () => {
+      const hook = iniciarSessao('tolerante', 10)
+      act(() => vi.advanceTimersByTime(9.5 * MINUTO))
+      act(() => hook.result.current.sairDaTela(Date.now()))
+
+      act(() => vi.advanceTimersByTime(MINUTO))
+
+      expect(hook.result.current.fase).toBe('concluida')
     })
 
     it('uma nova sessão começa com o saldo cheio', () => {
@@ -236,9 +270,20 @@ describe('useSessaoFoco', () => {
     it('ignora saídas fora de uma sessão em andamento', () => {
       const { result } = renderHook(() => useSessaoFoco())
 
-      act(() => result.current.registrarSaida(Date.now(), Date.now() + 5 * SEGUNDO))
+      act(() => result.current.sairDaTela(Date.now()))
+      act(() => result.current.voltarParaTela(Date.now() + 5 * SEGUNDO))
 
       expect(result.current.fase).toBe('configurando')
+    })
+
+    it('ignora a saída que vem logo depois de a sessão terminar', () => {
+      const hook = iniciarSessao('estrito')
+      act(() => hook.result.current.desistir())
+
+      // Ex.: o fullscreenchange disparado pelo próprio fim da sessão.
+      act(() => hook.result.current.sairDaTela(Date.now()))
+
+      expect(hook.result.current.motivoPoda).toBe('desistiu')
     })
   })
 

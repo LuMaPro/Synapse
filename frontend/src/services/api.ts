@@ -43,9 +43,32 @@ async function requisicao<T>(metodo: Metodo, caminho: string, corpo?: unknown): 
   return (await resposta.json()) as T
 }
 
+/**
+ * POST que continua mesmo se a aba for escondida ou fechada logo em seguida, para
+ * avisar o servidor de uma saída da tela (issues #18 e #20).
+ *
+ * Usa `fetch` com `keepalive` em vez de `navigator.sendBeacon` porque o beacon não
+ * aceita cabeçalhos, e a API vai exigir o token de autenticação (#14). Não lança erro:
+ * a página pode estar sumindo, então só devolve se o servidor aceitou.
+ */
+async function postEmSegundoPlano(caminho: string, corpo: unknown): Promise<boolean> {
+  try {
+    const resposta = await fetch(`${API_URL}${caminho}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+      keepalive: true,
+    })
+    return resposta.ok
+  } catch {
+    return false
+  }
+}
+
 export const api = {
   get: <T>(caminho: string) => requisicao<T>('GET', caminho),
   post: <T>(caminho: string, corpo?: unknown) => requisicao<T>('POST', caminho, corpo),
   patch: <T>(caminho: string, corpo?: unknown) => requisicao<T>('PATCH', caminho, corpo),
   delete: <T>(caminho: string) => requisicao<T>('DELETE', caminho),
+  postEmSegundoPlano,
 }
