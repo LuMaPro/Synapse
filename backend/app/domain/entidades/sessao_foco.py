@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 from uuid import UUID
 
 from app.domain.duracao import Duracao
@@ -12,16 +12,15 @@ from app.domain.tempo import agora, exigir_fuso
 class EstadoSessao(ABC):
     """
     Base abstrata para o ciclo de vida da sessão (padrão State, #10).
-    
-    Define as transições possíveis (concluir, podar, desistir). Por padrão, todas 
-    as ações lançam `TransicaoInvalida`. Os estados concretos devem sobrescrever 
+
+    Define as transições possíveis (concluir, podar, desistir). Por padrão, todas
+    as ações lançam `TransicaoInvalida`. Os estados concretos devem sobrescrever
     apenas as transições que são permitidas para eles.
     """
 
     @property
     @abstractmethod
-    def nome(self) -> str:
-        ...
+    def nome(self) -> str: ...
 
     def concluir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         raise TransicaoInvalida(f"Não é possível concluir uma sessão {self.nome}.")
@@ -32,12 +31,13 @@ class EstadoSessao(ABC):
     def desistir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         raise TransicaoInvalida(f"Não é possível desistir de uma sessão {self.nome}.")
 
+
 class EmAndamento(EstadoSessao):
     """
     Estado inicial de uma sessão.
-    
-    Neste estado, o neurônio está crescendo. A sessão pode transicionar para 
-    Concluída (se o tempo previsto tiver passado) ou para Podada (em caso de 
+
+    Neste estado, o neurônio está crescendo. A sessão pode transicionar para
+    Concluída (se o tempo previsto tiver passado) ou para Podada (em caso de
     distração ou desistência manual).
     """
 
@@ -61,8 +61,8 @@ class EmAndamento(EstadoSessao):
 class Concluida(EstadoSessao):
     """
     Estado final de sucesso.
-    
-    Representa uma sessão onde o tempo planejado foi totalmente cumprido e o 
+
+    Representa uma sessão onde o tempo planejado foi totalmente cumprido e o
     neurônio foi formado com sucesso. Não aceita nenhuma nova transição.
     """
 
@@ -70,19 +70,21 @@ class Concluida(EstadoSessao):
     def nome(self) -> str:
         return "concluída"
 
+
 class Podada(EstadoSessao):
     """
     Estado final de interrupção.
-    
-    Representa uma sessão que foi interrompida (seja pelo usuário saindo da tela 
-    no modo estrito ou por desistência manual). O neurônio correspondente morre 
+
+    Representa uma sessão que foi interrompida (seja pelo usuário saindo da tela
+    no modo estrito ou por desistência manual). O neurônio correspondente morre
     e a sessão não aceita mais transições.
     """
-    
+
     @property
     def nome(self) -> str:
         return "podada"
-    
+
+
 class SessaoFoco(Entidade):
     """Sessão de foco de um estudante.
 
@@ -105,12 +107,12 @@ class SessaoFoco(Entidade):
         self._usuario_id = usuario_id
         self._duracao = Duracao(duracao_minutos)
         self._inicio = exigir_fuso(inicio, "inicio") if inicio is not None else agora()
-        
+
         if encerrada_em is not None:
             exigir_fuso(encerrada_em, "encerrada_em")
             if encerrada_em < self._inicio:
                 raise HorarioInvalido("A sessão não pode terminar antes de começar.")
-        
+
         self._encerrada_em = encerrada_em
         self._estado = estado or EmAndamento()
 

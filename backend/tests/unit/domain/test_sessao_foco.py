@@ -105,16 +105,20 @@ def test_repr_mostra_id_usuario_duracao_e_estado():
 @pytest.fixture
 def relogio_fixo():
     """Injeta a hora de INICIO para testes de transição."""
+
     def _relogio():
         return INICIO
+
     return _relogio
 
 
 @pytest.fixture
 def relogio_futuro():
     """Injeta uma hora bem posterior ao fim da sessão padrão de 25 min."""
+
     def _relogio():
         return INICIO + timedelta(minutes=45)
+
     return _relogio
 
 
@@ -129,7 +133,10 @@ def test_sessao_inicia_em_andamento(sessao_padrao):
 
 
 def test_concluir_sessao_antes_do_tempo_lanca_excecao(sessao_padrao, relogio_fixo):
-    with pytest.raises(TransicaoInvalida, match="A sessão ainda não atingiu a duração planejada"):
+    with pytest.raises(
+        TransicaoInvalida,
+        match="A sessão ainda não atingiu a duração planejada",
+    ):
         sessao_padrao.concluir(relogio=relogio_fixo)
 
 
@@ -157,24 +164,42 @@ def test_desistir_sessao_em_andamento(sessao_padrao, relogio_fixo):
 def test_transicoes_invalidas_sessao_concluida(sessao_padrao, relogio_futuro):
     sessao_padrao.concluir(relogio=relogio_futuro)
     
-    with pytest.raises(TransicaoInvalida, match="Não é possível concluir uma sessão concluída"):
+    with pytest.raises(
+        TransicaoInvalida,
+        match="Não é possível concluir uma sessão concluída",
+    ):
         sessao_padrao.concluir(relogio=relogio_futuro)
         
-    with pytest.raises(TransicaoInvalida, match="Não é possível podar uma sessão concluída"):
+    with pytest.raises(
+        TransicaoInvalida,
+        match="Não é possível podar uma sessão concluída",
+    ):
         sessao_padrao.podar(relogio=relogio_futuro)
         
-    with pytest.raises(TransicaoInvalida, match="Não é possível desistir de uma sessão concluída"):
+    with pytest.raises(
+        TransicaoInvalida,
+        match="Não é possível desistir de uma sessão concluída",
+    ):
         sessao_padrao.desistir(relogio=relogio_futuro)
 
 
 def test_transicoes_invalidas_sessao_podada(sessao_padrao, relogio_fixo):
     sessao_padrao.podar(relogio=relogio_fixo)
     
-    with pytest.raises(TransicaoInvalida, match="Não é possível concluir uma sessão podada"):
+    with pytest.raises(
+        TransicaoInvalida,
+        match="Não é possível concluir uma sessão podada",
+    ):
         sessao_padrao.concluir(relogio=relogio_fixo)
         
-    with pytest.raises(TransicaoInvalida, match="Não é possível podar uma sessão podada"):
+    with pytest.raises(
+        TransicaoInvalida,
+        match="Não é possível podar uma sessão podada",
+    ):
         sessao_padrao.podar(relogio=relogio_fixo)
         
-    with pytest.raises(TransicaoInvalida, match="Não é possível desistir de uma sessão podada"):
+    with pytest.raises(
+        TransicaoInvalida,
+        match="Não é possível desistir de uma sessão podada",
+    ):
         sessao_padrao.desistir(relogio=relogio_fixo)
