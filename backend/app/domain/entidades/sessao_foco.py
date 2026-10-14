@@ -22,6 +22,11 @@ class EstadoSessao(ABC):
     @abstractmethod
     def nome(self) -> str: ...
 
+    @property
+    @abstractmethod
+    def codigo(self) -> str:
+        """Identificador estável, sem acento, para gravar no banco e devolver na API."""
+
     def concluir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         raise TransicaoInvalida(f"Não é possível concluir uma sessão {self.nome}.")
 
@@ -44,6 +49,10 @@ class EmAndamento(EstadoSessao):
     @property
     def nome(self) -> str:
         return "em andamento"
+
+    @property
+    def codigo(self) -> str:
+        return "em_andamento"
 
     def concluir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         instante = relogio()
@@ -70,6 +79,10 @@ class Concluida(EstadoSessao):
     def nome(self) -> str:
         return "concluída"
 
+    @property
+    def codigo(self) -> str:
+        return "concluida"
+
 
 class Podada(EstadoSessao):
     """
@@ -82,6 +95,10 @@ class Podada(EstadoSessao):
 
     @property
     def nome(self) -> str:
+        return "podada"
+
+    @property
+    def codigo(self) -> str:
         return "podada"
 
 
@@ -140,18 +157,36 @@ class SessaoFoco(Entidade):
     def estado(self) -> str:
         return self._estado.nome
 
+    @property
+    def codigo_estado(self) -> str:
+        return self._estado.codigo
+
     def _mudar_estado(self, novo_estado: EstadoSessao, instante: datetime) -> None:
         self._estado = novo_estado
         self._encerrada_em = instante
 
+    def _relogio_validado(
+        self, relogio: Callable[[], datetime]
+    ) -> Callable[[], datetime]:
+        """Garante que o instante lido do relógio tem fuso e não é anterior ao início,
+        as mesmas regras que o construtor aplica a `encerrada_em`."""
+
+        def ler() -> datetime:
+            instante = exigir_fuso(relogio(), "instante")
+            if instante < self._inicio:
+                raise HorarioInvalido("A sessão não pode terminar antes de começar.")
+            return instante
+
+        return ler
+
     def concluir(self, relogio: Callable[[], datetime] = agora) -> None:
-        self._estado.concluir(self, relogio)
+        self._estado.concluir(self, self._relogio_validado(relogio))
 
     def podar(self, relogio: Callable[[], datetime] = agora) -> None:
-        self._estado.podar(self, relogio)
+        self._estado.podar(self, self._relogio_validado(relogio))
 
     def desistir(self, relogio: Callable[[], datetime] = agora) -> None:
-        self._estado.desistir(self, relogio)
+        self._estado.desistir(self, self._relogio_validado(relogio))
 
     def __repr__(self) -> str:
         return (

@@ -203,3 +203,37 @@ def test_transicoes_invalidas_sessao_podada(sessao_padrao, relogio_fixo):
         match="Não é possível desistir de uma sessão podada",
     ):
         sessao_padrao.desistir(relogio=relogio_fixo)
+
+
+@pytest.mark.parametrize("transicao", ["concluir", "podar", "desistir"])
+def test_recusa_instante_sem_fuso_vindo_do_relogio(sessao_padrao, transicao):
+    sem_fuso = datetime(2026, 10, 12, 15, 0)
+
+    with pytest.raises(HorarioInvalido):
+        getattr(sessao_padrao, transicao)(relogio=lambda: sem_fuso)
+
+    assert sessao_padrao.codigo_estado == "em_andamento"
+    assert sessao_padrao.encerrada_em is None
+
+
+@pytest.mark.parametrize("transicao", ["podar", "desistir"])
+def test_recusa_instante_anterior_ao_inicio(sessao_padrao, transicao):
+    antes_do_inicio = INICIO - timedelta(seconds=1)
+
+    with pytest.raises(HorarioInvalido, match="antes de começar"):
+        getattr(sessao_padrao, transicao)(relogio=lambda: antes_do_inicio)
+
+    assert sessao_padrao.codigo_estado == "em_andamento"
+
+
+def test_codigo_do_estado_e_estavel_e_sem_acento(
+    sessao_padrao, relogio_fixo, relogio_futuro
+):
+    assert sessao_padrao.codigo_estado == "em_andamento"
+
+    concluida = SessaoFoco(uuid4(), 25, inicio=INICIO)
+    concluida.concluir(relogio=relogio_futuro)
+    assert concluida.codigo_estado == "concluida"
+
+    sessao_padrao.podar(relogio=relogio_fixo)
+    assert sessao_padrao.codigo_estado == "podada"
