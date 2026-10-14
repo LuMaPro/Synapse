@@ -19,3 +19,6 @@ class EmailInvalido(ErroDominio):
 
 class HorarioInvalido(ErroDominio):
     """Horário sem fuso horário ou fora de ordem (ex.: fim antes do início)."""
+
+class TransicaoInvalida(ErroDominio):
+    """Tentativa de mudar o estado da sessão de forma não permitida."""

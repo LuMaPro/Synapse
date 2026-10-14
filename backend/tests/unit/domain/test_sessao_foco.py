@@ -5,7 +5,12 @@ import pytest
 
 from app.domain.duracao import Duracao
 from app.domain.entidades import SessaoFoco
-from app.domain.excecoes import DuracaoInvalida, ErroDominio, HorarioInvalido
+from app.domain.excecoes import (
+    DuracaoInvalida,
+    ErroDominio,
+    HorarioInvalido,
+    TransicaoInvalida,
+)
 
 INICIO = datetime(2026, 10, 12, 14, 0, tzinfo=UTC)
 
@@ -67,7 +72,7 @@ def test_recusa_encerramento_sem_fuso():
 
 @pytest.mark.parametrize(
     "atributo",
-    ["id", "usuario_id", "duracao", "inicio", "fim_previsto", "encerrada_em"],
+    ["id", "usuario_id", "duracao", "inicio", "fim_previsto", "encerrada_em", "estado"],
 )
 def test_atributos_sao_somente_leitura(atributo):
     sessao = SessaoFoco(uuid4(), 25, inicio=INICIO)
@@ -83,9 +88,93 @@ def test_sessoes_sao_iguais_quando_tem_o_mesmo_id():
     assert SessaoFoco(uuid4(), 25) != SessaoFoco(uuid4(), 25)
 
 
-def test_repr_mostra_id_usuario_e_duracao():
+def test_repr_mostra_id_usuario_duracao_e_estado():
     sessao = SessaoFoco(uuid4(), 25)
 
     assert repr(sessao) == (
-        f"SessaoFoco(id={sessao.id}, usuario_id={sessao.usuario_id}, duracao=25 min)"
+        f"SessaoFoco(id={sessao.id}, usuario_id={sessao.usuario_id}, "
+        f"duracao=25 min, estado=em andamento)"
     )
+
+
+# ==============================================================================
+# Testes do Ciclo de Vida da Sessão (Padrão State - Issue #10)
+# ==============================================================================
+
+
+@pytest.fixture
+def relogio_fixo():
+    """Injeta a hora de INICIO para testes de transição."""
+    def _relogio():
+        return INICIO
+    return _relogio
+
+
+@pytest.fixture
+def relogio_futuro():
+    """Injeta uma hora bem posterior ao fim da sessão padrão de 25 min."""
+    def _relogio():
+        return INICIO + timedelta(minutes=45)
+    return _relogio
+
+
+@pytest.fixture
+def sessao_padrao(relogio_fixo):
+    return SessaoFoco(usuario_id=uuid4(), duracao_minutos=25, inicio=relogio_fixo())
+
+
+def test_sessao_inicia_em_andamento(sessao_padrao):
+    assert sessao_padrao.estado == "em andamento"
+    assert sessao_padrao.encerrada_em is None
+
+
+def test_concluir_sessao_antes_do_tempo_lanca_excecao(sessao_padrao, relogio_fixo):
+    with pytest.raises(TransicaoInvalida, match="A sessão ainda não atingiu a duração planejada"):
+        sessao_padrao.concluir(relogio=relogio_fixo)
+
+
+def test_concluir_sessao_apos_tempo_planejado(sessao_padrao, relogio_futuro):
+    sessao_padrao.concluir(relogio=relogio_futuro)
+    
+    assert sessao_padrao.estado == "concluída"
+    assert sessao_padrao.encerrada_em == relogio_futuro()
+
+
+def test_podar_sessao_em_andamento(sessao_padrao, relogio_fixo):
+    sessao_padrao.podar(relogio=relogio_fixo)
+    
+    assert sessao_padrao.estado == "podada"
+    assert sessao_padrao.encerrada_em == relogio_fixo()
+
+
+def test_desistir_sessao_em_andamento(sessao_padrao, relogio_fixo):
+    sessao_padrao.desistir(relogio=relogio_fixo)
+    
+    assert sessao_padrao.estado == "podada"
+    assert sessao_padrao.encerrada_em == relogio_fixo()
+
+
+def test_transicoes_invalidas_sessao_concluida(sessao_padrao, relogio_futuro):
+    sessao_padrao.concluir(relogio=relogio_futuro)
+    
+    with pytest.raises(TransicaoInvalida, match="Não é possível concluir uma sessão concluída"):
+        sessao_padrao.concluir(relogio=relogio_futuro)
+        
+    with pytest.raises(TransicaoInvalida, match="Não é possível podar uma sessão concluída"):
+        sessao_padrao.podar(relogio=relogio_futuro)
+        
+    with pytest.raises(TransicaoInvalida, match="Não é possível desistir de uma sessão concluída"):
+        sessao_padrao.desistir(relogio=relogio_futuro)
+
+
+def test_transicoes_invalidas_sessao_podada(sessao_padrao, relogio_fixo):
+    sessao_padrao.podar(relogio=relogio_fixo)
+    
+    with pytest.raises(TransicaoInvalida, match="Não é possível concluir uma sessão podada"):
+        sessao_padrao.concluir(relogio=relogio_fixo)
+        
+    with pytest.raises(TransicaoInvalida, match="Não é possível podar uma sessão podada"):
+        sessao_padrao.podar(relogio=relogio_fixo)
+        
+    with pytest.raises(TransicaoInvalida, match="Não é possível desistir de uma sessão podada"):
+        sessao_padrao.desistir(relogio=relogio_fixo)
