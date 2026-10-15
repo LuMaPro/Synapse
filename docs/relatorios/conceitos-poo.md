@@ -42,6 +42,25 @@ class Usuario(Entidade):
 
 ## Polimorfismo
 
+**Onde:** políticas de interrupção em `backend/app/domain/politica_interrupcao.py` (issue #11) e estados da sessão em `backend/app/domain/entidades/sessao_foco.py` (issue #10).
+
+`SessaoFoco` chama a política e o estado sem saber qual é a classe concreta. A mesma chamada tem comportamentos diferentes conforme o objeto recebido:
+
+```python
+# backend/app/domain/entidades/sessao_foco.py
+def _aplicar_politica(self, interrupcao: Interrupcao) -> None:
+    historico = list(self._historico_interrupcoes)
+    if self._politica.deve_podar(self, interrupcao, historico):  # estrito ou tolerante?
+        instante = self._politica.instante_da_poda(self, interrupcao, historico)
+        self.podar(relogio=lambda: instante)
+    else:
+        self._historico_interrupcoes.append(interrupcao)
+```
+
+- **Políticas:** `ModoEstrito.deve_podar` sempre responde que sim; `ModoTolerante.deve_podar` soma o tempo fora e compara com 10% da sessão. `instante_da_poda` também varia: o estrito herda o padrão da classe base (o momento da saída), e o tolerante sobrescreve com o momento em que o saldo acabou.
+- **Estados:** `registrar_interrupcao`, `concluir`, `podar` e `desistir` são delegados ao estado atual. `EmAndamento` aceita; `Concluida` e `Podada` herdam o comportamento padrão, que lança `TransicaoInvalida`.
+- **Por quê:** uma política ou um estado novo é só uma classe nova. `SessaoFoco` não muda e não tem `if` perguntando qual é o modo ou o estado.
+
 ## Abstração
 
 ## Onde deliberadamente não aplicamos

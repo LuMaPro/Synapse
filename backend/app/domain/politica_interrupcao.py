@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from app.domain.tempo import exigir_fuso
@@ -43,6 +43,19 @@ class PoliticaInterrupcao(ABC):
         historico: list[Interrupcao],
     ) -> bool: ...
 
+    def instante_da_poda(
+        self,
+        sessao: "SessaoFoco",
+        nova_interrupcao: Interrupcao,
+        historico: list[Interrupcao],
+    ) -> datetime:
+        """Quando a sessão morreu, se `deve_podar` disse que sim.
+
+        Por padrão, no momento da saída. Não é a hora em que o aviso chega ao
+        servidor, que pode vir bem depois (ex.: o estudante só voltou mais tarde).
+        """
+        return nova_interrupcao.saida
+
 
 class ModoEstrito(PoliticaInterrupcao):
     """Qualquer saída poda a sessão imediatamente."""
@@ -71,11 +84,24 @@ class ModoTolerante(PoliticaInterrupcao):
         if nova_interrupcao.retorno is None:
             return False  # Se ainda não voltou, não temos como saber o tempo total fora
 
+        return nova_interrupcao.segundos_fora > self._saldo_restante(sessao, historico)
+
+    def instante_da_poda(
+        self,
+        sessao: "SessaoFoco",
+        nova_interrupcao: Interrupcao,
+        historico: list[Interrupcao],
+    ) -> datetime:
+        """A sessão morre quando o saldo acaba, no meio da saída que o estourou."""
+        saldo = self._saldo_restante(sessao, historico)
+        return nova_interrupcao.saida + timedelta(seconds=saldo)
+
+    def _saldo_restante(
+        self, sessao: "SessaoFoco", historico: list[Interrupcao]
+    ) -> float:
+        """Segundos que ainda podem ser passados fora da tela, somando o histórico."""
         tempo_total_permitido = (
             sessao.duracao.como_timedelta().total_seconds() * self.proporcao
         )
-
         tempo_ja_gasto = sum(i.segundos_fora for i in historico)
-        tempo_total_fora = tempo_ja_gasto + nova_interrupcao.segundos_fora
-
-        return tempo_total_fora > tempo_total_permitido
+        return max(0.0, tempo_total_permitido - tempo_ja_gasto)

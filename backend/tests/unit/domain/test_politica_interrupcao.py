@@ -106,3 +106,28 @@ def test_modo_tolerante_poda_somando_historico(sessao_60_min):
     )
 
     assert politica.deve_podar(sessao_60_min, nova, historico) is True
+
+
+# ==============================================================================
+# Instante da poda
+# ==============================================================================
+
+
+def test_modo_estrito_poda_no_instante_da_saida(sessao_60_min):
+    saida = INICIO + timedelta(minutes=10)
+    interrupcao = Interrupcao(saida=saida, retorno=saida + timedelta(minutes=1))
+
+    assert ModoEstrito().instante_da_poda(sessao_60_min, interrupcao, []) == saida
+
+
+def test_modo_tolerante_poda_quando_o_saldo_acaba(sessao_60_min):
+    politica = ModoTolerante(proporcao_tolerancia=0.10)
+    # Limite de 6 minutos; já gastou 4. Saiu aos 10 min por mais 3: o saldo de 2 min
+    # acaba aos 12 min, no meio da saída.
+    historico = [Interrupcao(saida=INICIO, retorno=INICIO + timedelta(minutes=4))]
+    saida = INICIO + timedelta(minutes=10)
+    nova = Interrupcao(saida=saida, retorno=saida + timedelta(minutes=3))
+
+    instante = politica.instante_da_poda(sessao_60_min, nova, historico)
+
+    assert instante == saida + timedelta(minutes=2)

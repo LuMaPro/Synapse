@@ -5,6 +5,7 @@ import pytest
 
 from app.domain.entidades import Usuario
 from app.domain.excecoes import EmailInvalido, HorarioInvalido, NomeInvalido
+from app.domain.politica_interrupcao import ModoEstrito, ModoTolerante
 
 
 def test_cria_usuario_com_id_e_data_de_criacao():
@@ -97,3 +98,14 @@ def test_repr_mostra_id_e_email():
     usuario = Usuario("Julia", "julia@exemplo.com")
 
     assert repr(usuario) == f"Usuario(id={usuario.id}, email='julia@exemplo.com')"
+
+
+def test_politica_padrao_e_o_modo_estrito_e_pode_ser_escolhida():
+    assert isinstance(
+        Usuario("Julia", "julia@exemplo.com").politica_padrao, ModoEstrito
+    )
+
+    tolerante = ModoTolerante()
+    usuario = Usuario("Julia", "julia@exemplo.com", politica_padrao=tolerante)
+
+    assert usuario.politica_padrao is tolerante

@@ -41,6 +41,11 @@ class EstadoSessao(ABC):
     def desistir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         raise TransicaoInvalida(f"Não é possível desistir de uma sessão {self.nome}.")
 
+    def registrar_interrupcao(
+        self, sessao: "SessaoFoco", interrupcao: Interrupcao
+    ) -> None:
+        raise TransicaoInvalida(f"Não é possível interromper uma sessão {self.nome}.")
+
 
 class EmAndamento(EstadoSessao):
     """
@@ -70,6 +75,11 @@ class EmAndamento(EstadoSessao):
 
     def desistir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         sessao._mudar_estado(Podada(), relogio())
+
+    def registrar_interrupcao(
+        self, sessao: "SessaoFoco", interrupcao: Interrupcao
+    ) -> None:
+        sessao._aplicar_politica(interrupcao)
 
 
 class Concluida(EstadoSessao):
@@ -210,18 +220,18 @@ class SessaoFoco(Entidade):
             f"duracao={self._duracao.minutos} min, estado={self.estado})"
         )
 
-    def registrar_interrupcao(
-        self, interrupcao: Interrupcao, relogio: Callable[[], datetime] = agora
-    ) -> None:
+    def registrar_interrupcao(self, interrupcao: Interrupcao) -> None:
         """
         Recebe uma interrupção, delega a decisão de poda para a Strategy
-        e salva no histórico se a sessão continuar viva.
+        e salva no histórico se a sessão continuar viva. Só a sessão em andamento
+        aceita interrupções; nos outros estados, lança `TransicaoInvalida`.
         """
-        if self._estado.codigo != "em_andamento":
-            msg = f"Não é possível interromper uma sessão {self.estado}."
-            raise TransicaoInvalida(msg)
+        self._estado.registrar_interrupcao(self, interrupcao)
 
-        if self._politica.deve_podar(self, interrupcao, self._historico_interrupcoes):
-            self.podar(relogio)
+    def _aplicar_politica(self, interrupcao: Interrupcao) -> None:
+        historico = list(self._historico_interrupcoes)
+        if self._politica.deve_podar(self, interrupcao, historico):
+            instante = self._politica.instante_da_poda(self, interrupcao, historico)
+            self.podar(relogio=lambda: instante)
         else:
             self._historico_interrupcoes.append(interrupcao)
