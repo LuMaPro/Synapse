@@ -142,40 +142,40 @@ def test_concluir_sessao_antes_do_tempo_lanca_excecao(sessao_padrao, relogio_fix
 
 def test_concluir_sessao_apos_tempo_planejado(sessao_padrao, relogio_futuro):
     sessao_padrao.concluir(relogio=relogio_futuro)
-    
+
     assert sessao_padrao.estado == "concluída"
     assert sessao_padrao.encerrada_em == relogio_futuro()
 
 
 def test_podar_sessao_em_andamento(sessao_padrao, relogio_fixo):
     sessao_padrao.podar(relogio=relogio_fixo)
-    
+
     assert sessao_padrao.estado == "podada"
     assert sessao_padrao.encerrada_em == relogio_fixo()
 
 
 def test_desistir_sessao_em_andamento(sessao_padrao, relogio_fixo):
     sessao_padrao.desistir(relogio=relogio_fixo)
-    
+
     assert sessao_padrao.estado == "podada"
     assert sessao_padrao.encerrada_em == relogio_fixo()
 
 
 def test_transicoes_invalidas_sessao_concluida(sessao_padrao, relogio_futuro):
     sessao_padrao.concluir(relogio=relogio_futuro)
-    
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível concluir uma sessão concluída",
     ):
         sessao_padrao.concluir(relogio=relogio_futuro)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível podar uma sessão concluída",
     ):
         sessao_padrao.podar(relogio=relogio_futuro)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível desistir de uma sessão concluída",
@@ -185,19 +185,19 @@ def test_transicoes_invalidas_sessao_concluida(sessao_padrao, relogio_futuro):
 
 def test_transicoes_invalidas_sessao_podada(sessao_padrao, relogio_fixo):
     sessao_padrao.podar(relogio=relogio_fixo)
-    
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível concluir uma sessão podada",
     ):
         sessao_padrao.concluir(relogio=relogio_fixo)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível podar uma sessão podada",
     ):
         sessao_padrao.podar(relogio=relogio_fixo)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível desistir de uma sessão podada",

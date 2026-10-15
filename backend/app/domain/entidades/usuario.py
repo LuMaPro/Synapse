@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.domain.entidades.base import Entidade
 from app.domain.excecoes import EmailInvalido, NomeInvalido
+from app.domain.politica_interrupcao import ModoEstrito, PoliticaInterrupcao
 from app.domain.tempo import agora, exigir_fuso
 
 _FORMATO_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -25,6 +26,7 @@ class Usuario(Entidade):
         *,
         id: UUID | None = None,
         criado_em: datetime | None = None,
+        politica_padrao: PoliticaInterrupcao | None = None,
     ):
         super().__init__(id)
         self._nome = self._validar_nome(nome)
@@ -32,6 +34,11 @@ class Usuario(Entidade):
         self._criado_em = (
             exigir_fuso(criado_em, "criado_em") if criado_em is not None else agora()
         )
+        self._politica_padrao = politica_padrao or ModoEstrito()
+
+    @property
+    def politica_padrao(self) -> PoliticaInterrupcao:
+        return self._politica_padrao
 
     @property
     def nome(self) -> str:
