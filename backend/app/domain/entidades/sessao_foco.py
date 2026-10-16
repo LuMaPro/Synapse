@@ -6,6 +6,11 @@ from uuid import UUID
 from app.domain.duracao import Duracao
 from app.domain.entidades.base import Entidade
 from app.domain.excecoes import HorarioInvalido, TransicaoInvalida
+from app.domain.politica_interrupcao import (
+    Interrupcao,
+    ModoEstrito,
+    PoliticaInterrupcao,
+)
 from app.domain.tempo import agora, exigir_fuso
 
 
@@ -36,6 +41,11 @@ class EstadoSessao(ABC):
     def desistir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         raise TransicaoInvalida(f"Não é possível desistir de uma sessão {self.nome}.")
 
+    def registrar_interrupcao(
+        self, sessao: "SessaoFoco", interrupcao: Interrupcao
+    ) -> None:
+        raise TransicaoInvalida(f"Não é possível interromper uma sessão {self.nome}.")
+
 
 class EmAndamento(EstadoSessao):
     """
@@ -65,6 +75,11 @@ class EmAndamento(EstadoSessao):
 
     def desistir(self, sessao: "SessaoFoco", relogio: Callable[[], datetime]) -> None:
         sessao._mudar_estado(Podada(), relogio())
+
+    def registrar_interrupcao(
+        self, sessao: "SessaoFoco", interrupcao: Interrupcao
+    ) -> None:
+        sessao._aplicar_politica(interrupcao)
 
 
 class Concluida(EstadoSessao):
@@ -119,6 +134,7 @@ class SessaoFoco(Entidade):
         encerrada_em: datetime | None = None,
         estado: EstadoSessao | None = None,
         id: UUID | None = None,
+        politica: PoliticaInterrupcao | None = None,
     ):
         super().__init__(id)
         self._usuario_id = usuario_id
@@ -132,6 +148,8 @@ class SessaoFoco(Entidade):
 
         self._encerrada_em = encerrada_em
         self._estado = estado or EmAndamento()
+        self._politica = politica or ModoEstrito()
+        self._historico_interrupcoes: list[Interrupcao] = []
 
     @property
     def usuario_id(self) -> UUID:
@@ -160,6 +178,14 @@ class SessaoFoco(Entidade):
     @property
     def codigo_estado(self) -> str:
         return self._estado.codigo
+
+    @property
+    def politica(self) -> PoliticaInterrupcao:
+        return self._politica
+
+    @property
+    def historico_interrupcoes(self) -> list[Interrupcao]:
+        return list(self._historico_interrupcoes)
 
     def _mudar_estado(self, novo_estado: EstadoSessao, instante: datetime) -> None:
         self._estado = novo_estado
@@ -193,3 +219,19 @@ class SessaoFoco(Entidade):
             f"SessaoFoco(id={self.id}, usuario_id={self._usuario_id}, "
             f"duracao={self._duracao.minutos} min, estado={self.estado})"
         )
+
+    def registrar_interrupcao(self, interrupcao: Interrupcao) -> None:
+        """
+        Recebe uma interrupção, delega a decisão de poda para a Strategy
+        e salva no histórico se a sessão continuar viva. Só a sessão em andamento
+        aceita interrupções; nos outros estados, lança `TransicaoInvalida`.
+        """
+        self._estado.registrar_interrupcao(self, interrupcao)
+
+    def _aplicar_politica(self, interrupcao: Interrupcao) -> None:
+        historico = list(self._historico_interrupcoes)
+        if self._politica.deve_podar(self, interrupcao, historico):
+            instante = self._politica.instante_da_poda(self, interrupcao, historico)
+            self.podar(relogio=lambda: instante)
+        else:
+            self._historico_interrupcoes.append(interrupcao)

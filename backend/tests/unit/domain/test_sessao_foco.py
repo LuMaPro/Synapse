@@ -11,6 +11,7 @@ from app.domain.excecoes import (
     HorarioInvalido,
     TransicaoInvalida,
 )
+from app.domain.politica_interrupcao import Interrupcao, ModoEstrito, ModoTolerante
 
 INICIO = datetime(2026, 10, 12, 14, 0, tzinfo=UTC)
 
@@ -142,40 +143,40 @@ def test_concluir_sessao_antes_do_tempo_lanca_excecao(sessao_padrao, relogio_fix
 
 def test_concluir_sessao_apos_tempo_planejado(sessao_padrao, relogio_futuro):
     sessao_padrao.concluir(relogio=relogio_futuro)
-    
+
     assert sessao_padrao.estado == "concluída"
     assert sessao_padrao.encerrada_em == relogio_futuro()
 
 
 def test_podar_sessao_em_andamento(sessao_padrao, relogio_fixo):
     sessao_padrao.podar(relogio=relogio_fixo)
-    
+
     assert sessao_padrao.estado == "podada"
     assert sessao_padrao.encerrada_em == relogio_fixo()
 
 
 def test_desistir_sessao_em_andamento(sessao_padrao, relogio_fixo):
     sessao_padrao.desistir(relogio=relogio_fixo)
-    
+
     assert sessao_padrao.estado == "podada"
     assert sessao_padrao.encerrada_em == relogio_fixo()
 
 
 def test_transicoes_invalidas_sessao_concluida(sessao_padrao, relogio_futuro):
     sessao_padrao.concluir(relogio=relogio_futuro)
-    
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível concluir uma sessão concluída",
     ):
         sessao_padrao.concluir(relogio=relogio_futuro)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível podar uma sessão concluída",
     ):
         sessao_padrao.podar(relogio=relogio_futuro)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível desistir de uma sessão concluída",
@@ -185,19 +186,19 @@ def test_transicoes_invalidas_sessao_concluida(sessao_padrao, relogio_futuro):
 
 def test_transicoes_invalidas_sessao_podada(sessao_padrao, relogio_fixo):
     sessao_padrao.podar(relogio=relogio_fixo)
-    
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível concluir uma sessão podada",
     ):
         sessao_padrao.concluir(relogio=relogio_fixo)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível podar uma sessão podada",
     ):
         sessao_padrao.podar(relogio=relogio_fixo)
-        
+
     with pytest.raises(
         TransicaoInvalida,
         match="Não é possível desistir de uma sessão podada",
@@ -237,3 +238,76 @@ def test_codigo_do_estado_e_estavel_e_sem_acento(
 
     sessao_padrao.podar(relogio=relogio_fixo)
     assert sessao_padrao.codigo_estado == "podada"
+
+
+# ==============================================================================
+# Interrupções e política (Strategy - Issue #11)
+# ==============================================================================
+
+
+def _saida(minuto: float, segundos_fora: float) -> Interrupcao:
+    saida = INICIO + timedelta(minutes=minuto)
+    return Interrupcao(saida=saida, retorno=saida + timedelta(seconds=segundos_fora))
+
+
+def test_politica_padrao_e_o_modo_estrito():
+    assert isinstance(SessaoFoco(uuid4(), 25, inicio=INICIO).politica, ModoEstrito)
+
+
+def test_modo_estrito_poda_no_instante_da_saida():
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoEstrito())
+
+    sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=60))
+
+    assert sessao.codigo_estado == "podada"
+    assert sessao.encerrada_em == INICIO + timedelta(minutes=5)
+    assert sessao.historico_interrupcoes == []
+
+
+def test_modo_tolerante_guarda_saidas_dentro_do_saldo():
+    # 25 min: saldo de 10% = 150 s
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoTolerante())
+
+    sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=60))
+    sessao.registrar_interrupcao(_saida(minuto=10, segundos_fora=90))
+
+    assert sessao.codigo_estado == "em_andamento"
+    assert len(sessao.historico_interrupcoes) == 2
+
+
+def test_modo_tolerante_poda_no_instante_em_que_o_saldo_acaba():
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoTolerante())
+    sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=60))
+
+    # Restam 90 s de saldo; saiu aos 10 min por 10 min: morre aos 10 min e 90 s.
+    sessao.registrar_interrupcao(_saida(minuto=10, segundos_fora=600))
+
+    assert sessao.codigo_estado == "podada"
+    assert sessao.encerrada_em == INICIO + timedelta(minutes=10, seconds=90)
+
+
+def test_poda_nao_usa_a_hora_em_que_o_aviso_chega():
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoEstrito())
+
+    # Mesmo registrando bem depois, a poda vale para o momento da saída.
+    sessao.registrar_interrupcao(_saida(minuto=2, segundos_fora=1))
+
+    assert sessao.encerrada_em == INICIO + timedelta(minutes=2)
+
+
+def test_recusa_poda_por_saida_anterior_ao_inicio():
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoEstrito())
+
+    with pytest.raises(HorarioInvalido):
+        sessao.registrar_interrupcao(_saida(minuto=-10, segundos_fora=5))
+
+    assert sessao.codigo_estado == "em_andamento"
+
+
+@pytest.mark.parametrize("encerrar", ["podar", "concluir"])
+def test_sessao_encerrada_nao_aceita_interrupcao(encerrar, relogio_futuro):
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoTolerante())
+    getattr(sessao, encerrar)(relogio=relogio_futuro)
+
+    with pytest.raises(TransicaoInvalida, match="Não é possível interromper"):
+        sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=10))
