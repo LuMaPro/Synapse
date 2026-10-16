@@ -4,6 +4,8 @@ from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 UsuarioModel = get_user_model()
@@ -225,5 +227,102 @@ def me(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+class RenovarTokenSerializer(serializers.Serializer):
+    refresh = serializers.CharField(
+        required=True,
+        error_messages={
+            "required": "O token de renovação é obrigatório.",
+            "blank": "O token de renovação é obrigatório.",
+        },
+        help_text="Token JWT de renovação",
+    )
+
+
+class RenovarTokenRespostaSerializer(serializers.Serializer):
+    access = serializers.CharField(help_text="Novo token JWT de acesso (15 minutos)")
+    refresh = serializers.CharField(
+        required=False,
+        help_text="Novo token de renovação (caso rotação esteja ativada)",
+    )
+
+
+@extend_schema(
+    summary="Renovação de token de acesso",
+    description=(
+        "Emite um novo token JWT de acesso a partir de um refresh token válido."
+    ),
+    request=RenovarTokenSerializer,
+    responses={
+        200: RenovarTokenRespostaSerializer,
+        400: OpenApiResponse(description="Token de renovação ausente ou inválido."),
+        401: OpenApiResponse(
+            description="Token de renovação expirado, inválido ou usuário inativo."
+        ),
+    },
+    tags=["Autenticação"],
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def renovar(request):
+    """Endpoint para renovar token JWT de acesso usando o token de refresh."""
+    serializer = RenovarTokenSerializer(data=request.data)
+    if not serializer.is_valid():
+        primeiro_campo, erros = next(iter(serializer.errors.items()))
+        mensagem_erro = erros[0] if isinstance(erros, list) else str(erros)
+        codigo = f"{primeiro_campo}_invalido"
+        return Response(
+            {"erro": codigo, "mensagem": mensagem_erro},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    token_str = serializer.validated_data["refresh"]
+    try:
+        refresh = RefreshToken(token_str)
+    except TokenError:
+        return Response(
+            {
+                "erro": "token_invalido",
+                "mensagem": "Token de renovação inválido ou expirado.",
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    user_id = refresh.payload.get(api_settings.USER_ID_CLAIM)
+    usuario = UsuarioModel.objects.filter(id=user_id).first()
+    if usuario is None or not usuario.is_active:
+        return Response(
+            {
+                "erro": (
+                    "usuario_inativo"
+                    if usuario and not usuario.is_active
+                    else "token_invalido"
+                ),
+                "mensagem": (
+                    "Esta conta de usuário está desativada."
+                    if usuario and not usuario.is_active
+                    else "Usuário associado ao token não encontrado."
+                ),
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    dados_resposta = {
+        "access": str(refresh.access_token),
+    }
+
+    if api_settings.ROTATE_REFRESH_TOKENS:
+        if api_settings.BLACKLIST_AFTER_ROTATION:
+            try:
+                refresh.blacklist()
+            except AttributeError:
+                pass
+        refresh.set_jti()
+        refresh.set_exp()
+        dados_resposta["refresh"] = str(refresh)
+
+    return Response(dados_resposta, status=status.HTTP_200_OK)
+
 
 

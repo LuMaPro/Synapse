@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from app.api.auth import cadastro, login, me
+from app.api.auth import cadastro, login, me, renovar
 from app.api.views import health
 
 urlpatterns = [
@@ -10,6 +10,7 @@ urlpatterns = [
     path("health", health),
     path("auth/cadastro", cadastro),
     path("auth/login", login),
+    path("auth/renovar", renovar),
     path("me", me),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),
