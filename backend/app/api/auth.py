@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
@@ -8,7 +9,25 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from app.application.cadastro import CadastroUsuario
+from app.domain.excecoes import (
+    EmailInvalido,
+    EmailJaCadastrado,
+    ErroDominio,
+    NomeInvalido,
+    SenhaInvalida,
+)
+from app.infra.repositorios import RepositorioUsuarioDjango
+from app.infra.senhas import ServicoSenhasDjango
+
 UsuarioModel = get_user_model()
+
+CODIGOS_ERRO_CADASTRO = {
+    EmailJaCadastrado: "email_duplicado",
+    SenhaInvalida: "senha_invalido",
+    EmailInvalido: "email_invalido",
+    NomeInvalido: "nome_invalido",
+}
 
 
 class CadastroSerializer(serializers.Serializer):
@@ -29,14 +48,14 @@ class CadastroSerializer(serializers.Serializer):
             "invalid": "Digite um e-mail válido.",
         },
     )
+    # As regras de senha (tamanho, senhas comuns...) ficam nos AUTH_PASSWORD_VALIDATORS,
+    # aplicados pelo caso de uso CadastroUsuario.
     senha = serializers.CharField(
         write_only=True,
         required=True,
-        min_length=6,
         error_messages={
             "required": "A senha é obrigatória.",
             "blank": "A senha é obrigatória.",
-            "min_length": "A senha deve ter no mínimo 6 caracteres.",
         },
     )
 
@@ -55,7 +74,9 @@ class UsuarioRespostaSerializer(serializers.Serializer):
     request=CadastroSerializer,
     responses={
         201: UsuarioRespostaSerializer,
-        400: OpenApiResponse(description="Dados inválidos ou e-mail já cadastrado."),
+        400: OpenApiResponse(
+            description="Dados inválidos, senha fraca ou e-mail já cadastrado."
+        ),
     },
     tags=["Autenticação"],
 )
@@ -77,26 +98,24 @@ def cadastro(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    email = serializer.validated_data["email"].strip().lower()
-    nome = serializer.validated_data["nome"].strip()
-    senha = serializer.validated_data["senha"]
-
-    if UsuarioModel.objects.filter(email=email).exists():
+    cadastro_usuario = CadastroUsuario(
+        RepositorioUsuarioDjango(), ServicoSenhasDjango()
+    )
+    try:
+        # Salvar o usuário e definir a senha são duas escritas: ou as duas, ou nenhuma.
+        with transaction.atomic():
+            usuario = cadastro_usuario.executar(
+                nome=serializer.validated_data["nome"],
+                email=serializer.validated_data["email"],
+                senha=serializer.validated_data["senha"],
+            )
+    except ErroDominio as erro:
+        # Provisório até o tratamento de erros nas bordas da API (#12).
+        codigo = CODIGOS_ERRO_CADASTRO.get(type(erro), "dados_invalidos")
         return Response(
-            {
-                "erro": "email_duplicado",
-                "mensagem": (
-                    "E-mail já cadastrado. Tente fazer login ou use outro e-mail."
-                ),
-            },
+            {"erro": codigo, "mensagem": str(erro)},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    usuario = UsuarioModel.objects.create_user(
-        email=email,
-        nome=nome,
-        password=senha,
-    )
 
     return Response(
         {

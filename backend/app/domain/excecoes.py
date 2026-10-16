@@ -23,3 +23,11 @@ class HorarioInvalido(ErroDominio):
 
 class TransicaoInvalida(ErroDominio):
     """Tentativa de mudar o estado da sessão de forma não permitida."""
+
+
+class EmailJaCadastrado(ErroDominio):
+    """Cadastro com um e-mail que já pertence a outro usuário."""
+
+
+class SenhaInvalida(ErroDominio):
+    """Senha que não atende às regras de segurança (curta, comum, só números...)."""

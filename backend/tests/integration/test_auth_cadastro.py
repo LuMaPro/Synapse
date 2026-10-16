@@ -81,3 +81,26 @@ def test_cadastro_validacao_campos_invalidos(payload, campo_esperado):
     assert resposta.status_code == 400
     dados = resposta.json()
     assert campo_esperado in dados["erro"]
+
+
+@pytest.mark.parametrize(
+    ("senha", "trecho_da_mensagem"),
+    [
+        ("Ab1-xyz", "muito curta"),
+        ("12345678", "inteiramente numérica"),
+        ("password123", "muito comum"),
+        ("mariana@synapse.com", "muito parecida"),
+    ],
+)
+def test_cadastro_recusa_senha_fraca(senha, trecho_da_mensagem):
+    resposta = APIClient().post(
+        "/auth/cadastro",
+        {"nome": "Mariana", "email": "mariana@synapse.com", "senha": senha},
+        format="json",
+    )
+
+    assert resposta.status_code == 400
+    dados = resposta.json()
+    assert dados["erro"] == "senha_invalido"
+    assert trecho_da_mensagem in dados["mensagem"]
+    assert not UsuarioModel.objects.filter(email="mariana@synapse.com").exists()

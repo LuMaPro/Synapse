@@ -21,6 +21,7 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
 ## Separação em camadas
 
 - **Domínio puro** (`backend/app/domain/`, issue #9): entidades, objetos de valor e exceções não dependem do Django nem do DRF, então as regras de negócio são testadas sem banco e sem servidor. A regra é verificada automaticamente por `backend/tests/unit/domain/test_dominio_puro.py`.
+- **Cadastro como caso de uso** (`backend/app/application/cadastro.py`, issue #14): a view `cadastro` (`backend/app/api/auth.py`) só lê a requisição e traduz erros para HTTP. A regra de negócio fica em `CadastroUsuario`, que usa a entidade `Usuario` (validação de nome e e-mail), o `RepositorioUsuario` (e-mail único) e a interface `ServicoSenhas`, implementada na infraestrutura com os validadores e o hash Argon2 do Django (`backend/app/infra/senhas.py`). O caso de uso depende só de interfaces (princípio D do SOLID) e é testado com repositório em memória (`backend/tests/unit/application/test_cadastro.py`).
 - **Lógica separada da tela no frontend** (`frontend/src/hooks/useSessaoFoco.ts`, issue #17): o hook concentra o estado e as regras da sessão (limites da duração, timer, conclusão, desistência, tela cheia), e a página `frontend/src/pages/Foco.tsx` só desenha o que ele devolve. Assim o timer é testado sem renderizar a tela, e a integração com a API (issue #20) muda o hook sem mexer nos componentes.
 
 ## Baixo acoplamento e alta coesão
