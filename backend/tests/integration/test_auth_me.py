@@ -102,3 +102,30 @@ def test_me_com_header_authorization_malformado(header_invalido):
     )
 
     assert resposta.status_code == 401
+
+
+def test_swagger_me_configurado_com_bearer_auth():
+    """Valida o critério de aceite: Swagger (/docs/) permite autenticar e chamar /me."""
+    cliente = APIClient()
+
+    # Valida que o Swagger UI carrega
+    resposta_docs = cliente.get("/docs/")
+    assert resposta_docs.status_code == 200
+    assert b"swagger" in resposta_docs.content.lower()
+
+    # Valida que o schema OpenAPI expõe /me com segurança Bearer (jwtAuth)
+    resposta_schema = cliente.get("/schema/", HTTP_ACCEPT="application/json")
+    assert resposta_schema.status_code == 200
+    schema = resposta_schema.json()
+
+    # Confirma que jwtAuth está registrado nos securitySchemes
+    security_schemes = schema["components"]["securitySchemes"]
+    assert "jwtAuth" in security_schemes
+    assert security_schemes["jwtAuth"]["type"] == "http"
+    assert security_schemes["jwtAuth"]["scheme"] == "bearer"
+    assert security_schemes["jwtAuth"]["bearerFormat"] == "JWT"
+
+    # Confirma que a rota /me exige jwtAuth
+    me_endpoint = schema["paths"]["/me"]["get"]
+    assert {"jwtAuth": []} in me_endpoint["security"]
+
