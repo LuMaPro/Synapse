@@ -1,12 +1,19 @@
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 
+from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, EmAndamento, Podada, SessaoFoco
 from app.domain.entidades.usuario import Usuario
+from app.domain.politica_interrupcao import Interrupcao, ModoTolerante
 from app.infra.modelos.sessao_foco import SessaoFocoModel
 from app.infra.modelos.usuario import UsuarioModel
-from app.infra.repositorios import RepositorioSessaoDjango, RepositorioUsuarioDjango
+from app.infra.repositorios import (
+    RepositorioNeuronioDjango,
+    RepositorioSessaoDjango,
+    RepositorioUsuarioDjango,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -156,3 +163,56 @@ class TestRepositorioSessaoDjango:
     def test_buscar_por_id_inexistente_retorna_none(self):
         repo = RepositorioSessaoDjango()
         assert repo.buscar_por_id(uuid4()) is None
+
+
+INICIO = datetime(2026, 10, 16, 14, 0, tzinfo=UTC)
+
+
+class TestPersistenciaDaIssue16:
+    @pytest.fixture
+    def usuario(self):
+        return UsuarioModel.objects.create_user(email="ana@synapse.com", nome="Ana")
+
+    def test_sessao_volta_do_banco_com_modo_e_historico(self, usuario):
+        repo = RepositorioSessaoDjango()
+        saida = INICIO + timedelta(minutes=2)
+        sessao = SessaoFoco(
+            usuario.id,
+            25,
+            inicio=INICIO,
+            politica=ModoTolerante(),
+            interrupcoes=[
+                Interrupcao(saida=saida, retorno=saida + timedelta(seconds=30))
+            ],
+        )
+
+        repo.salvar(sessao)
+        recuperada = repo.buscar_por_id(sessao.id)
+
+        assert recuperada.politica.codigo == "tolerante"
+        assert recuperada.historico_interrupcoes == sessao.historico_interrupcoes
+        assert recuperada.tempo_fora == timedelta(seconds=30)
+
+    def test_listar_em_andamento_ignora_as_encerradas(self, usuario):
+        repo = RepositorioSessaoDjango()
+        ativa = SessaoFoco(usuario.id, 25, inicio=INICIO)
+        podada = SessaoFoco(usuario.id, 25, inicio=INICIO, estado=Podada())
+        repo.salvar(ativa)
+        repo.salvar(podada)
+
+        assert [s.id for s in repo.listar_em_andamento()] == [ativa.id]
+
+    def test_neuronio_ida_e_volta(self, usuario):
+        sessao = SessaoFoco(usuario.id, 25, inicio=INICIO, estado=Concluida())
+        RepositorioSessaoDjango().salvar(sessao)
+        repo = RepositorioNeuronioDjango()
+        neuronio = Neuronio(usuario.id, sessao.id, 25, criado_em=INICIO)
+
+        repo.salvar(neuronio)
+
+        recuperado = repo.buscar_por_sessao(sessao.id)
+        assert recuperado == neuronio
+        assert recuperado.duracao.minutos == 25
+        assert recuperado.criado_em == INICIO
+        assert repo.listar_por_usuario(usuario.id) == [neuronio]
+        assert repo.buscar_por_sessao(uuid4()) is None

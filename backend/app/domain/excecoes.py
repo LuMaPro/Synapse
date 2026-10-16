@@ -31,3 +31,15 @@ class EmailJaCadastrado(ErroDominio):
 
 class SenhaInvalida(ErroDominio):
     """Senha que não atende às regras de segurança (curta, comum, só números...)."""
+
+
+class PoliticaInvalida(ErroDominio):
+    """Modo de interrupção desconhecido (os válidos são estrito e tolerante)."""
+
+
+class SessaoAtivaExistente(ErroDominio):
+    """O estudante tentou iniciar uma sessão tendo outra em andamento."""
+
+
+class SessaoNaoEncontrada(ErroDominio):
+    """Sessão inexistente ou de outro estudante (as duas respostas são iguais)."""

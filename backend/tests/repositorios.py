@@ -1,8 +1,13 @@
 from uuid import UUID
 
+from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.entidades.usuario import Usuario
-from app.domain.repositorios import RepositorioSessao, RepositorioUsuario
+from app.domain.repositorios import (
+    RepositorioNeuronio,
+    RepositorioSessao,
+    RepositorioUsuario,
+)
 
 
 class RepositorioUsuarioMemoria(RepositorioUsuario):
@@ -82,12 +87,39 @@ class RepositorioSessaoMemoria(RepositorioSessao):
                 return sessao
         return None
 
+    def listar_em_andamento(self) -> list[SessaoFoco]:
+        """Lista as sessões em andamento de todos os usuários em memória."""
+        return [s for s in self._sessoes.values() if s.codigo_estado == "em_andamento"]
+
     def limpar(self) -> None:
         """Esvazia o repositório em memória."""
         self._sessoes.clear()
 
     def __len__(self) -> int:
         return len(self._sessoes)
+
+
+class RepositorioNeuronioMemoria(RepositorioNeuronio):
+    """Implementação em memória de RepositorioNeuronio para testes unitários."""
+
+    def __init__(self) -> None:
+        self._neuronios: dict[UUID, Neuronio] = {}
+
+    def salvar(self, neuronio: Neuronio) -> None:
+        self._neuronios[neuronio.id] = neuronio
+
+    def buscar_por_sessao(self, sessao_id: UUID) -> Neuronio | None:
+        for neuronio in self._neuronios.values():
+            if neuronio.sessao_id == sessao_id:
+                return neuronio
+        return None
+
+    def listar_por_usuario(self, usuario_id: UUID) -> list[Neuronio]:
+        neuronios = [n for n in self._neuronios.values() if n.usuario_id == usuario_id]
+        return sorted(neuronios, key=lambda n: n.criado_em, reverse=True)
+
+    def __len__(self) -> int:
+        return len(self._neuronios)
 
 
 # Aliases de conveniência

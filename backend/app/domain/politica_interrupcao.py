@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
+from app.domain.excecoes import PoliticaInvalida
 from app.domain.tempo import exigir_fuso
 
 if TYPE_CHECKING:
@@ -35,6 +36,11 @@ class PoliticaInterrupcao(ABC):
     Base abstrata para a família de algoritmos de interrupção (Strategy, #11).
     """
 
+    @property
+    @abstractmethod
+    def codigo(self) -> str:
+        """Identificador estável do modo, para gravar no banco e trocar com a API."""
+
     @abstractmethod
     def deve_podar(
         self,
@@ -60,6 +66,10 @@ class PoliticaInterrupcao(ABC):
 class ModoEstrito(PoliticaInterrupcao):
     """Qualquer saída poda a sessão imediatamente."""
 
+    @property
+    def codigo(self) -> str:
+        return "estrito"
+
     def deve_podar(
         self,
         sessao: "SessaoFoco",
@@ -74,6 +84,10 @@ class ModoTolerante(PoliticaInterrupcao):
 
     def __init__(self, proporcao_tolerancia: float = 0.10):
         self.proporcao = proporcao_tolerancia
+
+    @property
+    def codigo(self) -> str:
+        return "tolerante"
 
     def deve_podar(
         self,
@@ -105,3 +119,20 @@ class ModoTolerante(PoliticaInterrupcao):
         )
         tempo_ja_gasto = sum(i.segundos_fora for i in historico)
         return max(0.0, tempo_total_permitido - tempo_ja_gasto)
+
+
+_POLITICAS: dict[str, type[PoliticaInterrupcao]] = {
+    "estrito": ModoEstrito,
+    "tolerante": ModoTolerante,
+}
+
+
+def politica_por_codigo(codigo: str) -> PoliticaInterrupcao:
+    """Cria a política a partir do código vindo da API ou do banco."""
+    try:
+        return _POLITICAS[codigo]()
+    except KeyError:
+        validos = ", ".join(_POLITICAS)
+        raise PoliticaInvalida(
+            f"Modo desconhecido: {codigo!r}. Use um destes: {validos}."
+        ) from None

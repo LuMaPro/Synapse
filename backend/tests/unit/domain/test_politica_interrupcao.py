@@ -4,11 +4,12 @@ from uuid import uuid4
 import pytest
 
 from app.domain.entidades.sessao_foco import SessaoFoco
-from app.domain.excecoes import HorarioInvalido
+from app.domain.excecoes import HorarioInvalido, PoliticaInvalida
 from app.domain.politica_interrupcao import (
     Interrupcao,
     ModoEstrito,
     ModoTolerante,
+    politica_por_codigo,
 )
 
 INICIO = datetime(2026, 10, 12, 14, 0, tzinfo=UTC)
@@ -131,3 +132,23 @@ def test_modo_tolerante_poda_quando_o_saldo_acaba(sessao_60_min):
     instante = politica.instante_da_poda(sessao_60_min, nova, historico)
 
     assert instante == saida + timedelta(minutes=2)
+
+
+# ==============================================================================
+# Código das políticas (persistência e API, Issue #16)
+# ==============================================================================
+
+
+@pytest.mark.parametrize(
+    ("codigo", "classe"), [("estrito", ModoEstrito), ("tolerante", ModoTolerante)]
+)
+def test_politica_por_codigo_cria_a_politica_certa(codigo, classe):
+    politica = politica_por_codigo(codigo)
+
+    assert isinstance(politica, classe)
+    assert politica.codigo == codigo
+
+
+def test_politica_por_codigo_recusa_modo_desconhecido():
+    with pytest.raises(PoliticaInvalida, match="estrito, tolerante"):
+        politica_por_codigo("relaxado")

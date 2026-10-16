@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.entidades.usuario import Usuario
 
@@ -64,4 +65,31 @@ class RepositorioSessao(ABC):
         Retorna a sessão de foco atualmente em andamento para o usuário, se houver.
         Garante a regra de que um usuário não pode ter mais de uma sessão ativa por vez.
         """
+        ...
+
+    @abstractmethod
+    def listar_em_andamento(self) -> list[SessaoFoco]:
+        """Lista as sessões em andamento de todos os usuários.
+
+        Usado pela varredura de sessões abandonadas (comando podar_sessoes_orfas).
+        """
+        ...
+
+
+class RepositorioNeuronio(ABC):
+    """Interface abstrata para persistência dos neurônios (Padrão Repository)."""
+
+    @abstractmethod
+    def salvar(self, neuronio: Neuronio) -> None:
+        """Persiste um neurônio novo."""
+        ...
+
+    @abstractmethod
+    def buscar_por_sessao(self, sessao_id: UUID) -> Neuronio | None:
+        """Busca o neurônio criado ao concluir a sessão, se houver."""
+        ...
+
+    @abstractmethod
+    def listar_por_usuario(self, usuario_id: UUID) -> list[Neuronio]:
+        """Lista os neurônios de um usuário, do mais recente para o mais antigo."""
         ...

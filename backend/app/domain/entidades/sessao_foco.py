@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from app.domain.duracao import Duracao
@@ -12,6 +12,9 @@ from app.domain.politica_interrupcao import (
     PoliticaInterrupcao,
 )
 from app.domain.tempo import agora, exigir_fuso
+
+# Sessão em andamento há mais que duração + este limite foi abandonada (#16).
+LIMITE_ABANDONO = timedelta(minutes=5)
 
 
 class EstadoSessao(ABC):
@@ -45,6 +48,10 @@ class EstadoSessao(ABC):
         self, sessao: "SessaoFoco", interrupcao: Interrupcao
     ) -> None:
         raise TransicaoInvalida(f"Não é possível interromper uma sessão {self.nome}.")
+
+    def expirar(self, sessao: "SessaoFoco", instante: datetime) -> bool:
+        """Sessões já encerradas não expiram."""
+        return False
 
 
 class EmAndamento(EstadoSessao):
@@ -80,6 +87,13 @@ class EmAndamento(EstadoSessao):
         self, sessao: "SessaoFoco", interrupcao: Interrupcao
     ) -> None:
         sessao._aplicar_politica(interrupcao)
+
+    def expirar(self, sessao: "SessaoFoco", instante: datetime) -> bool:
+        limite = sessao.fim_previsto + LIMITE_ABANDONO
+        if instante <= limite:
+            return False
+        sessao._mudar_estado(Podada(), limite)
+        return True
 
 
 class Concluida(EstadoSessao):
@@ -120,9 +134,9 @@ class Podada(EstadoSessao):
 class SessaoFoco(Entidade):
     """Sessão de foco de um estudante.
 
-    Por enquanto guarda os dados e os horários da sessão. O ciclo de vida (concluir,
-    podar, desistir) vem com o padrão State (#10), e a política de interrupção com o
-    Strategy (#11).
+    O ciclo de vida (concluir, podar, desistir, expirar) é delegado ao estado atual
+    (padrão State, #10), e a decisão de podar por saída da tela, à política de
+    interrupção (padrão Strategy, #11).
     """
 
     def __init__(
@@ -135,6 +149,7 @@ class SessaoFoco(Entidade):
         estado: EstadoSessao | None = None,
         id: UUID | None = None,
         politica: PoliticaInterrupcao | None = None,
+        interrupcoes: list[Interrupcao] | None = None,
     ):
         super().__init__(id)
         self._usuario_id = usuario_id
@@ -149,7 +164,9 @@ class SessaoFoco(Entidade):
         self._encerrada_em = encerrada_em
         self._estado = estado or EmAndamento()
         self._politica = politica or ModoEstrito()
-        self._historico_interrupcoes: list[Interrupcao] = []
+        # Ao reconstruir do banco, o histórico volta junto: o saldo do tolerante
+        # soma todas as saídas da sessão.
+        self._historico_interrupcoes: list[Interrupcao] = list(interrupcoes or [])
 
     @property
     def usuario_id(self) -> UUID:
@@ -219,6 +236,24 @@ class SessaoFoco(Entidade):
             f"SessaoFoco(id={self.id}, usuario_id={self._usuario_id}, "
             f"duracao={self._duracao.minutos} min, estado={self.estado})"
         )
+
+    @property
+    def tempo_fora(self) -> timedelta:
+        """Soma das saídas da tela que não podaram a sessão."""
+        segundos = sum(i.segundos_fora for i in self._historico_interrupcoes)
+        return timedelta(seconds=segundos)
+
+    def restante_em(self, instante: datetime) -> timedelta:
+        """Quanto falta para o fim previsto, calculado no servidor."""
+        return max(timedelta(0), self.fim_previsto - exigir_fuso(instante, "instante"))
+
+    def expirar_se_abandonada(self, instante: datetime) -> bool:
+        """Poda a sessão em andamento que passou de duração + 5 min sem conclusão.
+
+        A poda vale a partir do limite, não da hora em que alguém percebeu. Devolve
+        True se a sessão expirou agora.
+        """
+        return self._estado.expirar(self, exigir_fuso(instante, "instante"))
 
     def registrar_interrupcao(self, interrupcao: Interrupcao) -> None:
         """

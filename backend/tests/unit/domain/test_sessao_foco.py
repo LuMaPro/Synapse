@@ -311,3 +311,51 @@ def test_sessao_encerrada_nao_aceita_interrupcao(encerrar, relogio_futuro):
 
     with pytest.raises(TransicaoInvalida, match="Não é possível interromper"):
         sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=10))
+
+
+# ==============================================================================
+# Sessão abandonada, histórico e tempo (Issue #16)
+# ==============================================================================
+
+
+def test_sessao_em_andamento_expira_depois_de_duracao_mais_5_min():
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO)
+
+    assert sessao.expirar_se_abandonada(INICIO + timedelta(minutes=30)) is False
+    assert sessao.codigo_estado == "em_andamento"
+
+    assert sessao.expirar_se_abandonada(INICIO + timedelta(hours=3)) is True
+    assert sessao.codigo_estado == "podada"
+    # A poda vale a partir do limite, não da hora em que alguém percebeu.
+    assert sessao.encerrada_em == INICIO + timedelta(minutes=30)
+
+
+@pytest.mark.parametrize("encerrar", ["podar", "concluir"])
+def test_sessao_encerrada_nao_expira(encerrar, relogio_futuro):
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO)
+    getattr(sessao, encerrar)(relogio=relogio_futuro)
+    encerrada_em = sessao.encerrada_em
+
+    assert sessao.expirar_se_abandonada(INICIO + timedelta(hours=3)) is False
+    assert sessao.encerrada_em == encerrada_em
+
+
+def test_reconstroi_sessao_com_historico_e_soma_o_tempo_fora():
+    historico = [_saida(minuto=2, segundos_fora=30), _saida(minuto=8, segundos_fora=45)]
+
+    sessao = SessaoFoco(
+        uuid4(), 25, inicio=INICIO, politica=ModoTolerante(), interrupcoes=historico
+    )
+
+    assert sessao.historico_interrupcoes == historico
+    assert sessao.tempo_fora == timedelta(seconds=75)
+    # O saldo de 150 s considera o histórico: mais 80 s estouram.
+    sessao.registrar_interrupcao(_saida(minuto=12, segundos_fora=80))
+    assert sessao.codigo_estado == "podada"
+
+
+def test_restante_em_calcula_ate_o_fim_previsto_e_nao_fica_negativo():
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO)
+
+    assert sessao.restante_em(INICIO + timedelta(minutes=10)) == timedelta(minutes=15)
+    assert sessao.restante_em(INICIO + timedelta(hours=1)) == timedelta(0)

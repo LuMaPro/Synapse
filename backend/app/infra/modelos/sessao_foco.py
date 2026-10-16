@@ -11,6 +11,7 @@ from app.domain.entidades.sessao_foco import (
     Podada,
     SessaoFoco,
 )
+from app.domain.politica_interrupcao import Interrupcao, politica_por_codigo
 
 
 class SessaoFocoModel(models.Model):
@@ -43,6 +44,14 @@ class SessaoFocoModel(models.Model):
         default=Estado.EM_ANDAMENTO,
     )
 
+    class Modo(models.TextChoices):
+        ESTRITO = "estrito", "Estrito"
+        TOLERANTE = "tolerante", "Tolerante"
+
+    modo = models.CharField(
+        "modo", max_length=20, choices=Modo.choices, default=Modo.ESTRITO
+    )
+
     class Meta:
         db_table = "sessoes_foco"
         verbose_name = "sessão de foco"
@@ -68,6 +77,11 @@ class SessaoFocoModel(models.Model):
             encerrada_em=self.encerrada_em,
             estado=estado_cls(),
             id=self.id,
+            politica=politica_por_codigo(self.modo),
+            interrupcoes=[
+                Interrupcao(saida=i.saida, retorno=i.retorno)
+                for i in self.interrupcoes.all()
+            ],
         )
 
     @classmethod
@@ -82,7 +96,30 @@ class SessaoFocoModel(models.Model):
             inicio=sessao.inicio,
             encerrada_em=sessao.encerrada_em,
             estado=sessao.codigo_estado,
+            modo=sessao.politica.codigo,
         )
+
+
+class InterrupcaoModel(models.Model):
+    """Saída da tela registrada numa sessão (histórico usado pelo modo tolerante)."""
+
+    sessao = models.ForeignKey(
+        SessaoFocoModel,
+        on_delete=models.CASCADE,
+        related_name="interrupcoes",
+        verbose_name="sessão",
+    )
+    saida = models.DateTimeField("saída")
+    retorno = models.DateTimeField("retorno", null=True, blank=True)
+
+    class Meta:
+        db_table = "interrupcoes"
+        verbose_name = "interrupção"
+        verbose_name_plural = "interrupções"
+        ordering = ["saida"]
+
+    def __str__(self) -> str:
+        return f"Interrupção da sessão {self.sessao_id} às {self.saida:%H:%M:%S}"
 
 
 # Alias de conveniência caso seja referenciado como SessaoModel
