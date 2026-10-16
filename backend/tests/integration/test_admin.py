@@ -2,6 +2,7 @@ import pytest
 from django.core.management import call_command
 from django.test import Client
 
+from app.infra.modelos.sessao_foco import SessaoFocoModel
 from app.infra.modelos.usuario import UsuarioModel
 
 pytestmark = pytest.mark.django_db
@@ -55,6 +56,22 @@ def test_admin_abre_edicao_de_usuario(cliente_admin):
 
     resposta = cliente_admin.get(f"/admin/app/usuariomodel/{usuario.pk}/change/")
 
+    assert resposta.status_code == 200
+
+
+def test_admin_lista_sessoes_foco(cliente_admin):
+    assert cliente_admin.get("/admin/app/sessaofocomodel/").status_code == 200
+
+
+def test_admin_abre_edicao_de_sessao_foco(cliente_admin):
+    usuario = UsuarioModel.objects.create_user(
+        email="sessao@email.com", password="x", nome="Sessão"
+    )
+    sessao = SessaoFocoModel.objects.create(
+        usuario=usuario, duracao_minutos=25
+    )
+
+    resposta = cliente_admin.get(f"/admin/app/sessaofocomodel/{sessao.pk}/change/")
     assert resposta.status_code == 200
 
 
