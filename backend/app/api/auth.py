@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -201,4 +201,29 @@ def login(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+@extend_schema(
+    summary="Dados do estudante logado",
+    description="Retorna os dados do estudante autenticado via Bearer JWT.",
+    responses={
+        200: UsuarioRespostaSerializer,
+        401: OpenApiResponse(description="Token ausente, inválido ou expirado."),
+    },
+    tags=["Autenticação"],
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    """Endpoint para recuperar os dados do estudante autenticado."""
+    usuario = request.user
+    return Response(
+        {
+            "id": str(usuario.id),
+            "nome": usuario.nome,
+            "email": usuario.email,
+        },
+        status=status.HTTP_200_OK,
+    )
+
 
