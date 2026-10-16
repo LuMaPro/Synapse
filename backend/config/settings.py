@@ -99,6 +99,14 @@ DATABASES = {
 # migração: trocar o modelo de usuário depois que o banco existe é muito trabalhoso.
 AUTH_USER_MODEL = "app.UsuarioModel"
 
+# Hash de senhas usando Argon2 (issue #14)
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+]
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
