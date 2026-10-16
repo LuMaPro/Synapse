@@ -16,6 +16,8 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
 
 ### D: Inversão de dependência
 
+- **Repositórios abstratos no domínio e implementações injetadas** (`backend/app/domain/repositorios.py`, issue #13): as regras de negócio e os serviços dependem exclusivamente de interfaces abstratas (`RepositorioUsuario` e `RepositorioSessao` herdando de `ABC`), e nunca de implementações concretas ou do ORM do Django. A infraestrutura (`backend/app/infra/repositorios/`) implementa essas interfaces para o PostgreSQL usando o Django ORM (`RepositorioUsuarioDjango`, `RepositorioSessaoDjango`), enquanto os testes unitários utilizam implementações em memória (`backend/tests/repositorios.py`). A dependência foi invertida: o domínio define os contratos e a infraestrutura se adapta a eles, e não o contrário.
+
 ## Separação em camadas
 
 - **Domínio puro** (`backend/app/domain/`, issue #9): entidades, objetos de valor e exceções não dependem do Django nem do DRF, então as regras de negócio são testadas sem banco e sem servidor. A regra é verificada automaticamente por `backend/tests/unit/domain/test_dominio_puro.py`.
