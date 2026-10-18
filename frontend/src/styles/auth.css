@@ -2,12 +2,13 @@
 
 .auth-container {
   position: relative;
-  min-height: calc(100vh - 120px);
+  min-height: calc(100vh - 80px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 40px 16px;
   overflow: hidden;
+  width: 100%;
 }
 
 /* Fundo com rede neural bioluminescente */
@@ -21,17 +22,18 @@
   display: block;
 }
 
+/* Conteúdo de autenticação sobre o background (sem card/container) */
 .auth-card {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 420px;
-  background: var(--cor-superficie);
-  border: 1px solid var(--cor-borda);
-  border-radius: var(--raio);
-  padding: 32px 28px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(12px);
+  max-width: 380px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .auth-cabecalho {
@@ -49,28 +51,31 @@
 
 .auth-titulo-marca {
   font-family: var(--fonte-titulo);
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
   background: linear-gradient(135deg, var(--cor-texto) 30%, var(--cor-destaque) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-
-.auth-titulo-pagina {
-  font-family: var(--fonte-titulo);
-  font-size: 22px;
-  font-weight: 600;
-  margin: 12px 0 4px;
-  color: var(--cor-texto);
+  filter: drop-shadow(0 2px 14px rgba(139, 123, 255, 0.35));
 }
 
 .auth-subtitulo {
   font-family: var(--fonte-texto);
   font-size: 14px;
   color: var(--cor-texto-suave);
-  margin: 6px 0 0;
+  margin: 8px 0 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.auth-titulo-pagina {
+  font-family: var(--fonte-titulo);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 16px 0 4px;
+  color: var(--cor-texto);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
 }
 
 /* Alerta de erro da API */
@@ -81,11 +86,13 @@
   padding: 12px 14px;
   margin-bottom: 20px;
   border-radius: var(--raio);
-  background: rgba(255, 92, 122, 0.12);
-  border: 1px solid rgba(255, 92, 122, 0.35);
+  background: rgba(255, 92, 122, 0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 92, 122, 0.4);
   color: var(--cor-perigo);
   font-size: 14px;
   line-height: 1.4;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .auth-alerta-erro svg {
@@ -117,6 +124,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .auth-rotulo-obrigatorio {
@@ -136,12 +144,13 @@
   padding: 0 16px;
   border-radius: var(--raio);
   border: 1px solid var(--cor-borda);
-  background: var(--cor-superficie);
+  background: rgba(20, 23, 48, 0.78);
+  backdrop-filter: blur(8px);
   color: var(--cor-texto);
   font-family: var(--fonte-texto);
   font-size: 15px;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .auth-entrada::placeholder {
@@ -153,7 +162,8 @@
   border-color: var(--cor-impulso);
   outline: 2px solid var(--cor-impulso);
   outline-offset: 2px;
-  box-shadow: 0 0 12px rgba(62, 230, 224, 0.25);
+  box-shadow: 0 0 16px rgba(62, 230, 224, 0.3);
+  background: rgba(20, 23, 48, 0.95);
 }
 
 .auth-entrada.com-erro {
@@ -268,10 +278,11 @@
 
 /* Rodapé do card / links alternativos */
 .auth-rodape {
-  margin-top: 22px;
+  margin-top: 24px;
   text-align: center;
   font-size: 14px;
   color: var(--cor-texto-suave);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 .auth-link {

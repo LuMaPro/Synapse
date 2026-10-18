@@ -1,9 +1,9 @@
 /**
  * Fundo decorativo com rede neural bioluminescente interativa (docs/design/prototipo.html).
- * Renderiza nós neuronais que flutuam e reagem ao movimento do cursor:
- *  - Sinapses acendem conforme o mouse se aproxima
- *  - Nós próximos ao cursor brilham e crescem (repulsão suave)
- *  - Animação pausada quando a aba está inativa (performance)
+ * Ocupa todo o background da tela de autenticação:
+ *  - Sinapses e neurônios cobrem toda a área da viewport
+ *  - O texto e formulário ficam diretamente sobre o fundo
+ *  - Nós e conexões acendem e reagem suavemente ao cursor em qualquer ponto da tela
  */
 
 import { useEffect, useRef } from 'react'
@@ -17,9 +17,8 @@ const COR_AMBAR = '#ffc857'
 const CORES_NO = [COR_CIANO, COR_VIOLETA, COR_VERDE, COR_AMBAR, COR_CIANO, COR_VIOLETA]
 
 // ─── Configuração ───────────────────────────────────────────────────────────
-const N_NOS = 24
-const RAIO_CONEXAO = 175     // px — distância máxima para desenhar sinapse
-const RAIO_MOUSE = 140       // px — raio de influência do cursor
+const RAIO_CONEXAO = 180     // px — distância máxima para desenhar sinapse
+const RAIO_MOUSE = 150       // px — raio de influência do cursor
 const VELOCIDADE_BASE = 0.28 // px/frame — velocidade de deriva dos nós
 const RAIO_NO_BASE = 4.5     // px — raio padrão dos nós
 const RAIO_NO_MAX = 8.5      // px — raio máximo ao ser ativado pelo mouse
@@ -79,22 +78,31 @@ export function RedeFundo() {
     const dpr = Math.min(window.devicePixelRatio ?? 1, 2)
 
     function redimensionar() {
-      const rect = canvas!.getBoundingClientRect()
-      canvas!.width = rect.width * dpr
-      canvas!.height = rect.height * dpr
-      ctx!.scale(dpr, dpr)
+      if (!canvas || !ctx) return
+      const rect = canvas.getBoundingClientRect()
+      canvas.width = rect.width * dpr
+      canvas.height = rect.height * dpr
+      ctx.scale(dpr, dpr)
 
-      // Recria nós mantendo os existentes (sem piscar ao redimensionar)
+      // Número de nós proporcional à área para cobrir toda a tela
+      const nAlvo = Math.min(Math.max(Math.round((rect.width * rect.height) / 22000), 24), 48)
+
       if (nos.length === 0) {
-        nos = Array.from({ length: N_NOS }, (_, i) =>
+        nos = Array.from({ length: nAlvo }, (_, i) =>
           criarNo(rect.width, rect.height, i),
         )
-      } else {
-        // Reposiciona nós que saíram das bordas
-        for (const no of nos) {
-          if (no.x > rect.width) no.x = rect.width - 10
-          if (no.y > rect.height) no.y = rect.height - 10
-        }
+      } else if (nos.length < nAlvo) {
+        const adicionais = Array.from({ length: nAlvo - nos.length }, (_, i) =>
+          criarNo(rect.width, rect.height, nos.length + i),
+        )
+        nos.push(...adicionais)
+      } else if (nos.length > nAlvo) {
+        nos.length = nAlvo
+      }
+
+      for (const no of nos) {
+        if (no.x > rect.width) no.x = Math.random() * rect.width
+        if (no.y > rect.height) no.y = Math.random() * rect.height
       }
     }
 
@@ -102,9 +110,10 @@ export function RedeFundo() {
     observer.observe(canvas)
     redimensionar()
 
-    // ── Tracking do mouse ────────────────────────────────────────────────
+    // ── Tracking global do mouse (janela inteira) ────────────────────────
     function onMouseMove(e: MouseEvent) {
-      const rect = canvas!.getBoundingClientRect()
+      if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
       mouseX = e.clientX - rect.left
       mouseY = e.clientY - rect.top
     }
@@ -113,9 +122,9 @@ export function RedeFundo() {
       mouseY = -9999
     }
 
-    const container = canvas.parentElement
-    container?.addEventListener('mousemove', onMouseMove)
-    container?.addEventListener('mouseleave', onMouseLeave)
+    window.addEventListener('mousemove', onMouseMove, { passive: true })
+    document.addEventListener('mouseleave', onMouseLeave)
+    window.addEventListener('blur', onMouseLeave)
 
     // ── Visibilidade ─────────────────────────────────────────────────────
     function onVisibility() {
@@ -135,14 +144,11 @@ export function RedeFundo() {
       // Limpa com fundo transparente
       ctx!.clearRect(0, 0, W, H)
 
-      // Gradiente de máscara radial simulado com globalAlpha em cada elemento
-      // (feito diretamente na opacidade de cada draw call)
-
       // ── Atualiza nós ──
       for (const no of nos) {
         no.fase += PULSO_VELOCIDADE
 
-        // Distância ao mouse
+        // Distância ao cursor
         const dx = mouseX - no.x
         const dy = mouseY - no.y
         const dist = Math.sqrt(dx * dx + dy * dy)
@@ -159,7 +165,7 @@ export function RedeFundo() {
           no.vy -= (dy / dist) * forca * 0.03
         }
 
-        // Amortecimento para não acelerar demais
+        // Amortecimento
         no.vx *= 0.985
         no.vy *= 0.985
 
@@ -191,21 +197,18 @@ export function RedeFundo() {
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist > RAIO_CONEXAO) continue
 
-          // Opacidade base: mais próximos = mais visíveis
           const opacidadeDistancia = 1 - dist / RAIO_CONEXAO
-          // Ativação pelo mouse: usa o maior brilho das duas pontas
           const ativacao = Math.max(a.brilho, b.brilho)
 
-          // Cor: inativa = azul-escuro, ativa = ciano/violeta
           const alphaInativo = opacidadeDistancia * 0.5
-          const alphaAtivo = opacidadeDistancia * ativacao * 0.9
+          const alphaAtivo = opacidadeDistancia * ativacao * 0.95
 
-          // Fade nas bordas da tela (efeito de máscara)
+          // Fade sutil apenas nas margens externas da tela
           const cx = (a.x + b.x) / 2
           const cy = (a.y + b.y) / 2
-          const distCentro = Math.sqrt((cx - W / 2) ** 2 + (cy - H * 0.4) ** 2)
-          const maxDist = Math.sqrt((W / 2) ** 2 + (H * 0.6) ** 2)
-          const fadeEstilo = Math.max(0, 1 - distCentro / (maxDist * 0.75))
+          const margemX = Math.min(cx / 35, (W - cx) / 35, 1)
+          const margemY = Math.min(cy / 35, (H - cy) / 35, 1)
+          const fadeBorda = Math.max(0.15, Math.min(margemX, margemY, 1))
 
           // Sinapse inativa
           ctx!.beginPath()
@@ -213,10 +216,10 @@ export function RedeFundo() {
           ctx!.lineTo(b.x, b.y)
           ctx!.strokeStyle = COR_SINAPSE_INATIVA
           ctx!.lineWidth = 1.1
-          ctx!.globalAlpha = alphaInativo * fadeEstilo
+          ctx!.globalAlpha = alphaInativo * fadeBorda
           ctx!.stroke()
 
-          // Sinapse ativa (sobreposta, mais brilhante)
+          // Sinapse ativa (brilhante quando o mouse está próximo)
           if (ativacao > 0.05) {
             const [r, g, b2] = hexParaRgb(COR_CIANO)
             ctx!.beginPath()
@@ -224,7 +227,7 @@ export function RedeFundo() {
             ctx!.lineTo(b.x, b.y)
             ctx!.strokeStyle = `rgba(${r},${g},${b2},1)`
             ctx!.lineWidth = 1.6
-            ctx!.globalAlpha = alphaAtivo * fadeEstilo
+            ctx!.globalAlpha = alphaAtivo * fadeBorda
             ctx!.shadowBlur = 8
             ctx!.shadowColor = COR_CIANO
             ctx!.stroke()
@@ -240,19 +243,19 @@ export function RedeFundo() {
         const pulso = Math.sin(no.fase) * PULSO_AMPLITUDE
         const raioAtual = no.raio + pulso + no.brilho * (RAIO_NO_MAX - no.raio)
 
-        // Fade nas bordas da tela
-        const distCentro = Math.sqrt((no.x - W / 2) ** 2 + (no.y - H * 0.4) ** 2)
-        const maxDist = Math.sqrt((W / 2) ** 2 + (H * 0.6) ** 2)
-        const fadeEstilo = Math.max(0, 1 - distCentro / (maxDist * 0.8))
+        // Fade sutil nas margens externas
+        const margemX = Math.min(no.x / 30, (W - no.x) / 30, 1)
+        const margemY = Math.min(no.y / 30, (H - no.y) / 30, 1)
+        const fadeBorda = Math.max(0.2, Math.min(margemX, margemY, 1))
 
         const [r, g, b] = hexParaRgb(no.cor)
-        const alphaBase = (0.55 + no.brilho * 0.45) * fadeEstilo
+        const alphaBase = (0.55 + no.brilho * 0.45) * fadeBorda
         const glowSize = 12 + no.brilho * 20
 
         ctx!.globalAlpha = alphaBase
 
-        // Glow externo
-        if (no.brilho > 0.05 || Math.sin(no.fase) > 0.5) {
+        // Glow externo bioluminescente
+        if (no.brilho > 0.05 || Math.sin(no.fase) > 0.4) {
           const grad = ctx!.createRadialGradient(
             no.x, no.y, 0,
             no.x, no.y, raioAtual * 4,
@@ -283,8 +286,9 @@ export function RedeFundo() {
     return () => {
       cancelAnimationFrame(rafId)
       observer.disconnect()
-      container?.removeEventListener('mousemove', onMouseMove)
-      container?.removeEventListener('mouseleave', onMouseLeave)
+      window.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseleave', onMouseLeave)
+      window.removeEventListener('blur', onMouseLeave)
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
