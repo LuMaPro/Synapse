@@ -31,7 +31,10 @@ STATUS_POR_ERRO_DOMINIO = {
 
 
 def _codigo(exc: Exception) -> str:
-    """Transforma o nome da classe em texto legível: SessaoNaoEncontrada -> sessao_nao_encontrada."""
+    """Transforma o nome da classe em texto legível.
+
+    Exemplo: SessaoNaoEncontrada -> sessao_nao_encontrada.
+    """
     return re.sub(r"(?<!^)(?=[A-Z])", "_", type(exc).__name__).lower()
 
 
