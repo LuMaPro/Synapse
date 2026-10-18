@@ -20,11 +20,44 @@ export class ApiError extends Error {
   }
 }
 
+const CHAVE_TOKEN = 'synapse_token'
+
+export function obterTokenApi(): string | null {
+  try {
+    return localStorage.getItem(CHAVE_TOKEN)
+  } catch {
+    return null
+  }
+}
+
+export function definirTokenApi(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(CHAVE_TOKEN, token)
+    } else {
+      localStorage.removeItem(CHAVE_TOKEN)
+    }
+  } catch {
+    // ignora erro em ambientes sem localStorage
+  }
+}
+
 async function requisicao<T>(metodo: Metodo, caminho: string, corpo?: unknown): Promise<T> {
   const temCorpo = corpo !== undefined
+  const headers: Record<string, string> = {}
+
+  if (temCorpo) {
+    headers['Content-Type'] = 'application/json'
+  }
+
+  const token = obterTokenApi()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const resposta = await fetch(`${API_URL}${caminho}`, {
     method: metodo,
-    headers: temCorpo ? { 'Content-Type': 'application/json' } : undefined,
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
     body: temCorpo ? JSON.stringify(corpo) : undefined,
   })
 
@@ -53,9 +86,15 @@ async function requisicao<T>(metodo: Metodo, caminho: string, corpo?: unknown): 
  */
 async function postEmSegundoPlano(caminho: string, corpo: unknown): Promise<boolean> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const token = obterTokenApi()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
     const resposta = await fetch(`${API_URL}${caminho}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(corpo),
       keepalive: true,
     })

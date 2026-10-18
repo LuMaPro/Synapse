@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api, ApiError } from './api'
+import { api, ApiError, definirTokenApi } from './api'
 
 function respostaJson(status: number, corpo: unknown) {
   return new Response(JSON.stringify(corpo), {
@@ -80,6 +80,17 @@ describe('api', () => {
 
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(respostaJson(500, {}))
       await expect(api.postEmSegundoPlano('/x', {})).resolves.toBe(false)
+    })
+
+    it('injeta o token de autenticação nos cabeçalhos quando configurado', async () => {
+      definirTokenApi('token-teste-123')
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(respostaJson(200, {}))
+
+      await api.get('/me')
+      const [, opcoes] = fetchMock.mock.calls[0]
+      expect(opcoes?.headers).toMatchObject({ Authorization: 'Bearer token-teste-123' })
+
+      definirTokenApi(null)
     })
   })
 })
