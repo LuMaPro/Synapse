@@ -93,6 +93,14 @@ uv run pytest
 
 O `pytest-django` cria um banco separado para os testes (`test_synapse`) e o apaga no fim, então os testes nunca mexem nos dados de desenvolvimento. Testes que acessam o banco precisam da marcação `@pytest.mark.django_db`.
 
+## Sessões abandonadas
+
+Uma sessão em andamento há mais de duração + 5 min sem ser concluída é podada. A API faz isso sozinha sempre que a sessão é acessada; para podar também as que ninguém acessou, rode periodicamente (no servidor, por exemplo com um cron a cada poucos minutos):
+
+```bash
+uv run python manage.py podar_sessoes_orfas
+```
+
 ## Lint e formatação
 
 ```bash

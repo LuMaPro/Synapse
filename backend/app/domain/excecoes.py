@@ -23,3 +23,23 @@ class HorarioInvalido(ErroDominio):
 
 class TransicaoInvalida(ErroDominio):
     """Tentativa de mudar o estado da sessão de forma não permitida."""
+
+
+class EmailJaCadastrado(ErroDominio):
+    """Cadastro com um e-mail que já pertence a outro usuário."""
+
+
+class SenhaInvalida(ErroDominio):
+    """Senha que não atende às regras de segurança (curta, comum, só números...)."""
+
+
+class PoliticaInvalida(ErroDominio):
+    """Modo de interrupção desconhecido (os válidos são estrito e tolerante)."""
+
+
+class SessaoAtivaExistente(ErroDominio):
+    """O estudante tentou iniciar uma sessão tendo outra em andamento."""
+
+
+class SessaoNaoEncontrada(ErroDominio):
+    """Sessão inexistente ou de outro estudante (as duas respostas são iguais)."""

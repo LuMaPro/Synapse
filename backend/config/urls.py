@@ -2,11 +2,22 @@ from django.contrib import admin
 from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from app.api import sessoes
+from app.api.auth import cadastro, login, me, renovar
 from app.api.views import health
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("health", health),
+    path("auth/cadastro", cadastro),
+    path("auth/login", login),
+    path("auth/renovar", renovar),
+    path("me", me),
+    path("sessoes", sessoes.iniciar),
+    path("sessoes/ativa", sessoes.ativa),
+    path("sessoes/<uuid:sessao_id>/interrupcoes", sessoes.interrupcoes),
+    path("sessoes/<uuid:sessao_id>/concluir", sessoes.concluir),
+    path("sessoes/<uuid:sessao_id>/desistir", sessoes.desistir),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),
 ]
