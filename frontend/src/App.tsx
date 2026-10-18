@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { Layout } from './components/Layout'
+import { RotaProtegida } from './components/RotaProtegida'
 import { AuthProvider } from './contexts/AuthContext'
 import { Cadastro } from './pages/Cadastro'
 import { Estatisticas } from './pages/Estatisticas'
@@ -13,12 +14,16 @@ export function AppRoutes() {
     <AuthProvider>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/foco" replace />} />
           <Route path="login" element={<Login />} />
           <Route path="cadastro" element={<Cadastro />} />
-          <Route path="foco" element={<Foco />} />
-          <Route path="rede" element={<Rede />} />
-          <Route path="estatisticas" element={<Estatisticas />} />
+
+          <Route element={<RotaProtegida />}>
+            <Route index element={<Navigate to="/foco" replace />} />
+            <Route path="foco" element={<Foco />} />
+            <Route path="rede" element={<Rede />} />
+            <Route path="estatisticas" element={<Estatisticas />} />
+          </Route>
+
           <Route path="*" element={<NaoEncontrada />} />
         </Route>
       </Routes>

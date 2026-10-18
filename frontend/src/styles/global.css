@@ -53,6 +53,7 @@ h3 {
   gap: 1rem;
   padding: 1rem 1.5rem;
   background: var(--cor-superficie);
+  border-bottom: 1px solid var(--cor-borda);
 }
 
 .marca {
@@ -80,6 +81,76 @@ h3 {
 .cabecalho a:focus-visible {
   outline: 2px solid var(--cor-destaque);
   outline-offset: 4px;
+}
+
+.sessao-usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.badge-usuario {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--cor-superficie-2);
+  border: 1px solid var(--cor-borda);
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem 0.25rem 0.35rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.badge-usuario:hover {
+  border-color: rgba(139, 123, 255, 0.4);
+  box-shadow: 0 0 12px rgba(139, 123, 255, 0.15);
+}
+
+.avatar-usuario {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cor-destaque), var(--cor-impulso));
+  color: var(--cor-fundo);
+  font-family: var(--fonte-titulo);
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(62, 230, 224, 0.35);
+}
+
+.nome-usuario {
+  color: var(--cor-texto);
+  font-family: var(--fonte-texto);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.cabecalho .botao-sair {
+  background: transparent;
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  color: var(--cor-texto-suave);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.35rem 0.75rem;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.cabecalho .botao-sair:hover {
+  color: var(--cor-perigo);
+  border-color: var(--cor-perigo);
+}
+
+.cabecalho .botao-sair:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
 }
 
 .conteudo {
