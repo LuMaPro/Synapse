@@ -128,4 +128,61 @@ describe('useAuth e AuthProvider', () => {
 
     expect(screen.getByText('Deslogado')).toBeInTheDocument()
   })
+
+  describe('casos de erro no useAuth', () => {
+    it('mantém estado deslogado e repassa o erro quando login falha', async () => {
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: ({ children }) => <AuthProvider usarMock>{children}</AuthProvider>,
+      })
+
+      await expect(
+        act(async () => {
+          await result.current.login({
+            email: 'erro@email.com',
+            senha: 'senha-qualquer',
+          })
+        }),
+      ).rejects.toThrow('Credenciais inválidas. Verifique seu e-mail e senha.')
+
+      expect(result.current.autenticado).toBe(false)
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.token).toBeNull()
+      expect(result.current.estaCarregando).toBe(false)
+      expect(localStorage.getItem('synapse_token')).toBeNull()
+    })
+
+    it('mantém estado deslogado e repassa o erro quando cadastro falha', async () => {
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: ({ children }) => <AuthProvider usarMock>{children}</AuthProvider>,
+      })
+
+      await expect(
+        act(async () => {
+          await result.current.cadastro({
+            nome: 'Carlos',
+            email: 'existe@email.com',
+            senha: 'senha123',
+          })
+        }),
+      ).rejects.toThrow('E-mail já cadastrado. Tente fazer login ou use outro e-mail.')
+
+      expect(result.current.autenticado).toBe(false)
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.token).toBeNull()
+      expect(result.current.estaCarregando).toBe(false)
+      expect(localStorage.getItem('synapse_token')).toBeNull()
+    })
+
+    it('inicia deslogado com segurança se o localStorage contiver dados corrompidos', () => {
+      localStorage.setItem('synapse_usuario', 'JSON-INVALIDO-@@@')
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: ({ children }) => <AuthProvider usarMock>{children}</AuthProvider>,
+      })
+
+      expect(result.current.autenticado).toBe(false)
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.token).toBeNull()
+    })
+  })
 })
