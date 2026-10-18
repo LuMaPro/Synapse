@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useContext, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { CampoTexto } from '../components/CampoTexto'
 import { RedeFundo } from '../components/RedeFundo'
 import { SimboloLogo } from '../components/SimboloLogo'
+import { AuthContext } from '../contexts/authContextDef'
+import { ApiError } from '../services/api'
 import { AuthError, loginMock } from '../services/auth'
 import '../styles/auth.css'
 
@@ -13,6 +15,7 @@ interface ErrosFormulario {
 
 export function Login() {
   const navigate = useNavigate()
+  const auth = useContext(AuthContext)
 
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -51,10 +54,16 @@ export function Login() {
     setCarregando(true)
 
     try {
-      await loginMock({ email, senha })
+      if (auth) {
+        await auth.login({ email, senha })
+      } else {
+        await loginMock({ email, senha })
+      }
       navigate('/foco')
     } catch (erro) {
-      if (erro instanceof AuthError) {
+      if (erro instanceof AuthError || erro instanceof ApiError) {
+        setErroApi(erro.message)
+      } else if (erro instanceof Error) {
         setErroApi(erro.message)
       } else {
         setErroApi('Ocorreu um erro ao tentar entrar. Tente novamente.')

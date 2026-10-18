@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useContext, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { CampoTexto } from '../components/CampoTexto'
 import { RedeFundo } from '../components/RedeFundo'
 import { SimboloLogo } from '../components/SimboloLogo'
+import { AuthContext } from '../contexts/authContextDef'
+import { ApiError } from '../services/api'
 import { AuthError, cadastroMock } from '../services/auth'
 import '../styles/auth.css'
 
@@ -14,6 +16,7 @@ interface ErrosFormulario {
 
 export function Cadastro() {
   const navigate = useNavigate()
+  const auth = useContext(AuthContext)
 
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
@@ -58,10 +61,16 @@ export function Cadastro() {
     setCarregando(true)
 
     try {
-      await cadastroMock({ nome, email, senha })
+      if (auth) {
+        await auth.cadastro({ nome, email, senha })
+      } else {
+        await cadastroMock({ nome, email, senha })
+      }
       navigate('/foco')
     } catch (erro) {
-      if (erro instanceof AuthError) {
+      if (erro instanceof AuthError || erro instanceof ApiError) {
+        setErroApi(erro.message)
+      } else if (erro instanceof Error) {
         setErroApi(erro.message)
       } else {
         setErroApi('Ocorreu um erro ao criar a conta. Tente novamente.')
