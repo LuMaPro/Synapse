@@ -33,10 +33,10 @@ export function Login() {
       novosErros.email = 'Digite um e-mail válido.'
     }
 
+    // No login só se exige a senha: as regras de senha forte valem para criar senhas,
+    // e quem confere se ela está certa é o servidor.
     if (!senha) {
       novosErros.senha = 'A senha é obrigatória.'
-    } else if (senha.length < 6) {
-      novosErros.senha = 'A senha deve ter no mínimo 6 caracteres.'
     }
 
     setErros(novosErros)

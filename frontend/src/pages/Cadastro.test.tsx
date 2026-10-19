@@ -29,11 +29,7 @@ function renderizarCadastro(authContext?: Partial<AuthContextTipo>) {
   )
 
   if (authContext) {
-    return render(
-      <AuthContext.Provider value={contextoPadrao}>
-        {elemento}
-      </AuthContext.Provider>,
-    )
+    return render(<AuthContext.Provider value={contextoPadrao}>{elemento}</AuthContext.Provider>)
   }
 
   return render(elemento)
@@ -75,16 +71,41 @@ describe('Página de Cadastro', () => {
     expect(screen.getByText('Digite um e-mail válido.')).toBeInTheDocument()
   })
 
-  it('exibe erro para senha com menos de 6 caracteres', async () => {
+  it('exibe erro para senha com menos de 8 caracteres, como exige o backend', async () => {
     const usuario = userEvent.setup()
-    renderizarCadastro()
+    const cadastro = vi.fn()
+    renderizarCadastro({ cadastro })
 
     await usuario.type(screen.getByLabelText(/nome/i), 'Ana Souza')
     await usuario.type(screen.getByLabelText(/e-mail/i), 'ana@email.com')
-    await usuario.type(screen.getByLabelText(/^senha/i), '12345')
+    await usuario.type(screen.getByLabelText(/^senha/i), 'abc1234')
     await usuario.click(screen.getByRole('button', { name: 'Criar conta' }))
 
-    expect(screen.getByText('A senha deve ter no mínimo 6 caracteres.')).toBeInTheDocument()
+    expect(screen.getByText('A senha deve ter no mínimo 8 caracteres.')).toBeInTheDocument()
+    expect(cadastro).not.toHaveBeenCalled()
+  })
+
+  it('exibe erro para senha só com números', async () => {
+    const usuario = userEvent.setup()
+    const cadastro = vi.fn()
+    renderizarCadastro({ cadastro })
+
+    await usuario.type(screen.getByLabelText(/nome/i), 'Ana Souza')
+    await usuario.type(screen.getByLabelText(/e-mail/i), 'ana@email.com')
+    await usuario.type(screen.getByLabelText(/^senha/i), '12345678')
+    await usuario.click(screen.getByRole('button', { name: 'Criar conta' }))
+
+    expect(screen.getByText('A senha não pode ter só números.')).toBeInTheDocument()
+    expect(cadastro).not.toHaveBeenCalled()
+  })
+
+  it('anuncia o tamanho mínimo da senha no campo', () => {
+    renderizarCadastro()
+
+    expect(screen.getByLabelText(/^senha/i)).toHaveAttribute(
+      'placeholder',
+      'Mínimo de 8 caracteres',
+    )
   })
 
   it('exibe alerta de erro da API quando o e-mail já existe', async () => {
@@ -141,9 +162,11 @@ describe('Página de Cadastro', () => {
   })
 
   it('exibe alerta de erro quando a API responde com ApiError', async () => {
-    const cadastroMockFn = vi.fn().mockRejectedValueOnce(
-      new ApiError(400, 'dados_invalidos', 'Dados cadastrais inválidos na API.'),
-    )
+    const cadastroMockFn = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError(400, 'dados_invalidos', 'Dados cadastrais inválidos na API.'),
+      )
     const usuario = userEvent.setup()
     renderizarCadastro({ cadastro: cadastroMockFn })
 
@@ -158,7 +181,9 @@ describe('Página de Cadastro', () => {
   })
 
   it('exibe alerta com mensagem genérica quando ocorre erro inesperado de rede', async () => {
-    const cadastroMockFn = vi.fn().mockRejectedValueOnce(new Error('Servidor temporariamente inacessível'))
+    const cadastroMockFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Servidor temporariamente inacessível'))
     const usuario = userEvent.setup()
     renderizarCadastro({ cadastro: cadastroMockFn })
 
