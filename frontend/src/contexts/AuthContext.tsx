@@ -1,4 +1,5 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { configurarSessao } from '../services/api'
 import {
   cadastroApi,
   cadastroMock,
@@ -6,6 +7,7 @@ import {
   loginApi,
   loginMock,
   obterSessaoSalva,
+  renovarTokenApi,
   type CredenciaisLogin,
   type DadosCadastro,
   type UsuarioAutenticado,
@@ -61,6 +63,20 @@ export function AuthProvider({ children, usarMock = false }: AuthProviderProps) 
     setUsuario(null)
     setToken(null)
   }, [])
+
+  // Renovação automática do token de acesso (expira em 15 min): quando a API responde
+  // 401, o api.ts renova e repete a chamada; se não der para renovar, a sessão acaba.
+  useEffect(() => {
+    configurarSessao({
+      renovar: async () => {
+        const novoToken = await renovarTokenApi()
+        if (novoToken) setToken(novoToken)
+        return novoToken
+      },
+      aoExpirar: logout,
+    })
+    return () => configurarSessao(null)
+  }, [logout])
 
   const valor: AuthContextTipo = {
     usuario,
