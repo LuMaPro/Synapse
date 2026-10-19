@@ -1,7 +1,8 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { criarServidorFalso, type ServidorFalso } from '../test/servidorFalso'
 import { Foco } from './Foco'
 
 const MINUTO = 60_000
@@ -17,15 +18,19 @@ function renderizar() {
 }
 
 describe('tela de foco', () => {
+  let servidor: ServidorFalso
+
   beforeEach(() => {
     // Só o relógio e o setInterval do timer são falsos. O setTimeout fica real porque
     // a Testing Library depende dele para esperar as atualizações do React.
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
     localStorage.clear()
+    servidor = criarServidorFalso()
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('escolhe a duração com os botões de menos e mais', async () => {
@@ -151,7 +156,7 @@ describe('tela de foco', () => {
 
     act(() => vi.advanceTimersByTime(20 * MINUTO))
 
-    expect(screen.getByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
     expect(screen.getByText('Granular · 20 min')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Neurônio Granular, 100% formado' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver na minha rede' })).toHaveAttribute('href', '/rede')
@@ -254,6 +259,79 @@ describe('tela de foco', () => {
       definirTelaCheia(true)
       expect(screen.queryByRole('button', { name: 'Voltar para a tela cheia' })).toBeNull()
       expect(screen.getByText(/Você ainda pode ficar/)).toHaveTextContent('00:48')
+    })
+  })
+
+  describe('integração com a API (issue #20)', () => {
+    it('critério de aceite: iniciar → concluir cria o neurônio no servidor', async () => {
+      const usuario = renderizar()
+      await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))
+      await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))
+      await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+      expect(servidor.sessoes()).toHaveLength(1)
+
+      act(() => vi.advanceTimersByTime(10 * MINUTO))
+
+      expect(await screen.findByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
+      expect(servidor.chamadasPara('/concluir')).toHaveLength(1)
+      expect(servidor.sessoes()[0].estado).toBe('concluida')
+    })
+
+    it('enquanto o servidor não confirma, avisa que está salvando o neurônio', async () => {
+      const usuario = renderizar()
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+      servidor.ficarSemRede()
+
+      act(() => vi.advanceTimersByTime(25 * MINUTO))
+
+      expect(screen.getByRole('timer')).toHaveTextContent('00:00')
+      expect(await screen.findByText(/Sem conexão. Seu neurônio será salvo/)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Desistir' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Neurônio formado!' })).not.toBeInTheDocument()
+    })
+
+    it('ao abrir a tela, retoma a sessão em andamento', async () => {
+      servidor.criarSessaoAtiva({ duracaoMin: 30, modo: 'tolerante', inicio: Date.now() - MINUTO })
+
+      renderizar()
+
+      expect(await screen.findByRole('timer')).toHaveTextContent('29:00')
+      expect(screen.getByText('Modo tolerante')).toBeInTheDocument()
+    })
+
+    it('critério de aceite: no estrito, trocar de aba poda a sessão também no servidor', async () => {
+      vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+      const usuario = renderizar()
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      })
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      Reflect.deleteProperty(document, 'visibilityState')
+
+      expect(screen.getByRole('heading', { name: 'A conexão se perdeu' })).toBeInTheDocument()
+      await waitFor(() => expect(servidor.sessoes()[0].estado).toBe('podada'))
+      vi.restoreAllMocks()
+    })
+
+    it('sem conexão ao começar, mostra o erro e deixa tentar de novo', async () => {
+      const usuario = renderizar()
+      servidor.ficarSemRede()
+
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Não foi possível começar a sessão. Verifique sua conexão e tente de novo.',
+      )
+      servidor.ficarSemRede(false)
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+      expect(screen.getByRole('timer')).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
   })
 })

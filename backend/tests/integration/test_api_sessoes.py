@@ -200,6 +200,25 @@ def test_interrupcoes_no_tolerante_somam_entre_requisicoes(cliente, relogio):
     )
 
 
+def test_reenviar_a_mesma_interrupcao_nao_desconta_o_saldo_de_novo(cliente, relogio):
+    # O app reenvia quando a rede falha; a mesma saída não pode contar duas vezes.
+    sessao = _iniciar(cliente, duracao=10, modo="tolerante")
+    url = f"/sessoes/{sessao['id']}/interrupcoes"
+    relogio.avancar(minutes=5)
+    corpo = {
+        "inicio": _iso(INICIO + timedelta(minutes=1)),
+        "fim": _iso(INICIO + timedelta(minutes=1, seconds=40)),
+    }
+
+    cliente.post(url, corpo, format="json")
+    resposta = cliente.post(url, corpo, format="json")
+
+    assert resposta.status_code == 200
+    assert resposta.json()["estado"] == "em_andamento"
+    assert resposta.json()["tempo_fora_segundos"] == 40
+    assert InterrupcaoModel.objects.filter(sessao_id=sessao["id"]).count() == 1
+
+
 def test_interrupcao_sem_inicio_e_recusada(cliente):
     sessao = _iniciar(cliente)
 

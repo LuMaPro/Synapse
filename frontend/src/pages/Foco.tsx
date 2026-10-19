@@ -37,14 +37,25 @@ export function Foco() {
           toleranciaMs={sessao.duracaoMin * MS_POR_MINUTO * PROPORCAO_TOLERANCIA}
           onEscolher={sessao.escolherModo}
         />
-        <button type="button" className="botao primario" onClick={sessao.iniciar}>
-          Começar a focar
+        <button
+          type="button"
+          className="botao primario"
+          onClick={sessao.iniciar}
+          disabled={sessao.iniciando}
+        >
+          {sessao.iniciando ? 'Começando…' : 'Começar a focar'}
         </button>
+        {sessao.erro && (
+          <p className="texto-perigo" role="alert">
+            {sessao.erro}
+          </p>
+        )}
       </section>
     )
   }
 
-  if (sessao.fase === 'em_andamento') {
+  if (sessao.fase === 'em_andamento' || sessao.fase === 'concluindo') {
+    const concluindo = sessao.fase === 'concluindo'
     return (
       <section className="tela-sessao" aria-label="Sessão de foco">
         <p className="selo">Modo {sessao.modo}</p>
@@ -57,20 +68,30 @@ export function Foco() {
             de {formatarTempo(sessao.duracaoMin * MS_POR_MINUTO)} · seu neurônio está crescendo
           </p>
         </div>
-        <AvisoSaida
-          modo={sessao.modo}
-          toleranciaRestanteMs={sessao.toleranciaRestanteMs}
-          foraDaTelaCheia={foraDaTelaCheia}
-          onVoltarParaTelaCheia={sessao.voltarParaTelaCheia}
-        />
-        <button
-          type="button"
-          className="botao fantasma"
-          onClick={() => setConfirmandoDesistencia(true)}
-        >
-          Desistir
-        </button>
-        {confirmandoDesistencia && (
+        {concluindo ? (
+          <p className="texto-suave" role="status">
+            {sessao.semConexao
+              ? 'Sem conexão. Seu neurônio será salvo assim que a internet voltar.'
+              : 'Salvando seu neurônio…'}
+          </p>
+        ) : (
+          <>
+            <AvisoSaida
+              modo={sessao.modo}
+              toleranciaRestanteMs={sessao.toleranciaRestanteMs}
+              foraDaTelaCheia={foraDaTelaCheia}
+              onVoltarParaTelaCheia={sessao.voltarParaTelaCheia}
+            />
+            <button
+              type="button"
+              className="botao fantasma"
+              onClick={() => setConfirmandoDesistencia(true)}
+            >
+              Desistir
+            </button>
+          </>
+        )}
+        {!concluindo && confirmandoDesistencia && (
           <DialogoDesistir
             onContinuar={() => setConfirmandoDesistencia(false)}
             onDesistir={() => {
