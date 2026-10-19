@@ -264,18 +264,13 @@ class SessaoFoco(Entidade):
         self._estado.registrar_interrupcao(self, interrupcao)
 
     def _aplicar_politica(self, interrupcao: Interrupcao) -> None:
+        if interrupcao in self._historico_interrupcoes:
+            # Reenvio da mesma saída (ex.: a resposta se perdeu na rede e o app
+            # tentou de novo): já foi contada e não pode descontar o saldo duas vezes.
+            return
         historico = list(self._historico_interrupcoes)
         if self._politica.deve_podar(self, interrupcao, historico):
             instante = self._politica.instante_da_poda(self, interrupcao, historico)
             self.podar(relogio=lambda: instante)
         else:
-            
-            for i, existente in enumerate(self._historico_interrupcoes):
-                if existente.saida == interrupcao.saida and existente.retorno is None:
-                    # Atualiza a interrupção fechando o ciclo e sai
-                    self._historico_interrupcoes[i] = Interrupcao(
-                        saida=existente.saida, retorno=interrupcao.retorno
-                    )
-                    return
-                    
             self._historico_interrupcoes.append(interrupcao)

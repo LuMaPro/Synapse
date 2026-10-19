@@ -275,6 +275,19 @@ def test_modo_tolerante_guarda_saidas_dentro_do_saldo():
     assert len(sessao.historico_interrupcoes) == 2
 
 
+def test_reenviar_a_mesma_saida_nao_conta_duas_vezes():
+    # O app tenta de novo quando a rede falha; se o primeiro envio tinha chegado,
+    # a mesma saída chega duas vezes.
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoTolerante())
+
+    sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=100))
+    sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=100))
+
+    assert sessao.codigo_estado == "em_andamento"
+    assert sessao.historico_interrupcoes == [_saida(minuto=5, segundos_fora=100)]
+    assert sessao.tempo_fora == timedelta(seconds=100)
+
+
 def test_modo_tolerante_poda_no_instante_em_que_o_saldo_acaba():
     sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoTolerante())
     sessao.registrar_interrupcao(_saida(minuto=5, segundos_fora=60))
