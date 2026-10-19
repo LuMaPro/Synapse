@@ -6,6 +6,7 @@ import { SimboloLogo } from '../components/SimboloLogo'
 import { AuthContext } from '../contexts/authContextDef'
 import { ApiError } from '../services/api'
 import { AuthError, cadastroMock } from '../services/auth'
+import { SENHA_TAMANHO_MINIMO, validarSenhaNova } from '../utils/senha'
 import '../styles/auth.css'
 
 interface ErrosFormulario {
@@ -40,10 +41,9 @@ export function Cadastro() {
       novosErros.email = 'Digite um e-mail válido.'
     }
 
-    if (!senha) {
-      novosErros.senha = 'A senha é obrigatória.'
-    } else if (senha.length < 6) {
-      novosErros.senha = 'A senha deve ter no mínimo 6 caracteres.'
+    const erroSenha = validarSenhaNova(senha)
+    if (erroSenha) {
+      novosErros.senha = erroSenha
     }
 
     setErros(novosErros)
@@ -147,7 +147,7 @@ export function Cadastro() {
           <CampoTexto
             rotulo="Senha"
             type="password"
-            placeholder="Mínimo de 6 caracteres"
+            placeholder={`Mínimo de ${SENHA_TAMANHO_MINIMO} caracteres`}
             value={senha}
             onChange={(e) => {
               setSenha(e.target.value)

@@ -29,11 +29,7 @@ function renderizarLogin(authContext?: Partial<AuthContextTipo>) {
   )
 
   if (authContext) {
-    return render(
-      <AuthContext.Provider value={contextoPadrao}>
-        {elemento}
-      </AuthContext.Provider>,
-    )
+    return render(<AuthContext.Provider value={contextoPadrao}>{elemento}</AuthContext.Provider>)
   }
 
   return render(elemento)
@@ -72,15 +68,19 @@ describe('Página de Login', () => {
     expect(screen.getByText('Digite um e-mail válido.')).toBeInTheDocument()
   })
 
-  it('exibe erro para senha com menos de 6 caracteres', async () => {
+  it('não aplica regra de tamanho no login: quem confere a senha é o servidor', async () => {
     const usuario = userEvent.setup()
-    renderizarLogin()
+    const login = vi.fn()
+    renderizarLogin({ login })
 
     await usuario.type(screen.getByLabelText(/e-mail/i), 'usuario@synapse.com')
     await usuario.type(screen.getByLabelText(/^senha/i), '123')
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }))
 
-    expect(screen.getByText('A senha deve ter no mínimo 6 caracteres.')).toBeInTheDocument()
+    expect(login).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'usuario@synapse.com', senha: '123' }),
+    )
+    expect(screen.queryByText(/no mínimo/)).not.toBeInTheDocument()
   })
 
   it('permite alternar a visibilidade da senha', async () => {
@@ -139,9 +139,11 @@ describe('Página de Login', () => {
   })
 
   it('exibe alerta de erro quando a API responde com ApiError', async () => {
-    const loginMock = vi.fn().mockRejectedValueOnce(
-      new ApiError(401, 'credenciais_invalidas', 'E-mail ou senha incorretos na API.'),
-    )
+    const loginMock = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiError(401, 'credenciais_invalidas', 'E-mail ou senha incorretos na API.'),
+      )
     const usuario = userEvent.setup()
     renderizarLogin({ login: loginMock })
 
