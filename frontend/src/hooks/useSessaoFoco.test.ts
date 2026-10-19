@@ -14,13 +14,20 @@ describe('useSessaoFoco', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-13T14:00:00Z'))
+    
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'sessao-fake-123' })
+    }))
+    
     localStorage.clear()
   })
 
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
-    // O jsdom não implementa a API de tela cheia; os testes que a simulam limpam aqui.
+    vi.unstubAllGlobals()
+    
     for (const alvo of [document.documentElement, document]) {
       for (const prop of ['requestFullscreen', 'exitFullscreen', 'fullscreenElement']) {
         Reflect.deleteProperty(alvo, prop)

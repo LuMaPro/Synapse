@@ -269,4 +269,13 @@ class SessaoFoco(Entidade):
             instante = self._politica.instante_da_poda(self, interrupcao, historico)
             self.podar(relogio=lambda: instante)
         else:
+            
+            for i, existente in enumerate(self._historico_interrupcoes):
+                if existente.saida == interrupcao.saida and existente.retorno is None:
+                    # Atualiza a interrupção fechando o ciclo e sai
+                    self._historico_interrupcoes[i] = Interrupcao(
+                        saida=existente.saida, retorno=interrupcao.retorno
+                    )
+                    return
+                    
             self._historico_interrupcoes.append(interrupcao)
