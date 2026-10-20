@@ -8,7 +8,7 @@ from app.infra.modelos.sessao_foco import SessaoFocoModel
 
 
 class NeuronioModel(models.Model):
-    """Persistência do neurônio criado ao concluir uma sessão (#16)."""
+    """Persistência do neurônio criado quando uma sessão termina (#16 e #23)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     usuario = models.ForeignKey(
@@ -25,6 +25,10 @@ class NeuronioModel(models.Model):
         verbose_name="sessão",
     )
     duracao_minutos = models.PositiveIntegerField("duração (minutos)")
+    # Neurônio morto vem de sessão podada: fica cinza e sem sinapses (#23).
+    vivo = models.BooleanField(default=True)
+    # Vira chave estrangeira para as matérias na #27.
+    materia_id = models.UUIDField("matéria", null=True, blank=True)
     criado_em = models.DateTimeField("criado em")
 
     class Meta:
@@ -41,6 +45,8 @@ class NeuronioModel(models.Model):
             self.usuario_id,
             self.sessao_id,
             self.duracao_minutos,
+            vivo=self.vivo,
+            materia_id=self.materia_id,
             criado_em=self.criado_em,
             id=self.id,
         )

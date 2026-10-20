@@ -2,15 +2,19 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from django.db import IntegrityError, transaction
 
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, EmAndamento, Podada, SessaoFoco
 from app.domain.entidades.usuario import Usuario
 from app.domain.politica_interrupcao import Interrupcao, ModoTolerante
+from app.infra.modelos.neuronio import NeuronioModel
 from app.infra.modelos.sessao_foco import SessaoFocoModel
+from app.infra.modelos.sinapse import SinapseModel
 from app.infra.modelos.usuario import UsuarioModel
 from app.infra.repositorios import (
     RepositorioNeuronioDjango,
+    RepositorioRedeNeuralDjango,
     RepositorioSessaoDjango,
     RepositorioUsuarioDjango,
 )
@@ -216,3 +220,108 @@ class TestPersistenciaDaIssue16:
         assert recuperado.criado_em == INICIO
         assert repo.listar_por_usuario(usuario.id) == [neuronio]
         assert repo.buscar_por_sessao(uuid4()) is None
+
+
+class TestRepositorioRedeNeuralDjango:
+    """Persistência da rede neural (issue #23)."""
+
+    @pytest.fixture
+    def usuario(self):
+        return UsuarioModel.objects.create_user(email="bia@synapse.com", nome="Bia")
+
+    @staticmethod
+    def _neuronio(usuario_id, horas, *, vivo=True, materia_id=None):
+        # O neurônio aponta para uma sessão que precisa existir no banco.
+        estado = Concluida() if vivo else Podada()
+        sessao = SessaoFoco(usuario_id, 25, inicio=INICIO, estado=estado)
+        RepositorioSessaoDjango().salvar(sessao)
+        return Neuronio(
+            usuario_id,
+            sessao.id,
+            25,
+            vivo=vivo,
+            materia_id=materia_id,
+            criado_em=INICIO + timedelta(hours=horas),
+        )
+
+    def test_rede_ida_e_volta(self, usuario):
+        repo = RepositorioRedeNeuralDjango()
+        materia = uuid4()
+        rede = repo.carregar(usuario.id)
+        neuronios = [
+            self._neuronio(usuario.id, 1, materia_id=materia),
+            self._neuronio(usuario.id, 2),
+            self._neuronio(usuario.id, 3, vivo=False),
+            self._neuronio(usuario.id, 4, materia_id=materia),
+        ]
+        for neuronio in neuronios:
+            rede.adicionar(neuronio)
+
+        repo.salvar(rede)
+        recuperada = repo.carregar(usuario.id)
+
+        assert recuperada.neuronios == neuronios
+        assert [(n.vivo, n.materia_id) for n in recuperada.neuronios] == [
+            (True, materia),
+            (True, None),
+            (False, None),
+            (True, materia),
+        ]
+        assert {(s.id, s.origem_id, s.destino_id, s.peso) for s in rede.sinapses} == {
+            (s.id, s.origem_id, s.destino_id, s.peso) for s in recuperada.sinapses
+        }
+        assert len(recuperada.sinapses) == 3
+        assert rede.neuronios_novos == []
+        assert rede.sinapses_novas == []
+
+    def test_salvar_de_novo_so_grava_as_novidades(self, usuario):
+        repo = RepositorioRedeNeuralDjango()
+        rede = repo.carregar(usuario.id)
+        rede.adicionar(self._neuronio(usuario.id, 1))
+        repo.salvar(rede)
+
+        rede = repo.carregar(usuario.id)
+        rede.adicionar(self._neuronio(usuario.id, 2))
+        repo.salvar(rede)
+        repo.salvar(rede)
+
+        assert NeuronioModel.objects.filter(usuario=usuario).count() == 2
+        assert SinapseModel.objects.filter(usuario=usuario).count() == 1
+
+    def test_cada_estudante_tem_a_sua_rede(self, usuario):
+        repo = RepositorioRedeNeuralDjango()
+        outro = UsuarioModel.objects.create_user(email="caio@synapse.com", nome="Caio")
+        rede_outro = repo.carregar(outro.id)
+        rede_outro.adicionar(self._neuronio(outro.id, 1))
+        repo.salvar(rede_outro)
+
+        rede = repo.carregar(usuario.id)
+        assert len(rede) == 0
+        assert rede.adicionar(self._neuronio(usuario.id, 2)) == []
+
+    def test_carrega_a_rede_em_duas_consultas(self, usuario, django_assert_num_queries):
+        repo = RepositorioRedeNeuralDjango()
+        rede = repo.carregar(usuario.id)
+        for horas in range(1, 6):
+            rede.adicionar(self._neuronio(usuario.id, horas))
+        repo.salvar(rede)
+
+        with django_assert_num_queries(2):
+            assert len(repo.carregar(usuario.id).sinapses) == 7
+
+    @pytest.mark.parametrize("caso", ["autoconexao", "repetida", "peso_zero"])
+    def test_banco_tambem_recusa_sinapses_invalidas(self, usuario, caso):
+        a = self._neuronio(usuario.id, 1)
+        b = self._neuronio(usuario.id, 2)
+        RepositorioNeuronioDjango().salvar(a)
+        RepositorioNeuronioDjango().salvar(b)
+        dados = {"usuario": usuario, "criada_em": INICIO, "peso": 1}
+        SinapseModel.objects.create(origem_id=a.id, destino_id=b.id, **dados)
+        invalida = {
+            "autoconexao": {"origem_id": a.id, "destino_id": a.id},
+            "repetida": {"origem_id": a.id, "destino_id": b.id},
+            "peso_zero": {"origem_id": b.id, "destino_id": a.id, "peso": 0},
+        }[caso]
+
+        with pytest.raises(IntegrityError), transaction.atomic():
+            SinapseModel.objects.create(**{**dados, **invalida})

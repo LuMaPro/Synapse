@@ -31,6 +31,7 @@ class Usuario(Entidade):
 - **Somente leitura quando faz sentido:** `id`, `email`, `criado_em`, `inicio`, `duracao` e os ids de relacionamento não têm setter. O `nome` do usuário tem, porque trocar de nome é uma operação legítima; mesmo assim, o setter reaproveita a validação do construtor.
 - **Regra num lugar só:** a duração de uma sessão (de 10 a 120 minutos, de 5 em 5) fica encapsulada em `Duracao`, um `@dataclass(frozen=True)` que valida em `__post_init__`. `SessaoFoco` e `Neuronio` recebem os minutos e guardam uma `Duracao`, sem repetir a regra.
 - **Estado derivado em vez de guardado:** `SessaoFoco.fim_previsto` é calculado a partir de `inicio` e `duracao`, então não existe como os dois ficarem inconsistentes.
+- **Agregado que protege as próprias regras** (`backend/app/domain/rede_neural.py`, issue #23): `RedeNeural` não expõe as listas internas. `neuronios`, `sinapses` e `sinapses_de` devolvem cópias, e a única forma de mudar a rede é `adicionar`, que valida tudo antes de alterar qualquer coisa: se a regra propuser uma ligação inválida, a rede fica como estava. Até os dados que vêm do banco passam pelas mesmas validações ao montar o agregado.
 - **Limite do Python:** não há atributo privado de verdade; o `_` é uma convenção. O que garante o encapsulamento são as propriedades sem setter, e os testes em `backend/tests/unit/domain/` verificam que atribuir a elas lança `AttributeError`.
 
 ## Herança
@@ -59,6 +60,7 @@ def _aplicar_politica(self, interrupcao: Interrupcao) -> None:
 
 - **Políticas:** `ModoEstrito.deve_podar` sempre responde que sim; `ModoTolerante.deve_podar` soma o tempo fora e compara com 10% da sessão. `instante_da_poda` também varia: o estrito herda o padrão da classe base (o momento da saída), e o tolerante sobrescreve com o momento em que o saldo acabou.
 - **Estados:** `registrar_interrupcao`, `concluir`, `podar` e `desistir` são delegados ao estado atual. `EmAndamento` aceita; `Concluida` e `Podada` herdam o comportamento padrão, que lança `TransicaoInvalida`.
+- **Regra de formação das sinapses** (`backend/app/domain/formacao_sinapses.py`, issue #23): `RedeNeural.adicionar` chama `self._regra.conexoes(neuronio, self)` sem saber qual regra está valendo. Nos testes, uma regra que não liga nada, ou que propõe ligações inválidas, entra no lugar da padrão sem mudar a rede nem o `SessaoService`.
 - **Por quê:** uma política ou um estado novo é só uma classe nova. `SessaoFoco` não muda e não tem `if` perguntando qual é o modo ou o estado.
 
 ## Abstração

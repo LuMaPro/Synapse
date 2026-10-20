@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 
 from app.infra.modelos.neuronio import NeuronioModel
 from app.infra.modelos.sessao_foco import InterrupcaoModel, SessaoFocoModel
+from app.infra.modelos.sinapse import SinapseModel
 from app.infra.modelos.usuario import UsuarioModel
 
 pytestmark = pytest.mark.django_db
@@ -239,7 +240,9 @@ def test_desistir_conta_como_poda(cliente, relogio):
 
     assert resposta.status_code == 200
     assert resposta.json()["estado"] == "podada"
-    assert not NeuronioModel.objects.filter(sessao_id=sessao["id"]).exists()
+    # Poda sináptica (#23): fica um neurônio morto, sem sinapses.
+    morto = NeuronioModel.objects.get(sessao_id=sessao["id"])
+    assert not morto.vivo
 
 
 # ------------------------------------------------------------------ outro usuário
@@ -295,3 +298,75 @@ def test_comando_podar_sessoes_orfas(cliente, relogio):
     call_command("podar_sessoes_orfas")
 
     assert SessaoFocoModel.objects.get(id=sessao["id"]).estado == "podada"
+    assert not NeuronioModel.objects.get(sessao_id=sessao["id"]).vivo
+
+
+# ------------------------------------------------------------------ rede (#23)
+
+
+def _concluir(cliente, relogio, duracao=10):
+    sessao = _iniciar(cliente, duracao=duracao)
+    relogio.avancar(minutes=duracao)
+    resposta = cliente.post(f"/sessoes/{sessao['id']}/concluir")
+    assert resposta.status_code == 200
+    return resposta.json()["neuronio"]["id"]
+
+
+def test_criterio_sessoes_concluidas_formam_sinapses_no_banco(cliente, relogio):
+    primeiro, segundo, terceiro = (_concluir(cliente, relogio) for _ in range(3))
+
+    sinapses = {
+        (str(s.origem_id), str(s.destino_id), s.peso)
+        for s in SinapseModel.objects.all()
+    }
+    assert sinapses == {
+        (primeiro, segundo, 1),
+        (primeiro, terceiro, 1),
+        (segundo, terceiro, 1),
+    }
+
+
+@pytest.mark.parametrize("modo", ["estrito", "tolerante"])
+def test_criterio_sessao_podada_gera_neuronio_morto_sem_sinapses(
+    cliente, relogio, modo
+):
+    vivo = _concluir(cliente, relogio)
+    sessao = _iniciar(cliente, duracao=10, modo=modo)
+    relogio.avancar(minutes=5)
+    saida = relogio.instante - timedelta(minutes=4)
+
+    resposta = cliente.post(
+        f"/sessoes/{sessao['id']}/interrupcoes",
+        {"inicio": _iso(saida), "fim": _iso(saida + timedelta(minutes=3))},
+        format="json",
+    )
+
+    assert resposta.json()["estado"] == "podada"
+    morto = NeuronioModel.objects.get(sessao_id=sessao["id"])
+    assert not morto.vivo
+    assert morto.duracao_minutos == 10
+    assert not SinapseModel.objects.filter(origem=morto).exists()
+    assert not SinapseModel.objects.filter(destino=morto).exists()
+    # O próximo neurônio vivo se liga ao vivo anterior, pulando o morto.
+    proximo = _concluir(cliente, relogio)
+    assert {
+        (str(s.origem_id), str(s.destino_id)) for s in SinapseModel.objects.all()
+    } == {(vivo, proximo)}
+
+
+def test_sessao_abandonada_tambem_deixa_neuronio_morto(cliente, relogio):
+    sessao = _iniciar(cliente)
+    relogio.avancar(hours=2)
+
+    assert cliente.get("/sessoes/ativa").status_code == 204
+
+    assert not NeuronioModel.objects.get(sessao_id=sessao["id"]).vivo
+
+
+def test_redes_de_estudantes_diferentes_nao_se_misturam(cliente, relogio):
+    _concluir(cliente, relogio)
+    outro = _cliente("pedro@synapse.com")
+
+    _concluir(outro, relogio)
+
+    assert SinapseModel.objects.count() == 0

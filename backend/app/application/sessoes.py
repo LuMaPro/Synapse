@@ -2,6 +2,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from uuid import UUID
 
+from app.application.rede import RedeNeuralService
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.excecoes import (
@@ -10,7 +11,7 @@ from app.domain.excecoes import (
     SessaoNaoEncontrada,
 )
 from app.domain.politica_interrupcao import Interrupcao, politica_por_codigo
-from app.domain.repositorios import RepositorioNeuronio, RepositorioSessao
+from app.domain.repositorios import RepositorioSessao
 from app.domain.tempo import agora
 
 # Diferença de relógio e rede aceita entre o cliente e o servidor (#16).
@@ -24,16 +25,20 @@ class SessaoService:
     relógio, mas o horário usado aqui é sempre o do servidor (`relogio`). Toda
     sessão carregada passa antes pela expiração por abandono, então a regra de
     duração + 5 min vale mesmo sem a varredura periódica.
+
+    Toda sessão que termina vira um neurônio na rede do estudante (#23): vivo, se
+    foi concluída; morto e sem sinapses, se foi podada (poda sináptica). As ligações
+    ficam a cargo da `RedeNeuralService`.
     """
 
     def __init__(
         self,
         sessoes: RepositorioSessao,
-        neuronios: RepositorioNeuronio,
+        rede: RedeNeuralService,
         relogio: Callable[[], datetime] = agora,
     ):
         self._sessoes = sessoes
-        self._neuronios = neuronios
+        self._rede = rede
         self._relogio = relogio
 
     def iniciar(self, usuario_id: UUID, duracao_minutos: int, modo: str) -> SessaoFoco:
@@ -71,6 +76,8 @@ class SessaoService:
             raise HorarioInvalido("A saída não pode ser anterior ao início da sessão.")
         sessao.registrar_interrupcao(Interrupcao(saida=saida, retorno=retorno))
         self._sessoes.salvar(sessao)
+        if sessao.codigo_estado == "podada":
+            self._registrar_neuronio_podado(sessao)
         return sessao
 
     def concluir(
@@ -84,17 +91,19 @@ class SessaoService:
             instante = sessao.fim_previsto
         sessao.concluir(relogio=lambda: instante)
 
+        # A matéria da sessão entra no neurônio com as matérias (#27).
         neuronio = Neuronio(
             sessao.usuario_id, sessao.id, sessao.duracao.minutos, criado_em=instante
         )
         self._sessoes.salvar(sessao)
-        self._neuronios.salvar(neuronio)
+        self._rede.registrar(neuronio)
         return sessao, neuronio
 
     def desistir(self, usuario_id: UUID, sessao_id: UUID) -> SessaoFoco:
         sessao = self._carregar(usuario_id, sessao_id)
         sessao.desistir(relogio=self._relogio)
         self._sessoes.salvar(sessao)
+        self._registrar_neuronio_podado(sessao)
         return sessao
 
     def podar_orfas(self) -> int:
@@ -113,4 +122,17 @@ class SessaoService:
         expirou = sessao.expirar_se_abandonada(self._relogio())
         if expirou:
             self._sessoes.salvar(sessao)
+            self._registrar_neuronio_podado(sessao)
         return expirou
+
+    def _registrar_neuronio_podado(self, sessao: SessaoFoco) -> None:
+        """Poda sináptica (#23): a sessão podada deixa um neurônio morto na rede."""
+        self._rede.registrar(
+            Neuronio(
+                sessao.usuario_id,
+                sessao.id,
+                sessao.duracao.minutos,
+                vivo=False,
+                criado_em=sessao.encerrada_em,
+            )
+        )

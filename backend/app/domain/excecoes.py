@@ -43,3 +43,12 @@ class SessaoAtivaExistente(ErroDominio):
 
 class SessaoNaoEncontrada(ErroDominio):
     """Sessão inexistente ou de outro estudante (as duas respostas são iguais)."""
+
+
+class SinapseInvalida(ErroDominio):
+    """Sinapse mal formada: liga um neurônio a ele mesmo, repete uma ligação, tem
+    peso inválido ou envolve um neurônio podado ou fora da rede."""
+
+
+class RedeNeuralInvalida(ErroDominio):
+    """Neurônio que não pode entrar na rede (de outro estudante ou já presente)."""

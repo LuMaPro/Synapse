@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.excecoes import (
     DuracaoInvalida,
@@ -12,7 +13,8 @@ from app.domain.excecoes import (
     SessaoNaoEncontrada,
     TransicaoInvalida,
 )
-from tests.repositorios import RepositorioNeuronioMemoria, RepositorioSessaoMemoria
+from app.domain.formacao_sinapses import RegraFormacaoSinapses
+from tests.repositorios import RepositorioRedeNeuralMemoria, RepositorioSessaoMemoria
 
 INICIO = datetime(2026, 10, 16, 14, 0, tzinfo=UTC)
 
@@ -41,13 +43,13 @@ def sessoes():
 
 
 @pytest.fixture
-def neuronios():
-    return RepositorioNeuronioMemoria()
+def redes():
+    return RepositorioRedeNeuralMemoria()
 
 
 @pytest.fixture
-def servico(sessoes, neuronios, relogio):
-    return SessaoService(sessoes, neuronios, relogio=relogio)
+def servico(sessoes, redes, relogio):
+    return SessaoService(sessoes, RedeNeuralService(redes), relogio=relogio)
 
 
 @pytest.fixture
@@ -118,7 +120,12 @@ def test_concluir_3_segundos_antes_ainda_e_cedo(servico, usuario_id, relogio):
         servico.concluir(usuario_id, sessao.id)
 
 
-def test_concluir_cria_o_neuronio(servico, neuronios, usuario_id, relogio):
+def _neuronio_da_sessao(redes, usuario_id, sessao_id):
+    rede = redes.carregar(usuario_id)
+    return next(n for n in rede.neuronios if n.sessao_id == sessao_id), rede
+
+
+def test_concluir_cria_o_neuronio(servico, redes, usuario_id, relogio):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=25, seconds=1)
 
@@ -128,7 +135,27 @@ def test_concluir_cria_o_neuronio(servico, neuronios, usuario_id, relogio):
     assert neuronio.sessao_id == sessao.id
     assert neuronio.usuario_id == usuario_id
     assert neuronio.duracao.minutos == 25
-    assert neuronios.buscar_por_sessao(sessao.id) is neuronio
+    assert neuronio.vivo
+    assert _neuronio_da_sessao(redes, usuario_id, sessao.id)[0] == neuronio
+
+
+def test_neuronios_de_sessoes_concluidas_formam_sinapses(
+    servico, redes, usuario_id, relogio
+):
+    neuronios = []
+    for _ in range(3):
+        sessao = servico.iniciar(usuario_id, 10, "estrito")
+        relogio.avancar(minutes=10)
+        neuronios.append(servico.concluir(usuario_id, sessao.id)[1])
+
+    rede = redes.carregar(usuario_id)
+    pares = {(s.origem_id, s.destino_id) for s in rede.sinapses}
+    primeiro, segundo, terceiro = neuronios
+    assert pares == {
+        (primeiro.id, segundo.id),
+        (primeiro.id, terceiro.id),
+        (segundo.id, terceiro.id),
+    }
 
 
 def test_interrupcao_no_estrito_poda_no_momento_da_saida(servico, usuario_id, relogio):
@@ -191,6 +218,101 @@ def test_desistir_conta_como_poda(servico, usuario_id, relogio):
 
     assert podada.codigo_estado == "podada"
     assert podada.encerrada_em == INICIO + timedelta(minutes=3)
+
+
+def _podar_por_saida_no_estrito(servico, usuario_id, sessao, relogio):
+    relogio.avancar(minutes=6)
+    saida = sessao.inicio + timedelta(minutes=5)
+    servico.registrar_interrupcao(usuario_id, sessao.id, saida, None)
+
+
+def _podar_por_saldo_no_tolerante(servico, usuario_id, sessao, relogio):
+    relogio.avancar(minutes=6)
+    saida = sessao.inicio + timedelta(minutes=1)
+    servico.registrar_interrupcao(
+        usuario_id, sessao.id, saida, saida + timedelta(minutes=4)
+    )
+
+
+def _podar_por_desistencia(servico, usuario_id, sessao, relogio):
+    relogio.avancar(minutes=3)
+    servico.desistir(usuario_id, sessao.id)
+
+
+def _podar_por_abandono_ao_acessar(servico, usuario_id, sessao, relogio):
+    relogio.avancar(minutes=31)
+    servico.buscar_ativa(usuario_id)
+
+
+def _podar_por_abandono_na_varredura(servico, usuario_id, sessao, relogio):
+    relogio.avancar(minutes=31)
+    servico.podar_orfas()
+
+
+@pytest.mark.parametrize(
+    ("modo", "podar"),
+    [
+        ("estrito", _podar_por_saida_no_estrito),
+        ("tolerante", _podar_por_saldo_no_tolerante),
+        ("estrito", _podar_por_desistencia),
+        ("estrito", _podar_por_abandono_ao_acessar),
+        ("tolerante", _podar_por_abandono_na_varredura),
+    ],
+)
+def test_criterio_poda_sinaptica_sessao_podada_gera_neuronio_morto_sem_sinapses(
+    servico, sessoes, redes, usuario_id, relogio, modo, podar
+):
+    # Um neurônio vivo antes, para a poda ter a quem se ligar se a regra deixasse.
+    anterior = servico.iniciar(usuario_id, 25, "estrito")
+    relogio.avancar(minutes=25)
+    servico.concluir(usuario_id, anterior.id)
+    sessao = servico.iniciar(usuario_id, 25, modo)
+
+    podar(servico, usuario_id, sessao, relogio)
+
+    assert sessoes.buscar_por_id(sessao.id).codigo_estado == "podada"
+    morto, rede = _neuronio_da_sessao(redes, usuario_id, sessao.id)
+    assert not morto.vivo
+    assert morto.duracao.minutos == 25
+    assert rede.sinapses_de(morto.id) == []
+
+
+def test_poda_logo_apos_conclusao_na_tolerancia_entra_na_rede(
+    servico, redes, usuario_id, relogio
+):
+    # Concluída 1 s antes do fim, a sessão termina no fim previsto: o neurônio fica
+    # datado 1 s no futuro. Uma sessão nova podada nesse segundo deixa um neurônio
+    # morto com data anterior à dele, e a rede precisa aceitar.
+    primeira = servico.iniciar(usuario_id, 10, "estrito")
+    relogio.avancar(minutes=9, seconds=59)
+    _, vivo = servico.concluir(usuario_id, primeira.id)
+    segunda = servico.iniciar(usuario_id, 10, "estrito")
+
+    servico.registrar_interrupcao(usuario_id, segunda.id, relogio.instante, None)
+
+    morto, rede = _neuronio_da_sessao(redes, usuario_id, segunda.id)
+    assert morto.criado_em < vivo.criado_em
+    assert rede.neuronios == [morto, vivo]
+
+
+def test_criterio_regra_trocada_sem_mexer_no_servico_de_sessao(
+    sessoes, redes, usuario_id, relogio
+):
+    class SemLigacoes(RegraFormacaoSinapses):
+        def conexoes(self, novo, rede):
+            return []
+
+    servico = SessaoService(
+        sessoes, RedeNeuralService(redes, regra=SemLigacoes()), relogio=relogio
+    )
+    for _ in range(3):
+        sessao = servico.iniciar(usuario_id, 10, "estrito")
+        relogio.avancar(minutes=10)
+        servico.concluir(usuario_id, sessao.id)
+
+    rede = redes.carregar(usuario_id)
+    assert len(rede) == 3
+    assert rede.sinapses == []
 
 
 @pytest.mark.parametrize("acao", ["concluir", "desistir"])

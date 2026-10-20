@@ -101,6 +101,10 @@ Uma sessão em andamento há mais de duração + 5 min sem ser concluída é pod
 uv run python manage.py podar_sessoes_orfas
 ```
 
+## Rede neural
+
+Toda sessão que termina vira um neurônio na rede do estudante (issue #23). Sessão concluída gera um neurônio vivo, que se liga por sinapses aos 2 neurônios vivos mais recentes e ao último vivo da mesma matéria. A sinapse com a matéria é reforçada: o peso começa em 1 e cresce a cada volta à matéria, até 5. Sessão podada gera um neurônio morto (cinza), que fica na rede sem sinapses. A regra fica em `app/domain/formacao_sinapses.py` e é escolhida na montagem do `RedeNeuralService` (`app/application/rede.py`).
+
 ## Lint e formatação
 
 ```bash

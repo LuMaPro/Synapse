@@ -15,6 +15,8 @@ class RepositorioNeuronioDjango(RepositorioNeuronio):
                 "usuario_id": neuronio.usuario_id,
                 "sessao_id": neuronio.sessao_id,
                 "duracao_minutos": neuronio.duracao.minutos,
+                "vivo": neuronio.vivo,
+                "materia_id": neuronio.materia_id,
                 "criado_em": neuronio.criado_em,
             },
         )

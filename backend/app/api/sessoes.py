@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
@@ -21,7 +22,10 @@ from app.domain.excecoes import (
     TransicaoInvalida,
 )
 from app.domain.tempo import agora
-from app.infra.repositorios import RepositorioNeuronioDjango, RepositorioSessaoDjango
+from app.infra.repositorios import (
+    RepositorioRedeNeuralDjango,
+    RepositorioSessaoDjango,
+)
 
 # Provisório até o tratamento de erros nas bordas da API (#12): status e código de
 # cada erro de domínio, aplicados num único lugar (`_responder`).
@@ -38,7 +42,9 @@ ERROS_SESSAO: dict[type[ErroDominio], tuple[int, str]] = {
 def _servico() -> SessaoService:
     # O relógio é lido a cada chamada, o que permite controlá-lo nos testes.
     return SessaoService(
-        RepositorioSessaoDjango(), RepositorioNeuronioDjango(), relogio=lambda: agora()
+        RepositorioSessaoDjango(),
+        RedeNeuralService(RepositorioRedeNeuralDjango()),
+        relogio=lambda: agora(),
     )
 
 

@@ -4,6 +4,8 @@ from uuid import UUID
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.entidades.usuario import Usuario
+from app.domain.formacao_sinapses import RegraFormacaoSinapses
+from app.domain.rede_neural import RedeNeural
 
 
 class RepositorioUsuario(ABC):
@@ -92,4 +94,28 @@ class RepositorioNeuronio(ABC):
     @abstractmethod
     def listar_por_usuario(self, usuario_id: UUID) -> list[Neuronio]:
         """Lista os neurônios de um usuário, do mais recente para o mais antigo."""
+        ...
+
+
+class RepositorioRedeNeural(ABC):
+    """Persistência do agregado RedeNeural (Padrão Repository, #23).
+
+    Os neurônios e as sinapses de um estudante são carregados e gravados juntos,
+    sempre passando pelo agregado, que é quem garante as regras da rede.
+    """
+
+    @abstractmethod
+    def carregar(
+        self, usuario_id: UUID, regra: RegraFormacaoSinapses | None = None
+    ) -> RedeNeural:
+        """Monta a rede do estudante com a regra de formação informada (ou a
+        padrão)."""
+        ...
+
+    @abstractmethod
+    def salvar(self, rede: RedeNeural) -> None:
+        """Grava os neurônios e as sinapses adicionados desde o carregamento.
+
+        Eles não mudam depois de criados, então só há inserções.
+        """
         ...

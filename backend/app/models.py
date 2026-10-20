@@ -6,6 +6,7 @@ from app.infra.modelos.sessao_foco import (
     SessaoFocoModel,
     SessaoModel,
 )
+from app.infra.modelos.sinapse import SinapseModel
 from app.infra.modelos.usuario import UsuarioModel
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "SessaoModel",
     "InterrupcaoModel",
     "NeuronioModel",
+    "SinapseModel",
 ]

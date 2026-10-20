@@ -2,9 +2,13 @@ from uuid import UUID
 
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
+from app.domain.entidades.sinapse import Sinapse
 from app.domain.entidades.usuario import Usuario
+from app.domain.formacao_sinapses import RegraFormacaoSinapses
+from app.domain.rede_neural import RedeNeural
 from app.domain.repositorios import (
     RepositorioNeuronio,
+    RepositorioRedeNeural,
     RepositorioSessao,
     RepositorioUsuario,
 )
@@ -120,6 +124,29 @@ class RepositorioNeuronioMemoria(RepositorioNeuronio):
 
     def __len__(self) -> int:
         return len(self._neuronios)
+
+
+class RepositorioRedeNeuralMemoria(RepositorioRedeNeural):
+    """Implementação em memória de RepositorioRedeNeural para testes unitários."""
+
+    def __init__(self) -> None:
+        self._neuronios: dict[UUID, list[Neuronio]] = {}
+        self._sinapses: dict[UUID, list[Sinapse]] = {}
+
+    def carregar(
+        self, usuario_id: UUID, regra: RegraFormacaoSinapses | None = None
+    ) -> RedeNeural:
+        return RedeNeural(
+            usuario_id,
+            self._neuronios.get(usuario_id, []),
+            self._sinapses.get(usuario_id, []),
+            regra=regra,
+        )
+
+    def salvar(self, rede: RedeNeural) -> None:
+        self._neuronios.setdefault(rede.usuario_id, []).extend(rede.neuronios_novos)
+        self._sinapses.setdefault(rede.usuario_id, []).extend(rede.sinapses_novas)
+        rede.marcar_como_salva()
 
 
 # Aliases de conveniência
