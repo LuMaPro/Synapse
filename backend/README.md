@@ -105,6 +105,8 @@ uv run python manage.py podar_sessoes_orfas
 
 Toda sessão que termina vira um neurônio na rede do estudante (issue #23). Sessão concluída gera um neurônio vivo, que se liga por sinapses aos 2 neurônios vivos mais recentes e ao último vivo da mesma matéria. A sinapse com a matéria é reforçada: o peso começa em 1 e cresce a cada volta à matéria, até 5. Sessão podada gera um neurônio morto (cinza), que fica na rede sem sinapses. A regra fica em `app/domain/formacao_sinapses.py` e é escolhida na montagem do `RedeNeuralService` (`app/application/rede.py`).
 
+O endpoint `GET /rede` (issue #25) devolve a rede no formato de grafo, `{"neuronios": [...], "sinapses": [...]}`. Os filtros são opcionais: `de` e `ate` (uma data, que vale o dia inteiro em UTC, ou data e hora com fuso, como `2026-10-20T00:00:00-03:00`) e `materia` (id). Só vêm as sinapses entre os neurônios filtrados. O formato completo, com exemplo, está no Swagger (`/docs/`).
+
 ## Lint e formatação
 
 ```bash

@@ -1,5 +1,7 @@
 from bisect import insort
 from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from app.domain.entidades.neuronio import Neuronio
@@ -9,6 +11,15 @@ from app.domain.formacao_sinapses import (
     RegraFormacaoSinapses,
     RegraRecentesEMesmaMateria,
 )
+
+
+@dataclass(frozen=True)
+class RecorteRede:
+    """Parte da rede para mostrar: os neurônios escolhidos e as sinapses entre eles
+    (#25)."""
+
+    neuronios: list[Neuronio]
+    sinapses: list[Sinapse]
 
 
 class RedeNeural:
@@ -94,6 +105,32 @@ class RedeNeural:
     def sinapses_de(self, neuronio_id: UUID) -> list[Sinapse]:
         """As sinapses que chegam ao neurônio ou saem dele."""
         return list(self._sinapses_por_neuronio.get(neuronio_id, []))
+
+    def recortar(
+        self,
+        *,
+        de: datetime | None = None,
+        ate: datetime | None = None,
+        materia_id: UUID | None = None,
+    ) -> RecorteRede:
+        """Os neurônios criados entre `de` e `ate` (inclusive) e da matéria pedida,
+        com as sinapses que ligam dois deles (#25). Sem filtros, a rede inteira.
+
+        Uma sinapse com uma ponta fora do recorte fica de fora: o resultado é sempre
+        um grafo fechado, sem ligação apontando para um neurônio ausente.
+        """
+        neuronios = [
+            n
+            for n in self._em_ordem
+            if (de is None or n.criado_em >= de)
+            and (ate is None or n.criado_em <= ate)
+            and (materia_id is None or n.materia_id == materia_id)
+        ]
+        ids = {n.id for n in neuronios}
+        sinapses = [
+            s for s in self._sinapses if s.origem_id in ids and s.destino_id in ids
+        ]
+        return RecorteRede(neuronios, sinapses)
 
     def adicionar(self, neuronio: Neuronio) -> list[Sinapse]:
         """Coloca o neurônio na rede e devolve as sinapses que ele formou.

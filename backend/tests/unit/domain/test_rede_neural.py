@@ -313,3 +313,49 @@ def test_repr_resume_a_rede(novo):
     rede.adicionar(novo())
 
     assert repr(rede) == f"RedeNeural(usuario_id={USUARIO}, neuronios=3, sinapses=2)"
+
+
+# ==============================================================================
+# Recorte para mostrar a rede (#25)
+# ==============================================================================
+
+
+def test_sem_filtros_o_recorte_e_a_rede_inteira(novo):
+    rede = RedeNeural(USUARIO)
+    for neuronio in (novo(), novo(), novo(vivo=False), novo()):
+        rede.adicionar(neuronio)
+
+    recorte = rede.recortar()
+
+    assert recorte.neuronios == rede.neuronios
+    assert recorte.sinapses == rede.sinapses
+
+
+def test_recorte_por_periodo_inclui_as_pontas(novo):
+    a, b, c, d = novo(), novo(), novo(), novo()
+    rede = RedeNeural(USUARIO, [a, b, c, d])
+
+    recorte = rede.recortar(de=b.criado_em, ate=c.criado_em)
+
+    assert recorte.neuronios == [b, c]
+    assert rede.recortar(de=c.criado_em).neuronios == [c, d]
+    assert rede.recortar(ate=a.criado_em).neuronios == [a]
+
+
+def test_recorte_por_materia(novo):
+    calculo, fisica, sem_materia = novo(materia=CALCULO), novo(materia=FISICA), novo()
+    rede = RedeNeural(USUARIO, [calculo, fisica, sem_materia])
+
+    assert rede.recortar(materia_id=CALCULO).neuronios == [calculo]
+
+
+def test_recorte_so_traz_sinapses_entre_neuronios_escolhidos(novo):
+    rede = RedeNeural(USUARIO)
+    a, b, c = novo(materia=CALCULO), novo(materia=FISICA), novo(materia=CALCULO)
+    for neuronio in (a, b, c):
+        rede.adicionar(neuronio)
+
+    recorte = rede.recortar(materia_id=CALCULO)
+
+    # c se liga a a (matéria) e a b (recente); b ficou de fora, então só a→c vem.
+    assert [(s.origem_id, s.destino_id) for s in recorte.sinapses] == [(a.id, c.id)]
