@@ -7,11 +7,12 @@ from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.excecoes import (
     HorarioInvalido,
+    MateriaNaoEncontrada,
     SessaoAtivaExistente,
     SessaoNaoEncontrada,
 )
 from app.domain.politica_interrupcao import Interrupcao, politica_por_codigo
-from app.domain.repositorios import RepositorioSessao
+from app.domain.repositorios import RepositorioMateria, RepositorioSessao
 from app.domain.tempo import agora
 
 # Diferença de relógio e rede aceita entre o cliente e o servidor (#16).
@@ -36,19 +37,33 @@ class SessaoService:
         sessoes: RepositorioSessao,
         rede: RedeNeuralService,
         relogio: Callable[[], datetime] = agora,
+        materias: RepositorioMateria | None = None,
     ):
         self._sessoes = sessoes
         self._rede = rede
         self._relogio = relogio
+        self._materias = materias
 
-    def iniciar(self, usuario_id: UUID, duracao_minutos: int, modo: str) -> SessaoFoco:
+    def iniciar(
+        self,
+        usuario_id: UUID,
+        duracao_minutos: int,
+        modo: str,
+        materia_id: UUID | None = None,
+    ) -> SessaoFoco:
         if self.buscar_ativa(usuario_id) is not None:
             raise SessaoAtivaExistente("Já existe uma sessão de foco em andamento.")
+        if materia_id is not None:
+            if self._materias is None or self._materias.buscar_por_usuario_e_id(
+                usuario_id, materia_id
+            ) is None:
+                raise MateriaNaoEncontrada("Matéria não encontrada.")
         sessao = SessaoFoco(
             usuario_id,
             duracao_minutos,
             inicio=self._relogio(),
             politica=politica_por_codigo(modo),
+            materia_id=materia_id,
         )
         self._sessoes.salvar(sessao)
         return sessao
@@ -93,7 +108,11 @@ class SessaoService:
 
         # A matéria da sessão entra no neurônio com as matérias (#27).
         neuronio = Neuronio(
-            sessao.usuario_id, sessao.id, sessao.duracao.minutos, criado_em=instante
+            sessao.usuario_id,
+            sessao.id,
+            sessao.duracao.minutos,
+            materia_id=sessao.materia_id,
+            criado_em=instante,
         )
         self._sessoes.salvar(sessao)
         self._rede.registrar(neuronio)
@@ -133,6 +152,7 @@ class SessaoService:
                 sessao.id,
                 sessao.duracao.minutos,
                 vivo=False,
+                materia_id=sessao.materia_id,
                 criado_em=sessao.encerrada_em,
             )
         )

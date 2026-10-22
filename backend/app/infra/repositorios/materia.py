@@ -46,4 +46,7 @@ class RepositorioMateriaDjango(RepositorioMateria):
         return qs.exists()
 
     def remover(self, id: UUID) -> None:
+        from app.infra.modelos.neuronio import NeuronioModel
+
+        NeuronioModel.objects.filter(materia_id=id).update(materia_id=None)
         MateriaModel.objects.filter(id=id).delete()

@@ -16,6 +16,7 @@ from app.domain.excecoes import (
     DuracaoInvalida,
     ErroDominio,
     HorarioInvalido,
+    MateriaNaoEncontrada,
     PoliticaInvalida,
     SessaoAtivaExistente,
     SessaoNaoEncontrada,
@@ -23,6 +24,7 @@ from app.domain.excecoes import (
 )
 from app.domain.tempo import agora
 from app.infra.repositorios import (
+    RepositorioMateriaDjango,
     RepositorioRedeNeuralDjango,
     RepositorioSessaoDjango,
 )
@@ -31,6 +33,7 @@ from app.infra.repositorios import (
 # cada erro de domínio, aplicados num único lugar (`_responder`).
 ERROS_SESSAO: dict[type[ErroDominio], tuple[int, str]] = {
     SessaoNaoEncontrada: (status.HTTP_404_NOT_FOUND, "sessao_nao_encontrada"),
+    MateriaNaoEncontrada: (status.HTTP_404_NOT_FOUND, "materia_nao_encontrada"),
     SessaoAtivaExistente: (status.HTTP_409_CONFLICT, "sessao_ativa_existente"),
     TransicaoInvalida: (status.HTTP_409_CONFLICT, "transicao_invalida"),
     DuracaoInvalida: (status.HTTP_400_BAD_REQUEST, "duracao_invalida"),
@@ -45,6 +48,7 @@ def _servico() -> SessaoService:
         RepositorioSessaoDjango(),
         RedeNeuralService(RepositorioRedeNeuralDjango()),
         relogio=lambda: agora(),
+        materias=RepositorioMateriaDjango(),
     )
 
 
@@ -81,6 +85,7 @@ def _sessao_json(sessao: SessaoFoco) -> dict:
         "id": str(sessao.id),
         "duracao_minutos": sessao.duracao.minutos,
         "modo": sessao.politica.codigo,
+        "materia_id": str(sessao.materia_id) if sessao.materia_id else None,
         "estado": sessao.codigo_estado,
         "inicio": sessao.inicio.isoformat(),
         "fim_previsto": sessao.fim_previsto.isoformat(),
@@ -98,6 +103,7 @@ def _neuronio_json(neuronio: Neuronio) -> dict:
         "id": str(neuronio.id),
         "sessao_id": str(neuronio.sessao_id),
         "duracao_minutos": neuronio.duracao.minutos,
+        "materia_id": str(neuronio.materia_id) if neuronio.materia_id else None,
         "criado_em": neuronio.criado_em.isoformat(),
     }
 
@@ -109,7 +115,12 @@ class IniciarSessaoSerializer(serializers.Serializer):
     modo = serializers.ChoiceField(
         choices=["estrito", "tolerante"], default="estrito", required=False
     )
-    # A matéria opcional entra com as matérias (#27).
+    materia_id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="Identificador da matéria associada à sessão (opcional).",
+    )
 
 
 class InterrupcaoSerializer(serializers.Serializer):
@@ -125,6 +136,7 @@ class SessaoRespostaSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     duracao_minutos = serializers.IntegerField()
     modo = serializers.CharField()
+    materia_id = serializers.UUIDField(allow_null=True)
     estado = serializers.CharField(help_text="em_andamento, concluida ou podada")
     inicio = serializers.DateTimeField()
     fim_previsto = serializers.DateTimeField()
@@ -137,6 +149,7 @@ class NeuronioRespostaSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     sessao_id = serializers.UUIDField()
     duracao_minutos = serializers.IntegerField()
+    materia_id = serializers.UUIDField(allow_null=True, required=False)
     criado_em = serializers.DateTimeField()
 
 
@@ -154,6 +167,7 @@ _404 = OpenApiResponse(description="Sessão inexistente ou de outro estudante.")
     responses={
         201: SessaoRespostaSerializer,
         400: OpenApiResponse(description="Duração ou modo inválidos."),
+        404: OpenApiResponse(description="Matéria inexistente ou de outro estudante."),
         409: OpenApiResponse(description="Já existe uma sessão em andamento."),
     },
     tags=["Sessões de foco"],
@@ -167,7 +181,12 @@ def iniciar(request):
     dados = serializer.validated_data
     return _responder(
         lambda: _sessao_json(
-            _servico().iniciar(request.user.id, dados["duracao_minutos"], dados["modo"])
+            _servico().iniciar(
+                request.user.id,
+                dados["duracao_minutos"],
+                dados["modo"],
+                materia_id=dados.get("materia_id"),
+            )
         ),
         status.HTTP_201_CREATED,
     )
