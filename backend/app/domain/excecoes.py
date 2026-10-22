@@ -52,3 +52,20 @@ class SinapseInvalida(ErroDominio):
 
 class RedeNeuralInvalida(ErroDominio):
     """Neurônio que não pode entrar na rede (de outro estudante ou já presente)."""
+
+
+class NomeMateriaInvalido(ErroDominio):
+    """Nome de matéria vazio ou longo demais."""
+
+
+class CorInvalida(ErroDominio):
+    """Código hexadecimal de cor inválido (deve ser #RRGGBB)."""
+
+
+class MateriaNaoEncontrada(ErroDominio):
+    """Matéria inexistente ou de outro estudante."""
+
+
+class MateriaJaExiste(ErroDominio):
+    """O estudante já tem uma matéria cadastrada com este nome."""
+
