@@ -18,11 +18,15 @@ logger = logging.getLogger(__name__)
 # Tabela: qual exceção vira qual código HTTP
 STATUS_POR_ERRO_DOMINIO = {
     dominio.SessaoNaoEncontrada: status.HTTP_404_NOT_FOUND,
+    dominio.MateriaNaoEncontrada: status.HTTP_404_NOT_FOUND,
     dominio.EmailJaCadastrado: status.HTTP_409_CONFLICT,
     dominio.SessaoAtivaExistente: status.HTTP_409_CONFLICT,
     dominio.TransicaoInvalida: status.HTTP_409_CONFLICT,
+    dominio.MateriaJaExiste: status.HTTP_409_CONFLICT,
     dominio.DuracaoInvalida: status.HTTP_422_UNPROCESSABLE_ENTITY,
     dominio.NomeInvalido: status.HTTP_422_UNPROCESSABLE_ENTITY,
+    dominio.NomeMateriaInvalido: status.HTTP_422_UNPROCESSABLE_ENTITY,
+    dominio.CorInvalida: status.HTTP_422_UNPROCESSABLE_ENTITY,
     dominio.EmailInvalido: status.HTTP_422_UNPROCESSABLE_ENTITY,
     dominio.HorarioInvalido: status.HTTP_422_UNPROCESSABLE_ENTITY,
     dominio.SenhaInvalida: status.HTTP_422_UNPROCESSABLE_ENTITY,
