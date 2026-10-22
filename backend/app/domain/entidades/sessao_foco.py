@@ -150,6 +150,7 @@ class SessaoFoco(Entidade):
         id: UUID | None = None,
         politica: PoliticaInterrupcao | None = None,
         interrupcoes: list[Interrupcao] | None = None,
+        materia_id: UUID | None = None,
     ):
         super().__init__(id)
         self._usuario_id = usuario_id
@@ -167,6 +168,7 @@ class SessaoFoco(Entidade):
         # Ao reconstruir do banco, o histórico volta junto: o saldo do tolerante
         # soma todas as saídas da sessão.
         self._historico_interrupcoes: list[Interrupcao] = list(interrupcoes or [])
+        self._materia_id = materia_id
 
     @property
     def usuario_id(self) -> UUID:
@@ -203,6 +205,11 @@ class SessaoFoco(Entidade):
     @property
     def historico_interrupcoes(self) -> list[Interrupcao]:
         return list(self._historico_interrupcoes)
+
+    @property
+    def materia_id(self) -> UUID | None:
+        return self._materia_id
+
 
     def _mudar_estado(self, novo_estado: EstadoSessao, instante: datetime) -> None:
         self._estado = novo_estado

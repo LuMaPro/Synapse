@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from django.db import IntegrityError, transaction
 
+from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, EmAndamento, Podada, SessaoFoco
 from app.domain.entidades.usuario import Usuario
@@ -13,6 +14,7 @@ from app.infra.modelos.sessao_foco import SessaoFocoModel
 from app.infra.modelos.sinapse import SinapseModel
 from app.infra.modelos.usuario import UsuarioModel
 from app.infra.repositorios import (
+    RepositorioMateriaDjango,
     RepositorioNeuronioDjango,
     RepositorioRedeNeuralDjango,
     RepositorioSessaoDjango,
@@ -325,3 +327,92 @@ class TestRepositorioRedeNeuralDjango:
 
         with pytest.raises(IntegrityError), transaction.atomic():
             SinapseModel.objects.create(**{**dados, **invalida})
+
+
+class TestRepositorioMateriaDjango:
+    """Persistência de matérias no Django ORM (#27)."""
+
+    @pytest.fixture
+    def usuario(self):
+        return UsuarioModel.objects.create_user(
+            email="materia@synapse.com", nome="Estudante Matéria"
+        )
+
+    def test_salva_nova_materia_e_busca_por_id(self, usuario):
+        repo = RepositorioMateriaDjango()
+        materia = Materia(usuario.id, "Cálculo I", "#8B7BFF")
+
+        repo.salvar(materia)
+
+        recuperada = repo.buscar_por_id(materia.id)
+        assert recuperada is not None
+        assert recuperada == materia
+        assert recuperada.nome == "Cálculo I"
+        assert recuperada.cor == "#8B7BFF"
+        assert recuperada.usuario_id == usuario.id
+
+    def test_atualiza_materia_existente(self, usuario):
+        repo = RepositorioMateriaDjango()
+        materia = Materia(usuario.id, "Cálculo I", "#8B7BFF")
+        repo.salvar(materia)
+
+        materia.atualizar(nome="Cálculo II", cor="#3EE6E0")
+        repo.salvar(materia)
+
+        atualizada = repo.buscar_por_id(materia.id)
+        assert atualizada.nome == "Cálculo II"
+        assert atualizada.cor == "#3EE6E0"
+
+    def test_buscar_por_usuario_e_id_isola_estudantes(self, usuario):
+        outro = UsuarioModel.objects.create_user(
+            email="outro_estudante@synapse.com", nome="Outro"
+        )
+        repo = RepositorioMateriaDjango()
+        materia = Materia(usuario.id, "POO", "#3EE6E0")
+        repo.salvar(materia)
+
+        assert repo.buscar_por_usuario_e_id(usuario.id, materia.id) == materia
+        assert repo.buscar_por_usuario_e_id(outro.id, materia.id) is None
+        assert repo.buscar_por_usuario_e_id(usuario.id, uuid4()) is None
+
+    def test_listar_por_usuario_ordena_por_nome(self, usuario):
+        outro = UsuarioModel.objects.create_user(
+            email="outro2@synapse.com", nome="Outro 2"
+        )
+        repo = RepositorioMateriaDjango()
+        m1 = Materia(usuario.id, "POO", "#3EE6E0")
+        m2 = Materia(usuario.id, "Álgebra Linear", "#FFC857")
+        m3 = Materia(usuario.id, "Cálculo", "#8B7BFF")
+        m_outro = Materia(outro.id, "Física", "#5BE49B")
+
+        for m in (m1, m2, m3, m_outro):
+            repo.salvar(m)
+
+        materias = repo.listar_por_usuario(usuario.id)
+        assert len(materias) == 3
+        # O banco ordena por nome
+        assert [m.nome for m in materias] == ["Cálculo", "POO", "Álgebra Linear"] or [
+            m.nome for m in materias
+        ] == ["Álgebra Linear", "Cálculo", "POO"]
+
+    def test_existe_com_nome_case_insensitive_e_ignorar_id(self, usuario):
+        repo = RepositorioMateriaDjango()
+        materia = Materia(usuario.id, "POO", "#3EE6E0")
+        repo.salvar(materia)
+
+        assert repo.existe_com_nome(usuario.id, "poo")
+        assert repo.existe_com_nome(usuario.id, "POO")
+        assert repo.existe_com_nome(usuario.id, "poo", ignorar_id=materia.id) is False
+        assert repo.existe_com_nome(usuario.id, "Cálculo") is False
+
+    def test_remover_materia(self, usuario):
+        repo = RepositorioMateriaDjango()
+        materia = Materia(usuario.id, "POO", "#3EE6E0")
+        repo.salvar(materia)
+
+        assert repo.buscar_por_id(materia.id) is not None
+
+        repo.remover(materia.id)
+
+        assert repo.buscar_por_id(materia.id) is None
+

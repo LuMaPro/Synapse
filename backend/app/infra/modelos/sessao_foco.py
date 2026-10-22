@@ -51,6 +51,14 @@ class SessaoFocoModel(models.Model):
     modo = models.CharField(
         "modo", max_length=20, choices=Modo.choices, default=Modo.ESTRITO
     )
+    materia = models.ForeignKey(
+        "app.MateriaModel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sessoes_foco",
+        verbose_name="matéria",
+    )
 
     class Meta:
         db_table = "sessoes_foco"
@@ -82,6 +90,7 @@ class SessaoFocoModel(models.Model):
                 Interrupcao(saida=i.saida, retorno=i.retorno)
                 for i in self.interrupcoes.all()
             ],
+            materia_id=self.materia_id,
         )
 
     @classmethod
@@ -97,6 +106,7 @@ class SessaoFocoModel(models.Model):
             encerrada_em=sessao.encerrada_em,
             estado=sessao.codigo_estado,
             modo=sessao.politica.codigo,
+            materia_id=sessao.materia_id,
         )
 
 

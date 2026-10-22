@@ -28,6 +28,7 @@ class RepositorioSessaoDjango(RepositorioSessao):
                     "encerrada_em": sessao.encerrada_em,
                     "estado": sessao.codigo_estado,
                     "modo": sessao.politica.codigo,
+                    "materia_id": sessao.materia_id,
                 },
             )
             # O histórico é da entidade: o banco espelha a lista atual.
