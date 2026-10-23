@@ -1,0 +1,269 @@
+/* Tela da rede neural (issue #26), no desenho do protótipo (docs/design, tela 7). */
+
+.rede {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rede-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rede-cabecalho h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.rede-resumo {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto-suave);
+  font-size: 14px;
+}
+
+/* Filtros: chips que rolam para o lado no celular */
+
+.filtros {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+  font: 13px var(--fonte-texto);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--cor-destaque);
+  background: rgb(139 123 255 / 14%);
+  color: var(--cor-texto);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--cor-impulso);
+  outline-offset: 2px;
+}
+
+.chip i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+/* Área da rede */
+
+.rede-grafo {
+  transition: opacity 0.2s;
+}
+
+.rede-grafo.atualizando {
+  opacity: 0.5;
+}
+
+.rede-area {
+  position: relative;
+  height: min(68vh, 620px);
+  min-height: 340px;
+  overflow: hidden;
+  border: 1px solid var(--cor-borda);
+  border-radius: 20px;
+  background: radial-gradient(circle at 50% 45%, #171a38 0%, var(--cor-fundo) 70%);
+}
+
+.rede-area svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Arrastar e pinçar movem a rede, e não a página. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.rede-area svg:active {
+  cursor: grabbing;
+}
+
+.rede-sinapse {
+  stroke: #2f3566;
+  stroke-linecap: round;
+  transition:
+    stroke 0.2s,
+    opacity 0.2s;
+}
+
+.com-realce .rede-sinapse {
+  opacity: 0.45;
+}
+
+.com-realce .rede-sinapse.indireta {
+  stroke: #2b8f9a;
+  opacity: 1;
+}
+
+.com-realce .rede-sinapse.direta {
+  stroke: var(--cor-impulso);
+  opacity: 1;
+  filter: url(#rede-brilho-sinapse);
+}
+
+/* A opacidade fica nas formas, e não no grupo do neurônio: opacidade num grupo SVG
+   obriga o navegador a pintar cada um à parte, e o zoom caía para uns 45 quadros por
+   segundo com 300 neurônios (com ela nas formas, passa de 60). */
+.rede-neuronio {
+  --opacidade: 0.8;
+  cursor: pointer;
+}
+
+.com-realce .rede-neuronio {
+  --opacidade: 0.35;
+}
+
+.com-realce .rede-neuronio.podado {
+  --opacidade: 0.6;
+}
+
+.com-realce .rede-neuronio.segundo {
+  --opacidade: 0.8;
+}
+
+.com-realce .rede-neuronio.vizinho,
+.com-realce .rede-neuronio.foco {
+  --opacidade: 1;
+}
+
+.rede-corpo,
+.rede-contorno-podado {
+  opacity: var(--opacidade);
+  transition: opacity 0.2s;
+}
+
+.rede-dendritos {
+  fill: none;
+  stroke-linecap: round;
+  opacity: calc(var(--opacidade) * 0.65);
+  transition: opacity 0.2s;
+}
+
+.rede-contorno-podado {
+  fill: none;
+  stroke: var(--cor-podado);
+  stroke-width: 1.4;
+  stroke-dasharray: 2 2;
+}
+
+/* Área de toque invisível: não é pintada, mas recebe o toque. */
+.rede-alvo {
+  fill: none;
+  pointer-events: all;
+}
+
+.rede-neuronio.vizinho .rede-corpo {
+  filter: url(#rede-brilho);
+}
+
+.rede-neuronio.foco .rede-corpo {
+  filter: url(#rede-brilho-forte);
+}
+
+.dica-no {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 12px;
+  background: var(--cor-superficie-2);
+  color: var(--cor-texto-suave);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.dica-no b {
+  display: block;
+  color: var(--cor-texto);
+  font-size: 13px;
+}
+
+.rede-legenda {
+  margin: 0;
+  color: var(--cor-texto-fraco);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Carregando, erro, filtro sem resultado e rede vazia */
+
+.rede-mensagem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 48px 16px;
+  color: var(--cor-texto-suave);
+  text-align: center;
+}
+
+.rede-mensagem p {
+  margin: 0;
+}
+
+.rede-mensagem .botao,
+.rede-vazia .botao {
+  width: auto;
+  padding: 0 24px;
+}
+
+.rede-vazia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 20px;
+  background: radial-gradient(circle at 50% 30%, #171a38 0%, var(--cor-fundo) 70%);
+  text-align: center;
+}
+
+.rede-vazia h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.rede-vazia p {
+  max-width: 34ch;
+  margin: 0 0 8px;
+  color: var(--cor-texto-suave);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rede-grafo,
+  .rede-sinapse,
+  .rede-corpo,
+  .rede-contorno-podado,
+  .rede-dendritos {
+    transition: none;
+  }
+}

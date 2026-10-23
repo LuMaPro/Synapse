@@ -30,11 +30,21 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
 ## Baixo acoplamento e alta coesão
 
 - **Neurônio em três partes** (issue #19): a geometria é uma função pura em `frontend/src/utils/geometriaNeuronio.ts` (recebe tipo, progresso e se está podado e devolve o que desenhar), o componente `frontend/src/components/NeuronioAnimado.tsx` só transforma esse resultado em SVG, e a animação fica no CSS (`frontend/src/styles/neuronio.css`). Cada parte muda sem afetar as outras: a #22 pode trocar as formas dos tipos sem tocar no componente, e o `prefers-reduced-motion` desliga as transições sem mexer em código.
+- **Rede neural em três partes** (issue #26): as contas ficam em funções puras em `frontend/src/utils/redeNeural.ts` (posições por simulação de forças com `d3-force`, quem acende quando um neurônio é tocado, a forma dos dendritos e o início do período), testadas sem navegador; o componente `frontend/src/components/GrafoRede.tsx` só desenha e trata toque e zoom; e a página `frontend/src/pages/Rede.tsx` cuida dos filtros, da busca na API e dos estados (carregando, erro, vazio).
+
+## Desempenho
+
+- **Rede fluida com centenas de neurônios** (`frontend/src/components/GrafoRede.tsx` e `frontend/src/styles/rede.css`, issue #26), com decisões medidas no navegador:
+  - o zoom e o arrasto (`d3-zoom`) mudam só o `transform` de um grupo, direto no DOM, e o React não redesenha os neurônios a cada quadro;
+  - a opacidade fica nas formas, e não no grupo de cada neurônio: opacidade num grupo SVG obriga o navegador a pintar cada um à parte, e o zoom caía para uns 45 quadros por segundo com 300 neurônios (depois da mudança, passou de 60);
+  - neurônios e sinapses são componentes memorizados (`memo`), então um realce só redesenha o que mudou de estado: no build de produção, cerca de 3 ms com 300 neurônios e 4 ms com 500;
+  - a simulação de forças roda de uma vez, partindo de posições sorteadas com semente fixa (o desenho é sempre o mesmo) e assentando em 135 passos em vez de 300, o que corta o cálculo pela metade (cerca de 0,2 s com 300 neurônios e 0,35 s com 500).
 
 ## Nomenclatura
 
 ## Tratamento de erros nas bordas
 
+- **Tela da rede que não quebra por partes** (`frontend/src/pages/Rede.tsx`, issue #26): se as matérias não carregarem, a rede aparece com as cores dos tipos e sem o filtro de matéria; se a rede não carregar, a tela avisa e oferece tentar de novo. Uma resposta que chega depois de o estudante trocar de filtro é descartada, para não mostrar a rede do filtro anterior.
 - **Filtros validados pelo tratamento central de erros** (`backend/app/api/rede.py`, issue #25): os filtros de `GET /rede` passam por um serializer com `raise_exception=True`, e o erro sai no formato padrão da #12 (`{"erro": "validacao", "mensagem", "detalhes"}`), com o campo inválido em `detalhes`. O campo de período aceita data ou data e hora com fuso; uma data no `ate` vale até o fim do dia, para não deixar o próprio dia de fora.
 - **Erros de domínio traduzidos num único ponto** (`backend/app/api/sessoes.py`, função `_responder`, issue #16): os casos de uso lançam exceções de domínio (`SessaoNaoEncontrada`, `SessaoAtivaExistente`, `TransicaoInvalida`...), e uma tabela no módulo da API as converte para HTTP (404, 409 ou 400) no formato `{"erro", "mensagem"}`. Sessão de outro estudante responde 404, igual a inexistente, para não revelar que ela existe. É provisório até o tratamento central de erros da issue #12.
 - **Envio em segundo plano que nunca lança erro** (`frontend/src/services/api.ts`, função `postEmSegundoPlano`, issue #18): avisa o servidor de uma saída da tela com `fetch(..., { keepalive: true })`, que continua mesmo se a aba fechar. Como a página pode estar sumindo, falhas de rede ou recusas do servidor viram `false` em vez de exceção.
