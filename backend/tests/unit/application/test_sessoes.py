@@ -5,16 +5,22 @@ import pytest
 
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
+from app.domain.entidades.materia import Materia
 from app.domain.excecoes import (
     DuracaoInvalida,
     HorarioInvalido,
+    MateriaNaoEncontrada,
     PoliticaInvalida,
     SessaoAtivaExistente,
     SessaoNaoEncontrada,
     TransicaoInvalida,
 )
 from app.domain.formacao_sinapses import RegraFormacaoSinapses
-from tests.repositorios import RepositorioRedeNeuralMemoria, RepositorioSessaoMemoria
+from tests.repositorios import (
+    RepositorioMateriaMemoria,
+    RepositorioRedeNeuralMemoria,
+    RepositorioSessaoMemoria,
+)
 
 INICIO = datetime(2026, 10, 16, 14, 0, tzinfo=UTC)
 
@@ -48,8 +54,15 @@ def redes():
 
 
 @pytest.fixture
-def servico(sessoes, redes, relogio):
-    return SessaoService(sessoes, RedeNeuralService(redes), relogio=relogio)
+def materias():
+    return RepositorioMateriaMemoria()
+
+
+@pytest.fixture
+def servico(sessoes, redes, relogio, materias):
+    return SessaoService(
+        sessoes, RedeNeuralService(redes), relogio=relogio, materias=materias
+    )
 
 
 @pytest.fixture
@@ -348,3 +361,63 @@ def test_podar_orfas_varre_todos_os_usuarios(servico, relogio):
     assert servico.podar_orfas() == 2
     assert all(s.codigo_estado == "podada" for s in abandonadas)
     assert recente.codigo_estado == "em_andamento"
+
+
+def test_iniciar_sessao_com_materia_valida_associa_materia(
+    servico, materias, usuario_id
+):
+    materia = Materia(usuario_id, "Cálculo", "#8B7BFF")
+    materias.salvar(materia)
+
+    sessao = servico.iniciar(usuario_id, 25, "estrito", materia_id=materia.id)
+
+    assert sessao.materia_id == materia.id
+
+
+def test_iniciar_sessao_com_materia_inexistente_lanca_excecao(servico, usuario_id):
+    with pytest.raises(MateriaNaoEncontrada):
+        servico.iniciar(usuario_id, 25, "estrito", materia_id=uuid4())
+
+
+def test_iniciar_sessao_com_materia_de_outro_usuario_lanca_excecao(
+    servico, materias, usuario_id
+):
+    outro_usuario = uuid4()
+    materia_outro = Materia(outro_usuario, "Física", "#3EE6E0")
+    materias.salvar(materia_outro)
+
+    with pytest.raises(MateriaNaoEncontrada):
+        servico.iniciar(usuario_id, 25, "estrito", materia_id=materia_outro.id)
+
+
+def test_concluir_sessao_com_materia_passa_materia_para_neuronio(
+    servico, materias, usuario_id, relogio, redes
+):
+    materia = Materia(usuario_id, "Cálculo", "#8B7BFF")
+    materias.salvar(materia)
+
+    sessao = servico.iniciar(usuario_id, 25, "estrito", materia_id=materia.id)
+    relogio.avancar(minutes=25)
+    sessao_concluida, neuronio = servico.concluir(usuario_id, sessao.id)
+
+    assert sessao_concluida.materia_id == materia.id
+    assert neuronio.materia_id == materia.id
+    rede = redes.carregar(usuario_id)
+    assert rede.neuronios[0].materia_id == materia.id
+
+
+def test_poda_sessao_com_materia_passa_materia_para_neuronio(
+    servico, materias, usuario_id, relogio, redes
+):
+    materia = Materia(usuario_id, "Cálculo", "#8B7BFF")
+    materias.salvar(materia)
+
+    servico.iniciar(usuario_id, 25, "estrito", materia_id=materia.id)
+    relogio.avancar(minutes=31)  # abandono gera poda
+    servico.buscar_ativa(usuario_id)
+
+    rede = redes.carregar(usuario_id)
+    assert len(rede) == 1
+    assert rede.neuronios[0].vivo is False
+    assert rede.neuronios[0].materia_id == materia.id
+

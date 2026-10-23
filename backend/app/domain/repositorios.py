@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.entidades.usuario import Usuario
@@ -119,3 +120,40 @@ class RepositorioRedeNeural(ABC):
         Eles não mudam depois de criados, então só há inserções.
         """
         ...
+
+
+class RepositorioMateria(ABC):
+    """Interface abstrata para persistência das matérias (Padrão Repository, #27)."""
+
+    @abstractmethod
+    def salvar(self, materia: Materia) -> None:
+        """Persiste uma nova matéria ou atualiza uma existente."""
+        ...
+
+    @abstractmethod
+    def buscar_por_id(self, id: UUID) -> Materia | None:
+        """Busca uma matéria pelo seu identificador único (UUID)."""
+        ...
+
+    @abstractmethod
+    def buscar_por_usuario_e_id(self, usuario_id: UUID, id: UUID) -> Materia | None:
+        """Busca uma matéria pertencente ao estudante informado."""
+        ...
+
+    @abstractmethod
+    def listar_por_usuario(self, usuario_id: UUID) -> list[Materia]:
+        """Lista todas as matérias pertencentes a um estudante, ordenadas por nome."""
+        ...
+
+    @abstractmethod
+    def existe_com_nome(
+        self, usuario_id: UUID, nome: str, ignorar_id: UUID | None = None
+    ) -> bool:
+        """Verifica se o estudante já possui matéria com este nome."""
+        ...
+
+    @abstractmethod
+    def remover(self, id: UUID) -> None:
+        """Remove a matéria do repositório."""
+        ...
+

@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.entidades.sinapse import Sinapse
@@ -7,6 +8,7 @@ from app.domain.entidades.usuario import Usuario
 from app.domain.formacao_sinapses import RegraFormacaoSinapses
 from app.domain.rede_neural import RedeNeural
 from app.domain.repositorios import (
+    RepositorioMateria,
     RepositorioNeuronio,
     RepositorioRedeNeural,
     RepositorioSessao,
@@ -149,6 +151,63 @@ class RepositorioRedeNeuralMemoria(RepositorioRedeNeural):
         rede.marcar_como_salva()
 
 
+class RepositorioMateriaMemoria(RepositorioMateria):
+    """Implementação em memória de RepositorioMateria para testes unitários."""
+
+    def __init__(self) -> None:
+        self._materias: dict[UUID, Materia] = {}
+
+    def salvar(self, materia: Materia) -> None:
+        self._materias[materia.id] = materia
+
+    def buscar_por_id(self, id: UUID) -> Materia | None:
+        return self._materias.get(id)
+
+    def buscar_por_usuario_e_id(self, usuario_id: UUID, id: UUID) -> Materia | None:
+        materia = self._materias.get(id)
+        if materia is not None and materia.usuario_id == usuario_id:
+            return materia
+        return None
+
+    def listar_por_usuario(self, usuario_id: UUID) -> list[Materia]:
+        import unicodedata
+
+        def chave(m: Materia) -> str:
+            return (
+                unicodedata.normalize("NFKD", m.nome)
+                .encode("ASCII", "ignore")
+                .decode()
+                .lower()
+            )
+
+        materias = [m for m in self._materias.values() if m.usuario_id == usuario_id]
+        return sorted(materias, key=chave)
+
+    def existe_com_nome(
+        self, usuario_id: UUID, nome: str, ignorar_id: UUID | None = None
+    ) -> bool:
+        nome_normalizado = nome.strip().lower()
+        for materia in self._materias.values():
+            if (
+                materia.usuario_id == usuario_id
+                and materia.id != ignorar_id
+                and materia.nome.lower() == nome_normalizado
+            ):
+                return True
+        return False
+
+    def remover(self, id: UUID) -> None:
+        self._materias.pop(id, None)
+
+    def limpar(self) -> None:
+        self._materias.clear()
+
+    def __len__(self) -> int:
+        return len(self._materias)
+
+
 # Aliases de conveniência
 RepositorioUsuarioEmMemoria = RepositorioUsuarioMemoria
 RepositorioSessaoEmMemoria = RepositorioSessaoMemoria
+RepositorioMateriaEmMemoria = RepositorioMateriaMemoria
+

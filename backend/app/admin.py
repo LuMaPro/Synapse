@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import AdminUserCreationForm, UserChangeForm
 
+from app.infra.modelos.materia import MateriaModel
 from app.infra.modelos.sessao_foco import SessaoFocoModel
 from app.infra.modelos.usuario import UsuarioModel
 
@@ -78,3 +79,12 @@ class SessaoFocoAdmin(admin.ModelAdmin):
     list_filter = ("estado", "inicio")
     search_fields = ("usuario__email", "usuario__nome")
     readonly_fields = ("inicio",)
+
+
+@admin.register(MateriaModel)
+class MateriaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "cor", "usuario", "criada_em")
+    list_filter = ("criada_em",)
+    search_fields = ("nome", "usuario__email", "usuario__nome")
+    readonly_fields = ("criada_em",)
+
