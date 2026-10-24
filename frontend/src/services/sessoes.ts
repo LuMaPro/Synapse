@@ -16,6 +16,7 @@ export interface SessaoApi {
   id: string
   duracao_minutos: number
   modo: ModoSessaoApi
+  materia_id?: string | null
   estado: 'em_andamento' | 'concluida' | 'podada'
   inicio: string
   fim_previsto: string
@@ -28,6 +29,7 @@ export interface NeuronioApi {
   id: string
   sessao_id: string
   duracao_minutos: number
+  materia_id?: string | null
   criado_em: string
 }
 
@@ -37,8 +39,12 @@ export interface ConclusaoApi {
 }
 
 export const sessoesApi = {
-  iniciar: (duracaoMinutos: number, modo: ModoSessaoApi) =>
-    api.post<SessaoApi>('/sessoes', { duracao_minutos: duracaoMinutos, modo }),
+  iniciar: (duracaoMinutos: number, modo: ModoSessaoApi, materiaId?: string | null) =>
+    api.post<SessaoApi>('/sessoes', {
+      duracao_minutos: duracaoMinutos,
+      modo,
+      ...(materiaId ? { materia_id: materiaId } : {}),
+    }),
   /** A sessão em andamento do estudante, ou `undefined` se não houver (204). */
   buscarAtiva: () => api.get<SessaoApi | undefined>('/sessoes/ativa'),
   concluir: (sessaoId: string) => api.post<ConclusaoApi>(`/sessoes/${sessaoId}/concluir`),

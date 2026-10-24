@@ -102,4 +102,16 @@ describe('fila de avisos da sessão', () => {
     ])
     expect(localStorage.getItem('synapse:saida-em-curso')).toBeNull()
   })
+
+  it('permite iniciar sessão com materia_id opcional', async () => {
+    // encerra a sessão ativa anterior para poder iniciar outra
+    await avisar({ tipo: 'desistir', sessaoId })
+    const sessaoComMateria = await sessoesApi.iniciar(25, 'estrito', 'mat-abc')
+    expect(sessaoComMateria.materia_id).toBe('mat-abc')
+    expect(servidor.chamadas.at(-1)?.corpo).toEqual({
+      duracao_minutos: 25,
+      modo: 'estrito',
+      materia_id: 'mat-abc',
+    })
+  })
 })
