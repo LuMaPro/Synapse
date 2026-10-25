@@ -165,6 +165,32 @@ describe('tela de foco', () => {
     expect(screen.getByRole('status')).toHaveTextContent('20 minutos')
   })
 
+  it('permite escolher matéria antes de iniciar a sessão, exibindo-a no selo e no resultado', async () => {
+    servidor.definirMaterias([
+      { id: 'mat-calc', nome: 'Cálculo', cor: '#8B7BFF', criada_em: '' },
+    ])
+    const usuario = renderizar()
+
+    const chipCalculo = await screen.findByRole('radio', { name: 'Cálculo' })
+    await usuario.click(chipCalculo)
+    expect(chipCalculo).toBeChecked()
+
+    await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+
+    const chamadaInicio = servidor.chamadasPara('/sessoes')[0]
+    expect(chamadaInicio.corpo?.materia_id).toBe('mat-calc')
+
+    expect(screen.getByText(/Cálculo · Modo estrito/)).toBeInTheDocument()
+
+    const neuronioCrescendo = screen.getByRole('img', { name: /Neurônio Piramidal/ })
+    expect(neuronioCrescendo).toHaveStyle({ '--cor-neuronio': '#8B7BFF' })
+
+    act(() => vi.advanceTimersByTime(25 * MINUTO))
+
+    expect(await screen.findByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
+    expect(screen.getByText('Piramidal · 25 min · Cálculo')).toBeInTheDocument()
+  })
+
   describe('saída da tela (issue #18)', () => {
     const SEGUNDO = 1_000
 

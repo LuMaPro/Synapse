@@ -6,6 +6,7 @@ import { Cadastro } from './pages/Cadastro'
 import { Estatisticas } from './pages/Estatisticas'
 import { Foco } from './pages/Foco'
 import { Login } from './pages/Login'
+import { Materias } from './pages/Materias'
 import { NaoEncontrada } from './pages/NaoEncontrada'
 import { Rede } from './pages/Rede'
 
@@ -21,6 +22,7 @@ export function AppRoutes() {
             <Route index element={<Navigate to="/foco" replace />} />
             <Route path="foco" element={<Foco />} />
             <Route path="rede" element={<Rede />} />
+            <Route path="materias" element={<Materias />} />
             <Route path="estatisticas" element={<Estatisticas />} />
           </Route>
 

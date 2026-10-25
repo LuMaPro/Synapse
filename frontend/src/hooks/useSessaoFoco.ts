@@ -76,6 +76,7 @@ export function useSessaoFoco() {
   const [fase, setFase] = useState<FaseSessao>('configurando')
   const [duracaoMin, setDuracaoMin] = useState(DURACAO_PADRAO)
   const [modo, setModo] = useState<ModoSessao>(lerModoSalvo)
+  const [materiaId, setMateriaId] = useState<string | null>(null)
   const [fimEm, setFimEm] = useState<number | null>(null)
   const [agora, setAgora] = useState(0)
   /** Tempo fora já descontado do saldo, somando as saídas que terminaram. */
@@ -137,6 +138,7 @@ export function useSessaoFoco() {
     deslocamentoRef.current = Date.parse(sessao.fim_previsto) - fim
     setDuracaoMin(sessao.duracao_minutos)
     setModo(sessao.modo)
+    setMateriaId(sessao.materia_id ?? null)
     setAgora(instante)
     setFimEm(fim)
     setForaMs(sessao.tempo_fora_segundos * 1000)
@@ -288,6 +290,10 @@ export function useSessaoFoco() {
     salvarModo(novoModo)
   }, [])
 
+  const escolherMateria = useCallback((novoId: string | null) => {
+    setMateriaId(novoId)
+  }, [])
+
   const iniciar = useCallback(async () => {
     if (iniciandoRef.current) return
     iniciandoRef.current = true
@@ -299,7 +305,7 @@ export function useSessaoFoco() {
       if (!(await enviarAvisosPendentes(tratarResposta))) throw new Error('Sem conexão')
       let sessao: SessaoApi | undefined
       try {
-        sessao = await sessoesApi.iniciar(duracaoMin, modo)
+        sessao = await sessoesApi.iniciar(duracaoMin, modo, materiaId)
       } catch (erroInicio) {
         // Já existe uma sessão em andamento (ex.: aberta em outra aba): continua nela.
         if (!(erroInicio instanceof ApiError && erroInicio.status === 409)) throw erroInicio
@@ -314,7 +320,7 @@ export function useSessaoFoco() {
       iniciandoRef.current = false
       setIniciando(false)
     }
-  }, [duracaoMin, modo, aplicarSessao, tratarResposta])
+  }, [duracaoMin, modo, materiaId, aplicarSessao, tratarResposta])
 
   const desistir = useCallback(() => {
     const sessaoId = sessaoIdRef.current
@@ -416,6 +422,7 @@ export function useSessaoFoco() {
     fase,
     duracaoMin,
     modo,
+    materiaId,
     restanteMs,
     decorridoMs,
     progresso: decorridoMs / duracaoMs,
@@ -431,6 +438,7 @@ export function useSessaoFoco() {
     diminuirDuracao,
     aumentarDuracao,
     escolherModo,
+    escolherMateria,
     iniciar,
     desistir,
     sairDaTela,

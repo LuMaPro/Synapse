@@ -4,8 +4,10 @@ import { DialogoDesistir } from '../components/DialogoDesistir'
 import { NeuronioAnimado } from '../components/NeuronioAnimado'
 import { ResultadoSessao } from '../components/ResultadoSessao'
 import { SeletorDuracao } from '../components/SeletorDuracao'
+import { SeletorMateria } from '../components/SeletorMateria'
 import { SeletorModo } from '../components/SeletorModo'
 import { useDeteccaoSaida } from '../hooks/useDeteccaoSaida'
+import { useMaterias } from '../hooks/useMaterias'
 import { PROPORCAO_TOLERANCIA, useSessaoFoco } from '../hooks/useSessaoFoco'
 import '../styles/foco.css'
 import { tipoNeuronio } from '../utils/neuronio'
@@ -15,11 +17,14 @@ const MS_POR_MINUTO = 60_000
 
 export function Foco() {
   const sessao = useSessaoFoco()
+  const { materias } = useMaterias()
   const [confirmandoDesistencia, setConfirmandoDesistencia] = useState(false)
   const { foraDaTelaCheia } = useDeteccaoSaida(sessao.fase === 'em_andamento', {
     onSaida: sessao.sairDaTela,
     onRetorno: sessao.voltarParaTela,
   })
+
+  const materiaAtual = materias.find((m) => m.id === sessao.materiaId)
 
   if (sessao.fase === 'configurando') {
     return (
@@ -31,6 +36,12 @@ export function Foco() {
           podeAumentar={sessao.podeAumentar}
           onDiminuir={sessao.diminuirDuracao}
           onAumentar={sessao.aumentarDuracao}
+        />
+        <SeletorMateria
+          materias={materias}
+          materiaId={sessao.materiaId}
+          onEscolher={sessao.escolherMateria}
+          disabled={sessao.iniciando}
         />
         <SeletorModo
           modo={sessao.modo}
@@ -58,8 +69,17 @@ export function Foco() {
     const concluindo = sessao.fase === 'concluindo'
     return (
       <section className="tela-sessao" aria-label="Sessão de foco">
-        <p className="selo">Modo {sessao.modo}</p>
-        <NeuronioAnimado tipo={tipoNeuronio(sessao.duracaoMin)} progresso={sessao.progresso} />
+        <p className="selo">
+          {materiaAtual && (
+            <i style={{ background: materiaAtual.cor }} aria-hidden="true" />
+          )}
+          {materiaAtual ? `${materiaAtual.nome} · Modo ${sessao.modo}` : `Modo ${sessao.modo}`}
+        </p>
+        <NeuronioAnimado
+          tipo={tipoNeuronio(sessao.duracaoMin)}
+          progresso={sessao.progresso}
+          cor={materiaAtual?.cor}
+        />
         <div className="centro">
           <p className="timer numero" role="timer" aria-label="Tempo restante">
             {formatarTempo(sessao.restanteMs)}
@@ -111,6 +131,8 @@ export function Foco() {
       motivoPoda={sessao.motivoPoda}
       decorridoMs={sessao.decorridoMs}
       progresso={sessao.progresso}
+      cor={materiaAtual?.cor}
+      nomeMateria={materiaAtual?.nome}
       onFocarDeNovo={() => {
         setConfirmandoDesistencia(false)
         sessao.focarDeNovo()

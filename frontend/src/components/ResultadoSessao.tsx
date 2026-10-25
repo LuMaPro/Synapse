@@ -11,6 +11,10 @@ interface ResultadoSessaoProps {
   decorridoMs: number
   /** Quanto o neurônio tinha crescido quando a sessão terminou. */
   progresso: number
+  /** Cor da matéria selecionada na sessão (#28). */
+  cor?: string
+  /** Nome da matéria selecionada na sessão (#28). */
+  nomeMateria?: string | null
   onFocarDeNovo: () => void
 }
 
@@ -21,6 +25,8 @@ export function ResultadoSessao({
   motivoPoda,
   decorridoMs,
   progresso,
+  cor,
+  nomeMateria,
   onFocarDeNovo,
 }: ResultadoSessaoProps) {
   const tipo = tipoNeuronio(duracaoMin)
@@ -34,9 +40,10 @@ export function ResultadoSessao({
             Neurônio formado!
           </h1>
         </div>
-        <NeuronioAnimado tipo={tipo} progresso={1} brilho="forte" tamanho={240} />
+        <NeuronioAnimado tipo={tipo} progresso={1} brilho="forte" tamanho={240} cor={cor} />
         <p className="subtitulo-resultado">
           {NOME_TIPO_NEURONIO[tipo]} · {duracaoMin} min
+          {nomeMateria ? ` · ${nomeMateria}` : ''}
         </p>
         <div className="acoes">
           <Link className="botao primario" to="/rede">
@@ -60,7 +67,7 @@ export function ResultadoSessao({
           A conexão se perdeu
         </h1>
       </div>
-      <NeuronioAnimado tipo={tipo} progresso={progresso} podado tamanho={240} />
+      <NeuronioAnimado tipo={tipo} progresso={progresso} podado tamanho={240} cor={cor} />
       <div className="centro">
         <p className="texto-suave">
           Você {acao} aos <b className="numero texto-forte">{formatarTempo(decorridoMs)}</b>.
