@@ -36,14 +36,15 @@ class Usuario(Entidade):
 
 ## Herança
 
-**Onde:** `backend/app/domain/entidades/base.py` e `backend/app/domain/excecoes.py` (issue #9).
+**Onde:** `backend/app/domain/entidades/base.py`, `backend/app/domain/excecoes.py` (issue #9) e `backend/app/domain/entidades/neuronio.py` (issue #22).
 
 - **`Entidade`**: classe base de `Usuario`, `SessaoFoco` e `Neuronio`. Concentra o que toda entidade tem em comum: o `id` (UUID gerado no próprio domínio) e a igualdade por identidade (`__eq__` e `__hash__` comparam tipo e `id`, não os outros atributos). É uma relação "é um" de verdade, e o comportamento herdado é idêntico nas três classes.
 - **Exceções de domínio**: `ErroDominio` é a base de `DuracaoInvalida`, `NomeInvalido`, `EmailInvalido` e `HorarioInvalido`. A camada de API pode tratar qualquer erro de regra de negócio com um único `except ErroDominio` (issue #12), sem conhecer cada exceção.
+- **`TipoNeuronio` (`Granular`, `Piramidal` e `Purkinje`)**: a classe abstrata `TipoNeuronio` define o contrato visual de toda espécie de neurônio (`nome`, `cor`, `numero_dendritos` e `raio` como propriedades abstratas) e fornece o comportamento comum herdado pelas subclasses: o `codigo` em minúsculas para a API, a verificação de faixa de duração em `aceita(duracao_minutos)` (a partir de `duracao_minima` e `duracao_maxima` de cada classe) e a igualdade por tipo (`__eq__` e `__hash__`).
 
 ## Polimorfismo
 
-**Onde:** políticas de interrupção em `backend/app/domain/politica_interrupcao.py` (issue #11) e estados da sessão em `backend/app/domain/entidades/sessao_foco.py` (issue #10).
+**Onde:** políticas de interrupção em `backend/app/domain/politica_interrupcao.py` (issue #11), estados da sessão em `backend/app/domain/entidades/sessao_foco.py` (issue #10) e tipos de neurônio em `backend/app/domain/entidades/neuronio.py` (issue #22).
 
 `SessaoFoco` chama a política e o estado sem saber qual é a classe concreta. A mesma chamada tem comportamentos diferentes conforme o objeto recebido:
 
@@ -61,7 +62,16 @@ def _aplicar_politica(self, interrupcao: Interrupcao) -> None:
 - **Políticas:** `ModoEstrito.deve_podar` sempre responde que sim; `ModoTolerante.deve_podar` soma o tempo fora e compara com 10% da sessão. `instante_da_poda` também varia: o estrito herda o padrão da classe base (o momento da saída), e o tolerante sobrescreve com o momento em que o saldo acabou.
 - **Estados:** `registrar_interrupcao`, `concluir`, `podar` e `desistir` são delegados ao estado atual. `EmAndamento` aceita; `Concluida` e `Podada` herdam o comportamento padrão, que lança `TransicaoInvalida`.
 - **Regra de formação das sinapses** (`backend/app/domain/formacao_sinapses.py`, issue #23): `RedeNeural.adicionar` chama `self._regra.conexoes(neuronio, self)` sem saber qual regra está valendo. Nos testes, uma regra que não liga nada, ou que propõe ligações inválidas, entra no lugar da padrão sem mudar a rede nem o `SessaoService`.
-- **Por quê:** uma política ou um estado novo é só uma classe nova. `SessaoFoco` não muda e não tem `if` perguntando qual é o modo ou o estado.
+- **Tipos de neurônio e fábrica** (`backend/app/domain/entidades/neuronio.py`, issue #22): `FabricaNeuronio.tipo_para` percorre os objetos `TipoNeuronio` chamando `tipo.aceita(duracao_minutos)` sem `if/elif` por classe concreta, e `Neuronio` delega `cor`, `numero_dendritos` e `raio` ao seu `TipoNeuronio`. Da mesma forma, o `SessaoService` só chama `self._fabrica.criar(sessao)` e o endpoint `GET /rede` lê `neuronio.tipo.codigo` e `neuronio.cor` sem saber se o neurônio é `Granular`, `Piramidal`, `Purkinje` ou um tipo novo adicionado depois:
+
+```python
+# backend/app/domain/entidades/neuronio.py
+for tipo in self._tipos:
+    if tipo.aceita(duracao_minutos):  # Granular, Piramidal, Purkinje ou novo tipo?
+        return tipo
+```
+
+- **Por quê:** uma política, um estado ou um tipo de neurônio novo é só uma classe nova. Quem chama (`SessaoFoco`, `SessaoService`, `GET /rede`) não muda e não tem `if` perguntando qual é o modo, o estado ou o tipo.
 
 ## Abstração
 

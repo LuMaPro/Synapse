@@ -6,6 +6,13 @@ import pytest
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.entidades.materia import Materia
+from app.domain.entidades.neuronio import (
+    FabricaNeuronio,
+    Granular,
+    Piramidal,
+    Purkinje,
+    TipoNeuronio,
+)
 from app.domain.excecoes import (
     DuracaoInvalida,
     HorarioInvalido,
@@ -421,3 +428,53 @@ def test_poda_sessao_com_materia_passa_materia_para_neuronio(
     assert rede.neuronios[0].vivo is False
     assert rede.neuronios[0].materia_id == materia.id
 
+
+@pytest.mark.parametrize(
+    ("duracao", "esperado"),
+    [(10, Granular()), (25, Piramidal()), (60, Purkinje())],
+)
+def test_concluir_cria_neuronio_com_tipo_da_fabrica(
+    servico, usuario_id, relogio, duracao, esperado
+):
+    sessao = servico.iniciar(usuario_id, duracao, "estrito")
+    relogio.avancar(minutes=duracao)
+
+    _, neuronio = servico.concluir(usuario_id, sessao.id)
+
+    assert neuronio.tipo == esperado
+
+
+def test_criterio_tipo_novo_na_fabrica_sem_mexer_no_servico_de_sessao(
+    sessoes, redes, usuario_id, relogio
+):
+    class Fusiforme(TipoNeuronio):
+        duracao_minima = 40
+        duracao_maxima = 59
+
+        @property
+        def nome(self) -> str:
+            return "Fusiforme"
+
+        @property
+        def cor(self) -> str:
+            return "#6FA8FF"
+
+        @property
+        def numero_dendritos(self) -> int:
+            return 6
+
+        @property
+        def raio(self) -> float:
+            return 7.5
+
+    fabrica = FabricaNeuronio((*FabricaNeuronio.TIPOS_PADRAO, Fusiforme()))
+    servico = SessaoService(
+        sessoes, RedeNeuralService(redes), relogio=relogio, fabrica=fabrica
+    )
+    sessao = servico.iniciar(usuario_id, 45, "estrito")
+    relogio.avancar(minutes=45)
+
+    _, neuronio = servico.concluir(usuario_id, sessao.id)
+
+    assert neuronio.tipo == Fusiforme()
+    assert neuronio.cor == "#6FA8FF"
