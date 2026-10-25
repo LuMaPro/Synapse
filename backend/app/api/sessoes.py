@@ -8,6 +8,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
+from app.domain.observadores import AtualizadorRede
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.entidades.neuronio import Neuronio
@@ -43,10 +45,19 @@ ERROS_SESSAO: dict[type[ErroDominio], tuple[int, str]] = {
 
 
 def _servico() -> SessaoService:
+    # Configura a rede e o observador
+    rede_service = RedeNeuralService(RepositorioRedeNeuralDjango())
+    atualizador = AtualizadorRede(rede_service)
+    
+    # Configura o publicador e inscreve o observador
+    publicador = PublicadorEventos()
+    publicador.inscrever(SessaoConcluida, atualizador)
+    publicador.inscrever(SessaoPodada, atualizador)
+    
     # O relógio é lido a cada chamada, o que permite controlá-lo nos testes.
     return SessaoService(
         RepositorioSessaoDjango(),
-        RedeNeuralService(RepositorioRedeNeuralDjango()),
+        publicador,  # <-- Injetamos o publicador aqui
         relogio=lambda: agora(),
         materias=RepositorioMateriaDjango(),
     )
@@ -258,11 +269,27 @@ def interrupcoes(request, sessao_id):
 @permission_classes([IsAuthenticated])
 def concluir(request, sessao_id):
     def executar():
-        sessao, neuronio = _servico().concluir(request.user.id, sessao_id)
-        return {"sessao": _sessao_json(sessao), "neuronio": _neuronio_json(neuronio)}
+        sessao = _servico().concluir(request.user.id, sessao_id)
+        
+        rede = RepositorioRedeNeuralDjango().carregar(request.user.id)
+        neuronio = next((n for n in rede.neuronios if str(n.sessao_id) == str(sessao.id)), None)
+        
+        if neuronio:
+            neuronio_json = _neuronio_json(neuronio)
+        else:
+            from app.infra.modelos.neuronio import NeuronioModel
+            modelo = NeuronioModel.objects.filter(sessao_id=sessao.id).first()
+            neuronio_json = {
+                "id": str(modelo.id),
+                "sessao_id": str(modelo.sessao_id),
+                "duracao_minutos": modelo.duracao_minutos,
+                "materia_id": str(modelo.materia_id) if modelo.materia_id else None,
+                "criado_em": modelo.criado_em.isoformat(),
+            } if modelo else None
+            
+        return {"sessao": _sessao_json(sessao), "neuronio": neuronio_json}
 
     return _responder(executar, status.HTTP_200_OK)
-
 
 @extend_schema(
     summary="Desistir da sessão",

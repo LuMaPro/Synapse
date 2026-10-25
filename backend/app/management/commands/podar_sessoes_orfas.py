@@ -3,6 +3,8 @@ from django.db import transaction
 
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
+from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
+from app.domain.observadores import AtualizadorRede
 from app.infra.repositorios import (
     RepositorioRedeNeuralDjango,
     RepositorioSessaoDjango,
@@ -17,9 +19,20 @@ class Command(BaseCommand):
     )
 
     def handle(self, *args, **options):
+        # Configura a rede e os observadores
+        rede_service = RedeNeuralService(RepositorioRedeNeuralDjango())
+        atualizador = AtualizadorRede(rede_service)
+        
+        # Configura o publicador e inscreve os observadores
+        publicador = PublicadorEventos()
+        publicador.inscrever(SessaoConcluida, atualizador)
+        publicador.inscrever(SessaoPodada, atualizador)
+
+        # Injeta o publicador no serviço de sessão
         servico = SessaoService(
-            RepositorioSessaoDjango(), RedeNeuralService(RepositorioRedeNeuralDjango())
+            RepositorioSessaoDjango(), publicador
         )
+        
         # A sessão podada e o neurônio morto que ela deixa na rede são gravados juntos.
         with transaction.atomic():
             podadas = servico.podar_orfas()
