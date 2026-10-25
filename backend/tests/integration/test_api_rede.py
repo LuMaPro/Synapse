@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 from rest_framework.test import APIClient
 
-from app.api.rede import DataOuInstanteField, tipo_do_neuronio
+from app.api.rede import DataOuInstanteField, _neuronio_json
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, Podada, SessaoFoco
 from app.infra.modelos.sessao_foco import SessaoFocoModel
@@ -145,7 +145,8 @@ def test_devolve_a_rede_no_formato_de_grafo(cliente, usuario):
     ],
 )
 def test_tipo_pelas_faixas_de_duracao_do_design(duracao, tipo):
-    assert tipo_do_neuronio(duracao) == tipo
+    neuronio = Neuronio(uuid4(), uuid4(), duracao)
+    assert _neuronio_json(neuronio)["tipo"] == tipo
 
 
 def test_cada_estudante_ve_so_a_sua_rede(cliente, usuario):

@@ -20,27 +20,16 @@ from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sinapse import Sinapse
 from app.infra.repositorios import RepositorioRedeNeuralDjango
 
-# Provisório até o Factory Method da #22, que leva o tipo e a cor para o domínio.
-# As faixas e as cores são as do design (docs/design/README.md).
-TIPOS_POR_DURACAO = ((60, "purkinje"), (25, "piramidal"), (0, "granular"))
-COR_POR_TIPO = {"granular": "#3EE6E0", "piramidal": "#8B7BFF", "purkinje": "#FFC857"}
-COR_PODADO = "#4A4F6E"
-
 SO_DATA = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def tipo_do_neuronio(duracao_minutos: int) -> str:
-    return next(tipo for minimo, tipo in TIPOS_POR_DURACAO if duracao_minutos >= minimo)
-
-
 def _neuronio_json(neuronio: Neuronio) -> dict:
-    tipo = tipo_do_neuronio(neuronio.duracao.minutos)
     return {
         "id": str(neuronio.id),
-        "tipo": tipo,
+        "tipo": neuronio.tipo.codigo,
         "materia_id": str(neuronio.materia_id) if neuronio.materia_id else None,
         # O podado é sempre cinza. A cor da matéria substitui a do tipo na #28.
-        "cor": COR_POR_TIPO[tipo] if neuronio.vivo else COR_PODADO,
+        "cor": neuronio.cor,
         "criado_em": neuronio.criado_em.isoformat(),
         "duracao_minutos": neuronio.duracao.minutos,
         "vivo": neuronio.vivo,
