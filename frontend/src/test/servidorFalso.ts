@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { Materia } from '../services/materias'
 import type { SessaoApi } from '../services/sessoes'
 
 /** Uma requisição recebida pelo servidor falso. */
@@ -38,6 +39,7 @@ function json(status: number, corpo?: unknown) {
 export function criarServidorFalso() {
   const chamadas: Chamada[] = []
   let sessoes: SessaoFalsa[] = []
+  let materias: Materia[] = []
   let proximoId = 1
   let semRede = false
   /** Rotas que respondem 500 (terminadas neste trecho). */
@@ -109,6 +111,9 @@ export function criarServidorFalso() {
     if (metodo === 'GET' && caminho === '/sessoes/ativa') {
       const sessao = ativa()
       return sessao ? json(200, comoJson(sessao)) : json(204)
+    }
+    if (metodo === 'GET' && caminho === '/materias') {
+      return json(200, materias)
     }
 
     const [, , id, acao] = caminho.split('/')
@@ -183,8 +188,12 @@ export function criarServidorFalso() {
       sessoes.push(sessao)
       return sessao
     },
+    definirMaterias: (novas: Materia[]) => {
+      materias = [...novas]
+    },
     limpar: () => {
       sessoes = []
+      materias = []
       chamadas.length = 0
     },
   }
