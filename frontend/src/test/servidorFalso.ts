@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { Materia } from '../services/materias'
 import type { SessaoApi } from '../services/sessoes'
 
 /** Uma requisição recebida pelo servidor falso. */
@@ -13,6 +14,7 @@ interface SessaoFalsa {
   id: string
   duracaoMin: number
   modo: 'estrito' | 'tolerante'
+  materiaId: string | null
   estado: SessaoApi['estado']
   inicio: number
   encerradaEm: number | null
@@ -37,6 +39,7 @@ function json(status: number, corpo?: unknown) {
 export function criarServidorFalso() {
   const chamadas: Chamada[] = []
   let sessoes: SessaoFalsa[] = []
+  let materias: Materia[] = []
   let proximoId = 1
   let semRede = false
   /** Rotas que respondem 500 (terminadas neste trecho). */
@@ -53,6 +56,7 @@ export function criarServidorFalso() {
       id: s.id,
       duracao_minutos: s.duracaoMin,
       modo: s.modo,
+      materia_id: s.materiaId,
       estado: s.estado,
       inicio: new Date(s.inicio).toISOString(),
       fim_previsto: new Date(fimPrevisto(s)).toISOString(),
@@ -95,6 +99,7 @@ export function criarServidorFalso() {
         id: `sessao-${proximoId++}`,
         duracaoMin: Number(corpo?.duracao_minutos),
         modo: corpo?.modo === 'tolerante' ? 'tolerante' : 'estrito',
+        materiaId: corpo?.materia_id ? String(corpo.materia_id) : null,
         estado: 'em_andamento',
         inicio: agora(),
         encerradaEm: null,
@@ -106,6 +111,9 @@ export function criarServidorFalso() {
     if (metodo === 'GET' && caminho === '/sessoes/ativa') {
       const sessao = ativa()
       return sessao ? json(200, comoJson(sessao)) : json(204)
+    }
+    if (metodo === 'GET' && caminho === '/materias') {
+      return json(200, materias)
     }
 
     const [, , id, acao] = caminho.split('/')
@@ -129,6 +137,7 @@ export function criarServidorFalso() {
           id: `neuronio-${sessao.id}`,
           sessao_id: sessao.id,
           duracao_minutos: sessao.duracaoMin,
+          materia_id: sessao.materiaId,
           criado_em: new Date(fimPrevisto(sessao)).toISOString(),
         },
       })
@@ -163,20 +172,28 @@ export function criarServidorFalso() {
     },
     /** Cria uma sessão em andamento, como se tivesse sido começada antes. */
     criarSessaoAtiva: (
-      dados: Pick<SessaoFalsa, 'duracaoMin' | 'modo' | 'inicio'> & { foraMs?: number },
+      dados: Pick<SessaoFalsa, 'duracaoMin' | 'modo' | 'inicio'> & {
+        foraMs?: number
+        materiaId?: string | null
+      },
     ) => {
       const sessao: SessaoFalsa = {
         id: `sessao-${proximoId++}`,
         estado: 'em_andamento',
         encerradaEm: null,
         foraMs: 0,
+        materiaId: null,
         ...dados,
       }
       sessoes.push(sessao)
       return sessao
     },
+    definirMaterias: (novas: Materia[]) => {
+      materias = [...novas]
+    },
     limpar: () => {
       sessoes = []
+      materias = []
       chamadas.length = 0
     },
   }

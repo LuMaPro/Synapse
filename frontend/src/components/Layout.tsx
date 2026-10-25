@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 const LINKS_AUTENTICADOS = [
   { para: '/foco', rotulo: 'Foco' },
   { para: '/rede', rotulo: 'Rede' },
+  { para: '/materias', rotulo: 'Matérias' },
   { para: '/estatisticas', rotulo: 'Estatísticas' },
 ]
 

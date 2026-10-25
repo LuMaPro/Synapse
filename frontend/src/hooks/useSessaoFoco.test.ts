@@ -40,13 +40,29 @@ describe('useSessaoFoco', () => {
     }
   })
 
-  it('começa configurando, com 25 minutos no modo estrito', () => {
+  it('começa configurando, com 25 minutos no modo estrito e sem matéria', () => {
     const { result } = renderHook(() => useSessaoFoco())
 
     expect(result.current.fase).toBe('configurando')
     expect(result.current.duracaoMin).toBe(25)
     expect(result.current.modo).toBe('estrito')
+    expect(result.current.materiaId).toBeNull()
     expect(result.current.restanteMs).toBe(25 * MINUTO)
+  })
+
+  it('permite escolher matéria e iniciar a sessão enviando materia_id', async () => {
+    const { result } = renderHook(() => useSessaoFoco())
+
+    act(() => result.current.escolherMateria('mat-calculo'))
+    expect(result.current.materiaId).toBe('mat-calculo')
+
+    await act(() => result.current.iniciar())
+
+    expect(result.current.fase).toBe('em_andamento')
+    expect(result.current.materiaId).toBe('mat-calculo')
+
+    const chamadaInicio = servidor.chamadasPara('/sessoes')[0]
+    expect(chamadaInicio.corpo?.materia_id).toBe('mat-calculo')
   })
 
   it('muda a duração de 5 em 5, sem passar de 10 a 120 minutos', () => {
@@ -383,6 +399,21 @@ describe('useSessaoFoco', () => {
       expect(result.current.restanteMs).toBe(20 * MINUTO)
       // Saldo de 150 s, com 30 s já gastos antes de fechar a página.
       expect(result.current.toleranciaRestanteMs).toBe(120 * SEGUNDO)
+    })
+
+    it('ao abrir, retoma a sessão em andamento com a matéria associada', async () => {
+      servidor.criarSessaoAtiva({
+        duracaoMin: 25,
+        modo: 'estrito',
+        inicio: Date.now() - 5 * MINUTO,
+        materiaId: 'mat-fisica',
+      })
+
+      const { result } = renderHook(() => useSessaoFoco())
+      await aguardarServidor()
+
+      expect(result.current.fase).toBe('em_andamento')
+      expect(result.current.materiaId).toBe('mat-fisica')
     })
 
     it('ao abrir sem sessão em andamento, fica na configuração', async () => {

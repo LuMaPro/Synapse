@@ -25,7 +25,7 @@ describe('rotas e proteção de acesso', () => {
       expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
     })
 
-    it.each(['/foco', '/rede', '/estatisticas'])(
+    it.each(['/foco', '/rede', '/estatisticas', '/materias'])(
       'redireciona rota protegida %s para /login',
       (rota) => {
         renderizarEm(rota)
@@ -83,6 +83,7 @@ describe('rotas e proteção de acesso', () => {
       ['/foco', 'Focar'],
       ['/rede', 'Sua rede'],
       ['/estatisticas', 'Estatísticas'],
+      ['/materias', 'Matérias'],
     ])('abre rota protegida %s diretamente', (rota, titulo) => {
       renderizarEm(rota)
       expect(screen.getByRole('heading', { name: titulo })).toBeInTheDocument()
@@ -111,6 +112,9 @@ describe('rotas e proteção de acesso', () => {
 
       await usuario.click(screen.getByRole('link', { name: 'Rede' }))
       expect(screen.getByRole('heading', { name: 'Sua rede' })).toBeInTheDocument()
+
+      await usuario.click(screen.getByRole('link', { name: 'Matérias' }))
+      expect(screen.getByRole('heading', { name: 'Matérias' })).toBeInTheDocument()
 
       await usuario.click(screen.getByRole('link', { name: 'Estatísticas' }))
       expect(screen.getByRole('heading', { name: 'Estatísticas' })).toBeInTheDocument()
