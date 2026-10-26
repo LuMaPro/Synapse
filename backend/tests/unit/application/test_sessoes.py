@@ -553,3 +553,89 @@ def test_criterio_tipo_novo_na_fabrica_sem_mexer_no_servico_de_sessao(
 
     assert neuronio.tipo == Fusiforme()
     assert neuronio.cor == "#6FA8FF"
+
+
+# ------------------------------------------------------------------ histórico (#29)
+
+
+def _sessao_terminada(servico, usuario_id, relogio, *, duracao=10, concluir=True):
+    sessao = servico.iniciar(usuario_id, duracao, "estrito")
+    if concluir:
+        relogio.avancar(minutes=duracao)
+        servico.concluir(usuario_id, sessao.id)
+    else:
+        relogio.avancar(minutes=1)
+        servico.desistir(usuario_id, sessao.id)
+    relogio.avancar(hours=1)
+    return sessao
+
+
+def test_historico_da_mais_recente_para_a_mais_antiga(servico, usuario_id, relogio):
+    primeira = _sessao_terminada(servico, usuario_id, relogio)
+    segunda = _sessao_terminada(servico, usuario_id, relogio, concluir=False)
+    ativa = servico.iniciar(usuario_id, 25, "estrito")
+
+    pagina = servico.historico(usuario_id)
+
+    assert [s.id for s in pagina.sessoes] == [ativa.id, segunda.id, primeira.id]
+    assert [s.codigo_estado for s in pagina.sessoes] == [
+        "em_andamento",
+        "podada",
+        "concluida",
+    ]
+    assert (pagina.total, pagina.pagina, pagina.paginas) == (3, 1, 1)
+
+
+def test_historico_filtra_por_estado_e_periodo(servico, usuario_id, relogio):
+    antiga = _sessao_terminada(servico, usuario_id, relogio)
+    podada = _sessao_terminada(servico, usuario_id, relogio, concluir=False)
+    recente = _sessao_terminada(servico, usuario_id, relogio)
+
+    concluidas = servico.historico(usuario_id, estado="concluida")
+    assert [s.id for s in concluidas.sessoes] == [recente.id, antiga.id]
+
+    periodo = servico.historico(usuario_id, de=podada.inicio, ate=podada.inicio)
+    assert [s.id for s in periodo.sessoes] == [podada.id]
+
+
+def test_historico_em_paginas(servico, usuario_id, relogio):
+    sessoes = [_sessao_terminada(servico, usuario_id, relogio) for _ in range(5)]
+
+    segunda = servico.historico(usuario_id, pagina=2, tamanho=2)
+
+    assert [s.id for s in segunda.sessoes] == [sessoes[2].id, sessoes[1].id]
+    assert (segunda.total, segunda.paginas) == (5, 3)
+    assert servico.historico(usuario_id, pagina=4, tamanho=2).sessoes == []
+
+
+def test_historico_so_traz_as_sessoes_do_estudante(servico, usuario_id, relogio):
+    _sessao_terminada(servico, uuid4(), relogio)
+
+    assert servico.historico(usuario_id).total == 0
+
+
+def test_historico_poda_antes_a_sessao_abandonada(
+    servico, sessoes, usuario_id, relogio
+):
+    abandonada = servico.iniciar(usuario_id, 10, "estrito")
+    relogio.avancar(minutes=16)
+
+    pagina = servico.historico(usuario_id)
+
+    assert pagina.sessoes[0].id == abandonada.id
+    assert pagina.sessoes[0].codigo_estado == "podada"
+    assert sessoes.buscar_por_id(abandonada.id).codigo_estado == "podada"
+
+
+def test_historico_vazio_tem_uma_pagina(servico, usuario_id):
+    pagina = servico.historico(usuario_id)
+
+    assert (pagina.sessoes, pagina.total, pagina.paginas) == ([], 0, 1)
+
+
+@pytest.mark.parametrize(("pagina", "tamanho"), [(0, 20), (1, 0)])
+def test_historico_recusa_pagina_ou_tamanho_menor_que_1(
+    servico, usuario_id, pagina, tamanho
+):
+    with pytest.raises(ValueError):
+        servico.historico(usuario_id, pagina=pagina, tamanho=tamanho)

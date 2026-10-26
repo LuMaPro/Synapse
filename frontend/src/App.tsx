@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { Cadastro } from './pages/Cadastro'
 import { Estatisticas } from './pages/Estatisticas'
 import { Foco } from './pages/Foco'
+import { Historico } from './pages/Historico'
 import { Login } from './pages/Login'
 import { Materias } from './pages/Materias'
 import { NaoEncontrada } from './pages/NaoEncontrada'
@@ -22,6 +23,7 @@ export function AppRoutes() {
             <Route index element={<Navigate to="/foco" replace />} />
             <Route path="foco" element={<Foco />} />
             <Route path="rede" element={<Rede />} />
+            <Route path="historico" element={<Historico />} />
             <Route path="materias" element={<Materias />} />
             <Route path="estatisticas" element={<Estatisticas />} />
           </Route>

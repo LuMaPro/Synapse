@@ -78,6 +78,9 @@ export function ResultadoSessao({
         <button type="button" className="botao primario" onClick={onFocarDeNovo}>
           Tentar de novo
         </button>
+        <Link className="botao fantasma" to="/historico">
+          Ver histórico
+        </Link>
       </div>
     </section>
   )

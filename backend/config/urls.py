@@ -16,7 +16,7 @@ urlpatterns = [
     path("materias", materias.materias),
     path("materias/<uuid:materia_id>", materias.detalhe_materia),
     path("rede", rede.rede),
-    path("sessoes", sessoes.iniciar),
+    path("sessoes", sessoes.sessoes),
     path("sessoes/ativa", sessoes.ativa),
     path("sessoes/<uuid:sessao_id>/interrupcoes", sessoes.interrupcoes),
     path("sessoes/<uuid:sessao_id>/concluir", sessoes.concluir),

@@ -3,6 +3,7 @@ import { criarServidorFalso, type ServidorFalso } from '../test/servidorFalso'
 import {
   avisar,
   avisarSaidaImediata,
+  buscarHistorico,
   enviarAvisosPendentes,
   fecharSaidaEmCurso,
   guardarSaidaEmCurso,
@@ -112,6 +113,50 @@ describe('fila de avisos da sessão', () => {
       duracao_minutos: 25,
       modo: 'estrito',
       materia_id: 'mat-abc',
+    })
+  })
+})
+
+describe('histórico de sessões', () => {
+  const PAGINA_VAZIA = { total: 0, pagina: 1, tamanho: 20, paginas: 1, resultados: [] }
+
+  function simularFetch() {
+    return vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(PAGINA_VAZIA), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('sem filtros, pede a primeira página com o tamanho padrão do servidor', async () => {
+    const fetchMock = simularFetch()
+
+    await expect(buscarHistorico()).resolves.toEqual(PAGINA_VAZIA)
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8000/sessoes')
+  })
+
+  it('manda o início do período em UTC, o resultado e a página', async () => {
+    const fetchMock = simularFetch()
+
+    await buscarHistorico({
+      de: new Date('2026-10-16T03:00:00Z'),
+      status: 'podada',
+      pagina: 3,
+      tamanho: 10,
+    })
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]))
+    expect(url.pathname).toBe('/sessoes')
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      de: '2026-10-16T03:00:00.000Z',
+      status: 'podada',
+      pagina: '3',
+      tamanho: '10',
     })
   })
 })

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from app.domain.entidades.materia import Materia
@@ -60,6 +61,22 @@ class RepositorioSessao(ABC):
     @abstractmethod
     def listar_por_usuario(self, usuario_id: UUID) -> list[SessaoFoco]:
         """Lista todas as sessões de foco pertencentes a um determinado usuário."""
+        ...
+
+    @abstractmethod
+    def listar_historico(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime | None = None,
+        ate: datetime | None = None,
+        estado: str | None = None,
+        deslocamento: int = 0,
+        limite: int = 20,
+    ) -> tuple[list[SessaoFoco], int]:
+        """Uma página do histórico do estudante (#29): as sessões iniciadas entre
+        `de` e `ate` (inclusive), no estado pedido, da mais recente para a mais
+        antiga, pulando as `deslocamento` primeiras. Devolve a página e o total."""
         ...
 
     @abstractmethod
@@ -156,4 +173,3 @@ class RepositorioMateria(ABC):
     def remover(self, id: UUID) -> None:
         """Remove a matéria do repositório."""
         ...
-

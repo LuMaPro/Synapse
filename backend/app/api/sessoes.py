@@ -2,12 +2,19 @@ from collections.abc import Callable
 from typing import Any
 
 from django.db import transaction
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from app.api.periodo import DESCRICAO_PERIODO, FiltroPeriodoSerializer
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.entidades.neuronio import Neuronio
@@ -171,21 +178,63 @@ class ConclusaoRespostaSerializer(serializers.Serializer):
 
 _404 = OpenApiResponse(description="Sessão inexistente ou de outro estudante.")
 
+TAMANHO_PADRAO = 20
+TAMANHO_MAXIMO = 100
 
-@extend_schema(
-    summary="Iniciar sessão de foco",
-    request=IniciarSessaoSerializer,
-    responses={
-        201: SessaoRespostaSerializer,
-        400: OpenApiResponse(description="Duração ou modo inválidos."),
-        404: OpenApiResponse(description="Matéria inexistente ou de outro estudante."),
-        409: OpenApiResponse(description="Já existe uma sessão em andamento."),
-    },
-    tags=["Sessões de foco"],
-)
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def iniciar(request):
+
+class FiltrosHistoricoSerializer(FiltroPeriodoSerializer):
+    status = serializers.ChoiceField(
+        choices=["em_andamento", "concluida", "podada"], required=False
+    )
+    pagina = serializers.IntegerField(min_value=1, default=1, required=False)
+    tamanho = serializers.IntegerField(
+        min_value=1, max_value=TAMANHO_MAXIMO, default=TAMANHO_PADRAO, required=False
+    )
+
+
+class HistoricoRespostaSerializer(serializers.Serializer):
+    total = serializers.IntegerField(help_text="Sessões que atendem aos filtros.")
+    pagina = serializers.IntegerField()
+    tamanho = serializers.IntegerField()
+    paginas = serializers.IntegerField()
+    resultados = SessaoRespostaSerializer(many=True)
+
+
+_EXEMPLO_HISTORICO = {
+    "total": 2,
+    "pagina": 1,
+    "tamanho": 20,
+    "paginas": 1,
+    "resultados": [
+        {
+            "id": "3f2b8c1e-5d4a-4e6f-9a1b-2c3d4e5f6a7b",
+            "duracao_minutos": 25,
+            "modo": "estrito",
+            "materia_id": "8a7b6c5d-4e3f-4a1b-9c2d-1e0f9a8b7c6d",
+            "estado": "concluida",
+            "inicio": "2026-10-26T14:00:00+00:00",
+            "fim_previsto": "2026-10-26T14:25:00+00:00",
+            "encerrada_em": "2026-10-26T14:25:00+00:00",
+            "restante_segundos": 0.0,
+            "tempo_fora_segundos": 0.0,
+        },
+        {
+            "id": "9e8d7c6b-5a4f-4e3d-8c1b-0a9f8e7d6c5b",
+            "duracao_minutos": 50,
+            "modo": "tolerante",
+            "materia_id": None,
+            "estado": "podada",
+            "inicio": "2026-10-25T09:00:00+00:00",
+            "fim_previsto": "2026-10-25T09:50:00+00:00",
+            "encerrada_em": "2026-10-25T09:12:30+00:00",
+            "restante_segundos": 0.0,
+            "tempo_fora_segundos": 120.0,
+        },
+    ],
+}
+
+
+def _iniciar(request) -> Response:
     serializer = IniciarSessaoSerializer(data=request.data)
     if not serializer.is_valid():
         return _erro_de_validacao(serializer)
@@ -201,6 +250,97 @@ def iniciar(request):
         ),
         status.HTTP_201_CREATED,
     )
+
+
+def _historico(request) -> Response:
+    filtros = FiltrosHistoricoSerializer(data=request.query_params)
+    filtros.is_valid(raise_exception=True)
+    dados = filtros.validated_data
+
+    def listar():
+        pagina = _servico().historico(
+            request.user.id,
+            de=dados.get("de"),
+            ate=dados.get("ate"),
+            estado=dados.get("status"),
+            pagina=dados["pagina"],
+            tamanho=dados["tamanho"],
+        )
+        return {
+            "total": pagina.total,
+            "pagina": pagina.pagina,
+            "tamanho": pagina.tamanho,
+            "paginas": pagina.paginas,
+            "resultados": [_sessao_json(s) for s in pagina.sessoes],
+        }
+
+    return _responder(listar, status.HTTP_200_OK)
+
+
+@extend_schema(
+    methods=["GET"],
+    summary="Histórico de sessões",
+    description=(
+        "As sessões do estudante, da mais recente para a mais antiga, em páginas. "
+        "O período filtra pelo início da sessão."
+    ),
+    parameters=[
+        OpenApiParameter(
+            "de",
+            OpenApiTypes.STR,
+            description=f"Início do período (inclusive). {DESCRICAO_PERIODO}",
+            examples=[OpenApiExample("Data", value="2026-10-01")],
+        ),
+        OpenApiParameter(
+            "ate",
+            OpenApiTypes.STR,
+            description=f"Fim do período (inclusive). {DESCRICAO_PERIODO}",
+            examples=[OpenApiExample("Data", value="2026-10-31")],
+        ),
+        OpenApiParameter(
+            "status",
+            OpenApiTypes.STR,
+            enum=["em_andamento", "concluida", "podada"],
+            description="Só as sessões neste estado.",
+        ),
+        OpenApiParameter(
+            "pagina", OpenApiTypes.INT, description="Começa em 1 (padrão: 1)."
+        ),
+        OpenApiParameter(
+            "tamanho",
+            OpenApiTypes.INT,
+            description=(
+                f"Sessões por página, de 1 a {TAMANHO_MAXIMO} "
+                f"(padrão: {TAMANHO_PADRAO})."
+            ),
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            HistoricoRespostaSerializer,
+            examples=[OpenApiExample("Uma página", value=_EXEMPLO_HISTORICO)],
+        ),
+        400: OpenApiResponse(description="Filtro inválido."),
+    },
+    tags=["Sessões de foco"],
+)
+@extend_schema(
+    methods=["POST"],
+    summary="Iniciar sessão de foco",
+    request=IniciarSessaoSerializer,
+    responses={
+        201: SessaoRespostaSerializer,
+        400: OpenApiResponse(description="Duração ou modo inválidos."),
+        404: OpenApiResponse(description="Matéria inexistente ou de outro estudante."),
+        409: OpenApiResponse(description="Já existe uma sessão em andamento."),
+    },
+    tags=["Sessões de foco"],
+)
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def sessoes(request):
+    """`GET`: histórico (#29). `POST`: inicia uma sessão (#16)."""
+    return _historico(request) if request.method == "GET" else _iniciar(request)
 
 
 @extend_schema(

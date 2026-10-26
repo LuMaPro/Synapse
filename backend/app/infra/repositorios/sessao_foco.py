@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from django.db import transaction
@@ -50,6 +51,30 @@ class RepositorioSessaoDjango(RepositorioSessao):
         qs = SessaoFocoModel.objects.filter(usuario_id=usuario_id).order_by("-inicio")
         return [s.para_entidade() for s in qs]
 
+    def listar_historico(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime | None = None,
+        ate: datetime | None = None,
+        estado: str | None = None,
+        deslocamento: int = 0,
+        limite: int = 20,
+    ) -> tuple[list[SessaoFoco], int]:
+        """Filtra, conta e pagina no banco; as interrupções vêm numa consulta só."""
+        qs = SessaoFocoModel.objects.filter(usuario_id=usuario_id)
+        if de is not None:
+            qs = qs.filter(inicio__gte=de)
+        if ate is not None:
+            qs = qs.filter(inicio__lte=ate)
+        if estado is not None:
+            qs = qs.filter(estado=estado)
+        total = qs.count()
+        pagina = qs.order_by("-inicio").prefetch_related("interrupcoes")[
+            deslocamento : deslocamento + limite
+        ]
+        return [s.para_entidade() for s in pagina], total
+
     def buscar_ativa_por_usuario(self, usuario_id: UUID) -> SessaoFoco | None:
         """
         Retorna a sessão de foco atualmente em andamento para o usuário, se houver.
@@ -61,7 +86,6 @@ class RepositorioSessaoDjango(RepositorioSessao):
         if not sessao_model:
             return None
         return sessao_model.para_entidade()
-
 
     def listar_em_andamento(self) -> list[SessaoFoco]:
         """Lista as sessões em andamento de todos os usuários."""

@@ -50,6 +50,41 @@ export const sessoesApi = {
   concluir: (sessaoId: string) => api.post<ConclusaoApi>(`/sessoes/${sessaoId}/concluir`),
 }
 
+/** Uma página do histórico, como vem do `GET /sessoes` (issue #29). */
+export interface PaginaHistoricoApi {
+  total: number
+  pagina: number
+  tamanho: number
+  paginas: number
+  /** Da mais recente para a mais antiga. */
+  resultados: SessaoApi[]
+}
+
+export interface FiltrosHistorico {
+  /** Só as sessões começadas a partir deste instante. */
+  de?: Date
+  status?: SessaoApi['estado']
+  pagina?: number
+  tamanho?: number
+}
+
+/** O histórico de sessões do estudante, paginado e com os filtros de período e resultado. */
+export function buscarHistorico({
+  de,
+  status,
+  pagina,
+  tamanho,
+}: FiltrosHistorico = {}): Promise<PaginaHistoricoApi> {
+  const parametros = new URLSearchParams()
+  // Em UTC (`Z`), como no `GET /rede`: não precisa codificar o `+` do fuso.
+  if (de) parametros.set('de', de.toISOString())
+  if (status) parametros.set('status', status)
+  if (pagina) parametros.set('pagina', String(pagina))
+  if (tamanho) parametros.set('tamanho', String(tamanho))
+  const consulta = parametros.toString()
+  return api.get<PaginaHistoricoApi>(consulta ? `/sessoes?${consulta}` : '/sessoes')
+}
+
 /**
  * Falha que vale tentar de novo: sem rede, erro no servidor ou token que não deu para
  * renovar. Os outros erros (ex.: 409, a sessão já não está em andamento) são a resposta

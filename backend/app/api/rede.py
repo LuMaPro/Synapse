@@ -1,9 +1,5 @@
-import re
-from datetime import UTC, date, datetime, time
 from uuid import UUID
 
-from django.utils.dateparse import parse_date, parse_datetime
-from django.utils.timezone import is_aware, make_aware
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiExample,
@@ -16,6 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from app.api.periodo import DESCRICAO_PERIODO, FiltroPeriodoSerializer
 from app.application.rede import RedeNeuralService
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sinapse import Sinapse
@@ -23,8 +20,6 @@ from app.infra.repositorios import (
     RepositorioMateriaDjango,
     RepositorioRedeNeuralDjango,
 )
-
-SO_DATA = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _neuronio_json(
@@ -56,49 +51,8 @@ def _sinapse_json(sinapse: Sinapse) -> dict:
     }
 
 
-class DataOuInstanteField(serializers.Field):
-    """Aceita uma data (`2026-10-20`) ou data e hora ISO 8601 com fuso
-    (`2026-10-20T08:00:00-03:00`). Sem fuso, vale o UTC."""
-
-    default_error_messages = {
-        "invalido": "Use uma data (AAAA-MM-DD) ou data e hora ISO 8601."
-    }
-
-    def to_internal_value(self, valor) -> date | datetime:
-        texto = str(valor)
-        try:
-            # Só a data vem antes: o parse_datetime também aceitaria "2026-10-20",
-            # como meia-noite, e o `ate` deixaria o próprio dia de fora.
-            if SO_DATA.fullmatch(texto):
-                return parse_date(texto)
-            instante = parse_datetime(texto)
-        except ValueError:  # bem formatada, mas impossível (ex.: 2026-02-30)
-            instante = None
-        if instante is None:
-            self.fail("invalido")
-        return instante if is_aware(instante) else make_aware(instante, UTC)
-
-    def to_representation(self, valor) -> str:
-        return valor.isoformat()
-
-
-class FiltrosRedeSerializer(serializers.Serializer):
-    de = DataOuInstanteField(required=False)
-    ate = DataOuInstanteField(required=False)
+class FiltrosRedeSerializer(FiltroPeriodoSerializer):
     materia = serializers.UUIDField(required=False)
-
-    def validate(self, dados: dict) -> dict:
-        # Uma data vale o dia inteiro (em UTC): do começo, em `de`, ao fim, em `ate`.
-        de, ate = dados.get("de"), dados.get("ate")
-        if isinstance(de, date) and not isinstance(de, datetime):
-            dados["de"] = datetime.combine(de, time.min, tzinfo=UTC)
-        if isinstance(ate, date) and not isinstance(ate, datetime):
-            dados["ate"] = datetime.combine(ate, time.max, tzinfo=UTC)
-        if "de" in dados and "ate" in dados and dados["de"] > dados["ate"]:
-            raise serializers.ValidationError(
-                {"ate": "O fim do período não pode ser antes do início."}
-            )
-        return dados
 
 
 class NeuronioRedeSerializer(serializers.Serializer):
@@ -174,11 +128,6 @@ _EXEMPLO_REDE = {
     ],
 }
 
-_DESCRICAO_PERIODO = (
-    "Data (`2026-10-20`, o dia inteiro em UTC) ou data e hora ISO 8601 com fuso "
-    "(`2026-10-20T00:00:00-03:00`). O `+` de um fuso precisa ir codificado (`%2B`)."
-)
-
 
 def _servico() -> RedeNeuralService:
     return RedeNeuralService(RepositorioRedeNeuralDjango())
@@ -195,7 +144,7 @@ def _servico() -> RedeNeuralService:
         OpenApiParameter(
             "de",
             OpenApiTypes.STR,
-            description=f"Início do período (inclusive). {_DESCRICAO_PERIODO}",
+            description=f"Início do período (inclusive). {DESCRICAO_PERIODO}",
             examples=[
                 OpenApiExample("Data", value="2026-10-01"),
                 OpenApiExample("Data e hora", value="2026-10-01T00:00:00-03:00"),
@@ -204,7 +153,7 @@ def _servico() -> RedeNeuralService:
         OpenApiParameter(
             "ate",
             OpenApiTypes.STR,
-            description=f"Fim do período (inclusive). {_DESCRICAO_PERIODO}",
+            description=f"Fim do período (inclusive). {DESCRICAO_PERIODO}",
             examples=[OpenApiExample("Data", value="2026-10-31")],
         ),
         OpenApiParameter(

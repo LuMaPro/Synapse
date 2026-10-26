@@ -1,0 +1,126 @@
+/* Histórico de sessões (issue #29). O protótipo (docs/design) não desenha esta tela:
+   ela segue o cabeçalho e os filtros da rede e os cartões da lista de matérias. */
+
+.historico-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: opacity 0.2s;
+}
+
+.historico-lista.atualizando {
+  opacity: 0.5;
+}
+
+.historico-dia h2 {
+  margin: 0 0 8px;
+  color: var(--cor-texto-fraco);
+  font: 600 12px var(--fonte-texto);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.historico-dia ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sessao-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.sessao-cor {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.sessao-item.podada .sessao-cor {
+  box-shadow: none;
+}
+
+.sessao-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sessao-materia {
+  overflow: hidden;
+  color: var(--cor-texto);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessao-detalhes {
+  color: var(--cor-texto-suave);
+  font-size: 13px;
+}
+
+.sessao-resultado {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sessao-item.concluida .sessao-resultado {
+  background: rgb(91 228 155 / 12%);
+  color: var(--cor-sucesso);
+}
+
+.sessao-item.podada .sessao-resultado {
+  background: rgb(255 92 122 / 12%);
+  color: var(--cor-perigo);
+}
+
+.sessao-item.em_andamento .sessao-resultado {
+  background: rgb(62 230 224 / 12%);
+  color: var(--cor-impulso);
+}
+
+.historico-mais {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.historico-mais p {
+  margin: 0;
+  color: var(--cor-perigo);
+  font-size: 14px;
+}
+
+.historico-mais .botao {
+  width: auto;
+  padding: 0 24px;
+}
+
+.historico-mais .botao:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .historico-lista {
+    transition: none;
+  }
+}

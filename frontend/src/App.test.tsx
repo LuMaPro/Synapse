@@ -25,7 +25,7 @@ describe('rotas e proteção de acesso', () => {
       expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
     })
 
-    it.each(['/foco', '/rede', '/estatisticas', '/materias'])(
+    it.each(['/foco', '/rede', '/historico', '/estatisticas', '/materias'])(
       'redireciona rota protegida %s para /login',
       (rota) => {
         renderizarEm(rota)
@@ -60,7 +60,11 @@ describe('rotas e proteção de acesso', () => {
         'fetch',
         vi.fn(async (endereco: string | URL | Request) => {
           const { pathname } = new URL(String(endereco))
-          const corpo = { '/rede': { neuronios: [], sinapses: [] }, '/materias': [] }[pathname]
+          const corpo = {
+            '/rede': { neuronios: [], sinapses: [] },
+            '/materias': [],
+            '/sessoes': { total: 0, pagina: 1, tamanho: 20, paginas: 1, resultados: [] },
+          }[pathname]
           return corpo === undefined
             ? new Response(null, { status: 204 })
             : new Response(JSON.stringify(corpo), {
@@ -82,6 +86,7 @@ describe('rotas e proteção de acesso', () => {
     it.each([
       ['/foco', 'Focar'],
       ['/rede', 'Sua rede'],
+      ['/historico', 'Histórico'],
       ['/estatisticas', 'Estatísticas'],
       ['/materias', 'Matérias'],
     ])('abre rota protegida %s diretamente', (rota, titulo) => {
@@ -112,6 +117,9 @@ describe('rotas e proteção de acesso', () => {
 
       await usuario.click(screen.getByRole('link', { name: 'Rede' }))
       expect(screen.getByRole('heading', { name: 'Sua rede' })).toBeInTheDocument()
+
+      await usuario.click(screen.getByRole('link', { name: 'Histórico' }))
+      expect(screen.getByRole('heading', { name: 'Histórico' })).toBeInTheDocument()
 
       await usuario.click(screen.getByRole('link', { name: 'Matérias' }))
       expect(screen.getByRole('heading', { name: 'Matérias' })).toBeInTheDocument()

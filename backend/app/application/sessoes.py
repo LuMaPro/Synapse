@@ -1,4 +1,6 @@
+import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -17,6 +19,21 @@ from app.domain.tempo import agora
 
 # Diferença de relógio e rede aceita entre o cliente e o servidor (#16).
 TOLERANCIA_RELOGIO = timedelta(seconds=2)
+
+
+@dataclass(frozen=True)
+class PaginaHistorico:
+    """Uma página do histórico de sessões (#29)."""
+
+    sessoes: list[SessaoFoco]
+    total: int
+    pagina: int
+    tamanho: int
+
+    @property
+    def paginas(self) -> int:
+        """Quantidade de páginas; a lista vazia ainda tem uma (vazia)."""
+        return max(1, math.ceil(self.total / self.tamanho))
 
 
 class SessaoService:
@@ -80,6 +97,34 @@ class SessaoService:
         if self._expirar(sessao):
             return None
         return sessao
+
+    def historico(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime | None = None,
+        ate: datetime | None = None,
+        estado: str | None = None,
+        pagina: int = 1,
+        tamanho: int = 20,
+    ) -> PaginaHistorico:
+        """As sessões do estudante, da mais recente para a mais antiga (#29).
+
+        Antes, poda a sessão abandonada, se houver: senão ela apareceria como em
+        andamento até alguém acessá-la.
+        """
+        if pagina < 1 or tamanho < 1:
+            raise ValueError("A página e o tamanho começam em 1.")
+        self.buscar_ativa(usuario_id)
+        sessoes, total = self._sessoes.listar_historico(
+            usuario_id,
+            de=de,
+            ate=ate,
+            estado=estado,
+            deslocamento=(pagina - 1) * tamanho,
+            limite=tamanho,
+        )
+        return PaginaHistorico(sessoes, total, pagina, tamanho)
 
     def registrar_interrupcao(
         self,

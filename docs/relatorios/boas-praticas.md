@@ -31,6 +31,7 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
 
 - **Neurônio em três partes** (issue #19): a geometria é uma função pura em `frontend/src/utils/geometriaNeuronio.ts` (recebe tipo, progresso e se está podado e devolve o que desenhar), o componente `frontend/src/components/NeuronioAnimado.tsx` só transforma esse resultado em SVG, e a animação fica no CSS (`frontend/src/styles/neuronio.css`). Cada parte muda sem afetar as outras: a #22 pode trocar as formas dos tipos sem tocar no componente, e o `prefers-reduced-motion` desliga as transições sem mexer em código.
 - **Rede neural em três partes** (issue #26): as contas ficam em funções puras em `frontend/src/utils/redeNeural.ts` (posições por simulação de forças com `d3-force`, quem acende quando um neurônio é tocado, a forma dos dendritos e o início do período), testadas sem navegador; o componente `frontend/src/components/GrafoRede.tsx` só desenha e trata toque e zoom; e a página `frontend/src/pages/Rede.tsx` cuida dos filtros, da busca na API e dos estados (carregando, erro, vazio).
+- **Filtro de período reaproveitado** (`backend/app/api/periodo.py`, issue #29): o campo que aceita data ou data e hora com fuso, criado na #25 para `GET /rede`, saiu de `rede.py` para um módulo próprio. `GET /rede` e `GET /sessoes` herdam o mesmo `FiltroPeriodoSerializer` e só acrescentam os filtros que são deles (matéria; resultado e página), então as duas rotas tratam o período do mesmo jeito e com as mesmas mensagens de erro.
 
 ## Desempenho
 
@@ -39,6 +40,7 @@ Cada PR que aplicar uma prática registra aqui o caminho do arquivo e um trecho 
   - a opacidade fica nas formas, e não no grupo de cada neurônio: opacidade num grupo SVG obriga o navegador a pintar cada um à parte, e o zoom caía para uns 45 quadros por segundo com 300 neurônios (depois da mudança, passou de 60);
   - neurônios e sinapses são componentes memorizados (`memo`), então um realce só redesenha o que mudou de estado: no build de produção, cerca de 3 ms com 300 neurônios e 4 ms com 500;
   - a simulação de forças roda de uma vez, partindo de posições sorteadas com semente fixa (o desenho é sempre o mesmo) e assentando em 135 passos em vez de 300, o que corta o cálculo pela metade (cerca de 0,2 s com 300 neurônios e 0,35 s com 500).
+- **Histórico sem consultas por sessão** (`backend/app/infra/repositorios/sessao_foco.py`, método `listar_historico`, issue #29): a página é cortada no banco (`LIMIT` e `OFFSET`), e as interrupções de todas as sessões da página vêm numa consulta só (`prefetch_related`). Sem isso, cada sessão faria uma consulta a mais para calcular o tempo fora (o problema N+1): 21 consultas com 15 sessões, contra 6 com o `prefetch_related`, número que não cresce com o tamanho do histórico.
 
 ## Nomenclatura
 

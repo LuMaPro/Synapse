@@ -5,7 +5,8 @@ from uuid import uuid4
 import pytest
 from rest_framework.test import APIClient
 
-from app.api.rede import DataOuInstanteField, _neuronio_json
+from app.api.periodo import DataOuInstanteField
+from app.api.rede import _neuronio_json
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, Podada, SessaoFoco
 from app.infra.modelos.sessao_foco import SessaoFocoModel

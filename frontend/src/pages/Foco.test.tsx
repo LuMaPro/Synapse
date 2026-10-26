@@ -143,6 +143,10 @@ describe('tela de foco', () => {
 
     expect(screen.getByRole('heading', { name: 'A conexão se perdeu' })).toBeInTheDocument()
     expect(screen.getByText(/Você desistiu aos/)).toHaveTextContent('Você desistiu aos 03:00.')
+    expect(screen.getByRole('link', { name: 'Ver histórico' })).toHaveAttribute(
+      'href',
+      '/historico',
+    )
     expect(screen.getByRole('img', { name: 'Neurônio Piramidal podado' })).toBeInTheDocument()
 
     await usuario.click(screen.getByRole('button', { name: 'Tentar de novo' }))

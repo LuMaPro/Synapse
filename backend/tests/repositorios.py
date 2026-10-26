@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from app.domain.entidades.materia import Materia
@@ -80,6 +81,26 @@ class RepositorioSessaoMemoria(RepositorioSessao):
         """
         sessoes = [s for s in self._sessoes.values() if s.usuario_id == usuario_id]
         return sorted(sessoes, key=lambda s: s.inicio, reverse=True)
+
+    def listar_historico(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime | None = None,
+        ate: datetime | None = None,
+        estado: str | None = None,
+        deslocamento: int = 0,
+        limite: int = 20,
+    ) -> tuple[list[SessaoFoco], int]:
+        """Uma página do histórico, filtrada e da mais recente para a mais antiga."""
+        sessoes = [
+            s
+            for s in self.listar_por_usuario(usuario_id)
+            if (de is None or s.inicio >= de)
+            and (ate is None or s.inicio <= ate)
+            and (estado is None or s.codigo_estado == estado)
+        ]
+        return sessoes[deslocamento : deslocamento + limite], len(sessoes)
 
     def buscar_ativa_por_usuario(self, usuario_id: UUID) -> SessaoFoco | None:
         """
@@ -210,4 +231,3 @@ class RepositorioMateriaMemoria(RepositorioMateria):
 RepositorioUsuarioEmMemoria = RepositorioUsuarioMemoria
 RepositorioSessaoEmMemoria = RepositorioSessaoMemoria
 RepositorioMateriaEmMemoria = RepositorioMateriaMemoria
-
