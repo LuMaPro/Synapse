@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 from rest_framework.test import APIClient
 
-from app.api.rede import DataOuInstanteField, tipo_do_neuronio
+from app.api.rede import DataOuInstanteField, _neuronio_json
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, Podada, SessaoFoco
 from app.infra.modelos.sessao_foco import SessaoFocoModel
@@ -145,7 +145,8 @@ def test_devolve_a_rede_no_formato_de_grafo(cliente, usuario):
     ],
 )
 def test_tipo_pelas_faixas_de_duracao_do_design(duracao, tipo):
-    assert tipo_do_neuronio(duracao) == tipo
+    neuronio = Neuronio(uuid4(), uuid4(), duracao)
+    assert _neuronio_json(neuronio)["tipo"] == tipo
 
 
 def test_cada_estudante_ve_so_a_sua_rede(cliente, usuario):
@@ -286,7 +287,8 @@ def test_criterio_responde_em_menos_de_300_ms_com_500_neuronios(
     cliente.get("/rede")  # aquece (imports e conexão), como num servidor já no ar
 
     inicio = time.perf_counter()
-    with django_assert_max_num_queries(2):
+    # Três consultas constantes: neurônios, sinapses e matérias (#28).
+    with django_assert_max_num_queries(3):
         resposta = cliente.get("/rede")
     duracao = time.perf_counter() - inicio
 
@@ -294,6 +296,51 @@ def test_criterio_responde_em_menos_de_300_ms_com_500_neuronios(
     assert len(resposta.json()["neuronios"]) == 500
     assert len(resposta.json()["sinapses"]) > 700
     assert duracao < 0.3, f"GET /rede levou {duracao * 1000:.0f} ms"
+
+
+def test_neuronio_com_materia_recebe_a_cor_da_materia_na_rede(cliente, usuario):
+    from app.infra.modelos.materia import MateriaModel
+
+    materia = MateriaModel.objects.create(
+        usuario=usuario, nome="Bioquímica", cor="#FF6FB5"
+    )
+    _montar_rede(
+        usuario,
+        [
+            {
+                "criado_em": _no_dia(1),
+                "duracao": 25,
+                "materia_id": materia.id,
+                "vivo": True,
+            },
+            {
+                "criado_em": _no_dia(2),
+                "duracao": 25,
+                "materia_id": materia.id,
+                "vivo": False,
+            },
+            {
+                "criado_em": _no_dia(3),
+                "duracao": 25,
+                "materia_id": None,
+                "vivo": True,
+            },
+        ],
+    )
+
+    resposta = cliente.get("/rede")
+    assert resposta.status_code == 200
+    neuronios = resposta.json()["neuronios"]
+    assert len(neuronios) == 3
+    # Vivo com matéria: recebe cor da matéria (#FF6FB5)
+    assert neuronios[0]["cor"] == "#FF6FB5"
+    assert neuronios[0]["materia_id"] == str(materia.id)
+    # Podado com matéria: continua cinza (#4A4F6E)
+    assert neuronios[1]["cor"] == "#4A4F6E"
+    assert neuronios[1]["materia_id"] == str(materia.id)
+    # Vivo sem matéria: cor padrão do tipo piramidal (#8B7BFF)
+    assert neuronios[2]["cor"] == "#8B7BFF"
+    assert neuronios[2]["materia_id"] is None
 
 
 # ------------------------------------------------------------------ Swagger

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppRoutes } from './App'
 import { limparSessao, salvarSessao } from './services/auth'
 
@@ -25,7 +25,7 @@ describe('rotas e proteção de acesso', () => {
       expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
     })
 
-    it.each(['/foco', '/rede', '/estatisticas'])(
+    it.each(['/foco', '/rede', '/estatisticas', '/materias'])(
       'redireciona rota protegida %s para /login',
       (rota) => {
         renderizarEm(rota)
@@ -54,6 +54,24 @@ describe('rotas e proteção de acesso', () => {
         nome: 'Mariana Souza',
         email: 'mariana@synapse.com',
       })
+      // As telas buscam dados ao abrir; sem isso, iriam a um backend de verdade, e um
+      // 401 dele (o token é de teste) encerraria a sessão no meio do teste.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (endereco: string | URL | Request) => {
+          const { pathname } = new URL(String(endereco))
+          const corpo = { '/rede': { neuronios: [], sinapses: [] }, '/materias': [] }[pathname]
+          return corpo === undefined
+            ? new Response(null, { status: 204 })
+            : new Response(JSON.stringify(corpo), {
+                headers: { 'Content-Type': 'application/json' },
+              })
+        }),
+      )
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
     })
 
     it('redireciona a raiz para a tela de foco', () => {
@@ -63,8 +81,9 @@ describe('rotas e proteção de acesso', () => {
 
     it.each([
       ['/foco', 'Focar'],
-      ['/rede', 'Rede neural'],
+      ['/rede', 'Sua rede'],
       ['/estatisticas', 'Estatísticas'],
+      ['/materias', 'Matérias'],
     ])('abre rota protegida %s diretamente', (rota, titulo) => {
       renderizarEm(rota)
       expect(screen.getByRole('heading', { name: titulo })).toBeInTheDocument()
@@ -92,7 +111,10 @@ describe('rotas e proteção de acesso', () => {
       renderizarEm('/foco')
 
       await usuario.click(screen.getByRole('link', { name: 'Rede' }))
-      expect(screen.getByRole('heading', { name: 'Rede neural' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Sua rede' })).toBeInTheDocument()
+
+      await usuario.click(screen.getByRole('link', { name: 'Matérias' }))
+      expect(screen.getByRole('heading', { name: 'Matérias' })).toBeInTheDocument()
 
       await usuario.click(screen.getByRole('link', { name: 'Estatísticas' }))
       expect(screen.getByRole('heading', { name: 'Estatísticas' })).toBeInTheDocument()

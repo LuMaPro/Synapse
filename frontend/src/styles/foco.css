@@ -385,3 +385,68 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Seletor de matéria e chips (issue #28, docs/design/prototipo.html:146-149) */
+
+.seletor-materia {
+  display: flex;
+  flex-direction: column;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chips .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+  font: 14px var(--fonte-texto);
+  color: var(--cor-texto-suave);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chips .chip:hover:not(:disabled) {
+  border-color: var(--cor-texto-fraco);
+}
+
+.chips .chip.ativo,
+.chips .chip[aria-checked='true'] {
+  border-color: var(--cor-destaque);
+  color: var(--cor-texto);
+  background: rgb(139 123 255 / 14%);
+}
+
+.chips .chip:focus-visible {
+  outline: 2px solid var(--cor-impulso);
+  outline-offset: 2px;
+}
+
+.chips .chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chips .chip i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.selo i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}

@@ -6,7 +6,13 @@ import pytest
 
 from app.application.sessoes import SessaoService
 from app.domain.entidades.materia import Materia
-from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
+from app.domain.entidades.neuronio import (
+    FabricaNeuronio,
+    Granular,
+    Piramidal,
+    Purkinje,
+    TipoNeuronio,
+)
 from app.domain.excecoes import (
     DuracaoInvalida,
     HorarioInvalido,
@@ -334,3 +340,86 @@ def test_iniciar_sessao_com_materia_de_outro_usuario_lanca_excecao(
 
     with pytest.raises(MateriaNaoEncontrada):
         servico.iniciar(usuario_id, 25, "estrito", materia_id=materia_outro.id)
+
+
+def test_concluir_sessao_com_materia_passa_materia_para_neuronio(
+    servico, materias, usuario_id, relogio, redes
+):
+    materia = Materia(usuario_id, "Cálculo", "#8B7BFF")
+    materias.salvar(materia)
+
+    sessao = servico.iniciar(usuario_id, 25, "estrito", materia_id=materia.id)
+    relogio.avancar(minutes=25)
+    sessao_concluida, neuronio = servico.concluir(usuario_id, sessao.id)
+
+    assert sessao_concluida.materia_id == materia.id
+    assert neuronio.materia_id == materia.id
+    rede = redes.carregar(usuario_id)
+    assert rede.neuronios[0].materia_id == materia.id
+
+
+def test_poda_sessao_com_materia_passa_materia_para_neuronio(
+    servico, materias, usuario_id, relogio, redes
+):
+    materia = Materia(usuario_id, "Cálculo", "#8B7BFF")
+    materias.salvar(materia)
+
+    servico.iniciar(usuario_id, 25, "estrito", materia_id=materia.id)
+    relogio.avancar(minutes=31)  # abandono gera poda
+    servico.buscar_ativa(usuario_id)
+
+    rede = redes.carregar(usuario_id)
+    assert len(rede) == 1
+    assert rede.neuronios[0].vivo is False
+    assert rede.neuronios[0].materia_id == materia.id
+
+
+@pytest.mark.parametrize(
+    ("duracao", "esperado"),
+    [(10, Granular()), (25, Piramidal()), (60, Purkinje())],
+)
+def test_concluir_cria_neuronio_com_tipo_da_fabrica(
+    servico, usuario_id, relogio, duracao, esperado
+):
+    sessao = servico.iniciar(usuario_id, duracao, "estrito")
+    relogio.avancar(minutes=duracao)
+
+    _, neuronio = servico.concluir(usuario_id, sessao.id)
+
+    assert neuronio.tipo == esperado
+
+
+def test_criterio_tipo_novo_na_fabrica_sem_mexer_no_servico_de_sessao(
+    sessoes, redes, usuario_id, relogio
+):
+    class Fusiforme(TipoNeuronio):
+        duracao_minima = 40
+        duracao_maxima = 59
+
+        @property
+        def nome(self) -> str:
+            return "Fusiforme"
+
+        @property
+        def cor(self) -> str:
+            return "#6FA8FF"
+
+        @property
+        def numero_dendritos(self) -> int:
+            return 6
+
+        @property
+        def raio(self) -> float:
+            return 7.5
+
+    fabrica = FabricaNeuronio((*FabricaNeuronio.TIPOS_PADRAO, Fusiforme()))
+    servico = SessaoService(
+        sessoes, RedeNeuralService(redes), relogio=relogio, fabrica=fabrica
+    )
+    sessao = servico.iniciar(usuario_id, 45, "estrito")
+    relogio.avancar(minutes=45)
+
+    _, neuronio = servico.concluir(usuario_id, sessao.id)
+
+    assert neuronio.tipo == Fusiforme()
+    assert neuronio.cor == "#6FA8FF"

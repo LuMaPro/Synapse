@@ -2,7 +2,8 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
+from app.application.rede import RedeNeuralService
+from app.domain.entidades.neuronio import FabricaNeuronio, Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.excecoes import (
     HorarioInvalido,
@@ -34,11 +35,13 @@ class SessaoService:
         publicador: PublicadorEventos,
         relogio: Callable[[], datetime] = agora,
         materias: RepositorioMateria | None = None,
+        fabrica: FabricaNeuronio | type[FabricaNeuronio] = FabricaNeuronio,
     ):
         self._sessoes = sessoes
         self._publicador = publicador
         self._relogio = relogio
         self._materias = materias
+        self._fabrica = fabrica
 
     def iniciar(
         self,
@@ -50,9 +53,11 @@ class SessaoService:
         if self.buscar_ativa(usuario_id) is not None:
             raise SessaoAtivaExistente("Já existe uma sessão de foco em andamento.")
         if materia_id is not None:
-            if self._materias is None or self._materias.buscar_por_usuario_e_id(
-                usuario_id, materia_id
-            ) is None:
+            if (
+                self._materias is None
+                or self._materias.buscar_por_usuario_e_id(usuario_id, materia_id)
+                is None
+            ):
                 raise MateriaNaoEncontrada("Matéria não encontrada.")
         sessao = SessaoFoco(
             usuario_id,
@@ -102,6 +107,7 @@ class SessaoService:
             instante = sessao.fim_previsto
         sessao.concluir(relogio=lambda: instante)
 
+        neuronio = self._fabrica.criar(sessao)
         self._sessoes.salvar(sessao)
         self._publicador.publicar(SessaoConcluida(sessao.id, sessao.usuario_id, sessao.duracao.minutos, instante, sessao.materia_id))
         return sessao
@@ -132,3 +138,6 @@ class SessaoService:
             self._publicador.publicar(SessaoPodada(sessao.id, sessao.usuario_id, sessao.duracao.minutos, sessao.encerrada_em, sessao.materia_id))
         return expirou
 
+    def _registrar_neuronio_podado(self, sessao: SessaoFoco) -> None:
+        """Poda sináptica (#23): a sessão podada deixa um neurônio morto na rede."""
+        self._rede.registrar(self._fabrica.criar(sessao))
