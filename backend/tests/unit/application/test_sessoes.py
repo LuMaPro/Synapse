@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import (
@@ -13,6 +14,7 @@ from app.domain.entidades.neuronio import (
     Purkinje,
     TipoNeuronio,
 )
+from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
 from app.domain.excecoes import (
     DuracaoInvalida,
     HorarioInvalido,
@@ -22,8 +24,11 @@ from app.domain.excecoes import (
     SessaoNaoEncontrada,
     TransicaoInvalida,
 )
+from app.domain.formacao_sinapses import RegraFormacaoSinapses
+from app.domain.observadores import AtualizadorRede
 from tests.repositorios import (
     RepositorioMateriaMemoria,
+    RepositorioRedeNeuralMemoria,
     RepositorioSessaoMemoria,
 )
 
@@ -54,8 +59,26 @@ def sessoes():
 
 
 @pytest.fixture
-def publicador():
-    return Mock(spec=PublicadorEventos)
+def redes():
+    return RepositorioRedeNeuralMemoria()
+
+
+def _publicador_com_rede(rede: RedeNeuralService) -> PublicadorEventos:
+    """Monta o publicador como a API: o AtualizadorRede inscrito nos dois eventos."""
+    publicador = PublicadorEventos()
+    atualizador = AtualizadorRede(rede)
+    publicador.inscrever(SessaoConcluida, atualizador)
+    publicador.inscrever(SessaoPodada, atualizador)
+    return publicador
+
+
+@pytest.fixture
+def publicador(redes):
+    # Publicador de verdade (os neurônios chegam à rede); o Mock só registra as
+    # chamadas, para os testes conferirem os eventos publicados.
+    return Mock(
+        spec=PublicadorEventos, wraps=_publicador_com_rede(RedeNeuralService(redes))
+    )
 
 
 @pytest.fixture
@@ -65,9 +88,7 @@ def materias():
 
 @pytest.fixture
 def servico(sessoes, publicador, relogio, materias):
-    return SessaoService(
-        sessoes, publicador, relogio=relogio, materias=materias
-    )
+    return SessaoService(sessoes, publicador, relogio=relogio, materias=materias)
 
 
 @pytest.fixture
@@ -124,7 +145,7 @@ def test_concluir_ate_2_segundos_antes_conta_como_no_tempo(
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=25, seconds=-2)
 
-    concluida = servico.concluir(usuario_id, sessao.id)
+    concluida, _ = servico.concluir(usuario_id, sessao.id)
 
     assert concluida.codigo_estado == "concluida"
     assert concluida.encerrada_em == sessao.fim_previsto
@@ -139,11 +160,13 @@ def test_concluir_3_segundos_antes_ainda_e_cedo(servico, usuario_id, relogio):
         servico.concluir(usuario_id, sessao.id)
 
 
-def test_concluir_publica_evento_sessao_concluida(servico, publicador, usuario_id, relogio):
+def test_concluir_publica_evento_sessao_concluida(
+    servico, publicador, usuario_id, relogio
+):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=25, seconds=1)
 
-    concluida = servico.concluir(usuario_id, sessao.id)
+    concluida, _ = servico.concluir(usuario_id, sessao.id)
 
     assert concluida.codigo_estado == "concluida"
     publicador.publicar.assert_called_once()
@@ -153,7 +176,47 @@ def test_concluir_publica_evento_sessao_concluida(servico, publicador, usuario_i
     assert evento.usuario_id == usuario_id
 
 
-def test_interrupcao_no_estrito_poda_no_momento_da_saida(servico, publicador, usuario_id, relogio):
+def _neuronio_da_sessao(redes, usuario_id, sessao_id):
+    rede = redes.carregar(usuario_id)
+    return next(n for n in rede.neuronios if n.sessao_id == sessao_id), rede
+
+
+def test_concluir_cria_o_neuronio(servico, redes, usuario_id, relogio):
+    sessao = servico.iniciar(usuario_id, 25, "estrito")
+    relogio.avancar(minutes=25, seconds=1)
+
+    concluida, neuronio = servico.concluir(usuario_id, sessao.id)
+
+    assert concluida.codigo_estado == "concluida"
+    assert neuronio.sessao_id == sessao.id
+    assert neuronio.usuario_id == usuario_id
+    assert neuronio.duracao.minutos == 25
+    assert neuronio.vivo
+    assert _neuronio_da_sessao(redes, usuario_id, sessao.id)[0] == neuronio
+
+
+def test_neuronios_de_sessoes_concluidas_formam_sinapses(
+    servico, redes, usuario_id, relogio
+):
+    neuronios = []
+    for _ in range(3):
+        sessao = servico.iniciar(usuario_id, 10, "estrito")
+        relogio.avancar(minutes=10)
+        neuronios.append(servico.concluir(usuario_id, sessao.id)[1])
+
+    rede = redes.carregar(usuario_id)
+    pares = {(s.origem_id, s.destino_id) for s in rede.sinapses}
+    primeiro, segundo, terceiro = neuronios
+    assert pares == {
+        (primeiro.id, segundo.id),
+        (primeiro.id, terceiro.id),
+        (segundo.id, terceiro.id),
+    }
+
+
+def test_interrupcao_no_estrito_poda_no_momento_da_saida(
+    servico, publicador, usuario_id, relogio
+):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=6)
 
@@ -163,12 +226,14 @@ def test_interrupcao_no_estrito_poda_no_momento_da_saida(servico, publicador, us
 
     assert podada.codigo_estado == "podada"
     assert podada.encerrada_em == INICIO + timedelta(minutes=5)
-    
+
     evento = publicador.publicar.call_args[0][0]
     assert isinstance(evento, SessaoPodada)
 
 
-def test_interrupcoes_no_tolerante_somam_ate_o_saldo(servico, publicador, usuario_id, relogio):
+def test_interrupcoes_no_tolerante_somam_ate_o_saldo(
+    servico, publicador, usuario_id, relogio
+):
     # 10 min: saldo de 60 s.
     sessao = servico.iniciar(usuario_id, 10, "tolerante")
     relogio.avancar(minutes=5)
@@ -186,7 +251,7 @@ def test_interrupcoes_no_tolerante_somam_ate_o_saldo(servico, publicador, usuari
     )
     assert sessao.codigo_estado == "podada"
     assert sessao.encerrada_em == saida + timedelta(seconds=20)
-    
+
     evento = publicador.publicar.call_args[0][0]
     assert isinstance(evento, SessaoPodada)
 
@@ -212,7 +277,9 @@ def test_recusa_saida_anterior_ao_inicio_da_sessao(servico, usuario_id, relogio)
     assert sessao.historico_interrupcoes == []
 
 
-def test_desistir_conta_como_poda_e_publica_evento(servico, publicador, usuario_id, relogio):
+def test_desistir_conta_como_poda_e_publica_evento(
+    servico, publicador, usuario_id, relogio
+):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=3)
 
@@ -220,7 +287,7 @@ def test_desistir_conta_como_poda_e_publica_evento(servico, publicador, usuario_
 
     assert podada.codigo_estado == "podada"
     assert podada.encerrada_em == INICIO + timedelta(minutes=3)
-    
+
     evento = publicador.publicar.call_args[0][0]
     assert isinstance(evento, SessaoPodada)
     assert evento.sessao_id == sessao.id
@@ -273,10 +340,75 @@ def test_criterios_de_poda_publicam_evento_sessao_podada(
     podar(servico, usuario_id, sessao, relogio)
 
     assert sessoes.buscar_por_id(sessao.id).codigo_estado == "podada"
-    
+
     evento = publicador.publicar.call_args[0][0]
     assert isinstance(evento, SessaoPodada)
     assert evento.sessao_id == sessao.id
+
+
+@pytest.mark.parametrize(
+    ("modo", "podar"),
+    [
+        ("estrito", _podar_por_saida_no_estrito),
+        ("tolerante", _podar_por_saldo_no_tolerante),
+        ("estrito", _podar_por_desistencia),
+        ("estrito", _podar_por_abandono_ao_acessar),
+        ("tolerante", _podar_por_abandono_na_varredura),
+    ],
+)
+def test_criterio_poda_sinaptica_sessao_podada_gera_neuronio_morto_sem_sinapses(
+    servico, sessoes, redes, usuario_id, relogio, modo, podar
+):
+    # Um neurônio vivo antes, para a poda ter a quem se ligar se a regra deixasse.
+    anterior = servico.iniciar(usuario_id, 25, "estrito")
+    relogio.avancar(minutes=25)
+    servico.concluir(usuario_id, anterior.id)
+    sessao = servico.iniciar(usuario_id, 25, modo)
+
+    podar(servico, usuario_id, sessao, relogio)
+
+    assert sessoes.buscar_por_id(sessao.id).codigo_estado == "podada"
+    morto, rede = _neuronio_da_sessao(redes, usuario_id, sessao.id)
+    assert not morto.vivo
+    assert morto.duracao.minutos == 25
+    assert rede.sinapses_de(morto.id) == []
+
+
+def test_poda_logo_apos_conclusao_na_tolerancia_entra_na_rede(
+    servico, redes, usuario_id, relogio
+):
+    # Concluída 1 s antes do fim, a sessão termina no fim previsto: o neurônio fica
+    # datado 1 s no futuro. Uma sessão nova podada nesse segundo deixa um neurônio
+    # morto com data anterior à dele, e a rede precisa aceitar.
+    primeira = servico.iniciar(usuario_id, 10, "estrito")
+    relogio.avancar(minutes=9, seconds=59)
+    _, vivo = servico.concluir(usuario_id, primeira.id)
+    segunda = servico.iniciar(usuario_id, 10, "estrito")
+
+    servico.registrar_interrupcao(usuario_id, segunda.id, relogio.instante, None)
+
+    morto, rede = _neuronio_da_sessao(redes, usuario_id, segunda.id)
+    assert morto.criado_em < vivo.criado_em
+    assert rede.neuronios == [morto, vivo]
+
+
+def test_criterio_regra_trocada_sem_mexer_no_servico_de_sessao(
+    sessoes, redes, usuario_id, relogio
+):
+    class SemLigacoes(RegraFormacaoSinapses):
+        def conexoes(self, novo, rede):
+            return []
+
+    publicador = _publicador_com_rede(RedeNeuralService(redes, regra=SemLigacoes()))
+    servico = SessaoService(sessoes, publicador, relogio=relogio)
+    for _ in range(3):
+        sessao = servico.iniciar(usuario_id, 10, "estrito")
+        relogio.avancar(minutes=10)
+        servico.concluir(usuario_id, sessao.id)
+
+    rede = redes.carregar(usuario_id)
+    assert len(rede) == 3
+    assert rede.sinapses == []
 
 
 @pytest.mark.parametrize("acao", ["concluir", "desistir"])
@@ -390,7 +522,7 @@ def test_concluir_cria_neuronio_com_tipo_da_fabrica(
 
 
 def test_criterio_tipo_novo_na_fabrica_sem_mexer_no_servico_de_sessao(
-    sessoes, redes, usuario_id, relogio
+    sessoes, publicador, usuario_id, relogio
 ):
     class Fusiforme(TipoNeuronio):
         duracao_minima = 40
@@ -413,9 +545,7 @@ def test_criterio_tipo_novo_na_fabrica_sem_mexer_no_servico_de_sessao(
             return 7.5
 
     fabrica = FabricaNeuronio((*FabricaNeuronio.TIPOS_PADRAO, Fusiforme()))
-    servico = SessaoService(
-        sessoes, RedeNeuralService(redes), relogio=relogio, fabrica=fabrica
-    )
+    servico = SessaoService(sessoes, publicador, relogio=relogio, fabrica=fabrica)
     sessao = servico.iniciar(usuario_id, 45, "estrito")
     relogio.avancar(minutes=45)
 

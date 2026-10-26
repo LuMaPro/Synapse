@@ -2,9 +2,9 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from app.application.rede import RedeNeuralService
 from app.domain.entidades.neuronio import FabricaNeuronio, Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
+from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
 from app.domain.excecoes import (
     HorarioInvalido,
     MateriaNaoEncontrada,
@@ -27,6 +27,10 @@ class SessaoService:
     sessão carregada passa antes pela expiração por abandono, então a regra de
     duração + 5 min vale mesmo sem a varredura periódica.
 
+    Toda sessão que termina vira um neurônio (#23), criado pela `FabricaNeuronio`
+    (#22): vivo, se foi concluída; morto, se foi podada. O serviço só publica o evento
+    (`SessaoConcluida` ou `SessaoPodada`, #24); quem coloca o neurônio na rede, e no
+    futuro atualiza estatísticas e conquistas, são os observadores inscritos.
     """
 
     def __init__(
@@ -93,12 +97,12 @@ class SessaoService:
         sessao.registrar_interrupcao(Interrupcao(saida=saida, retorno=retorno))
         self._sessoes.salvar(sessao)
         if sessao.codigo_estado == "podada":
-            self._publicador.publicar(SessaoPodada(sessao.id, sessao.usuario_id, sessao.duracao.minutos, sessao.encerrada_em, sessao.materia_id))
+            self._publicar_poda(sessao)
         return sessao
 
     def concluir(
         self, usuario_id: UUID, sessao_id: UUID
-    ) -> SessaoFoco:
+    ) -> tuple[SessaoFoco, Neuronio]:
         sessao = self._carregar(usuario_id, sessao_id)
         instante = self._relogio()
         # Até 2 s antes do fim previsto conta como no tempo (diferença de relógio e
@@ -109,14 +113,23 @@ class SessaoService:
 
         neuronio = self._fabrica.criar(sessao)
         self._sessoes.salvar(sessao)
-        self._publicador.publicar(SessaoConcluida(sessao.id, sessao.usuario_id, sessao.duracao.minutos, instante, sessao.materia_id))
-        return sessao
+        self._publicador.publicar(
+            SessaoConcluida(
+                sessao.id,
+                sessao.usuario_id,
+                sessao.duracao.minutos,
+                instante,
+                sessao.materia_id,
+                neuronio=neuronio,
+            )
+        )
+        return sessao, neuronio
 
     def desistir(self, usuario_id: UUID, sessao_id: UUID) -> SessaoFoco:
         sessao = self._carregar(usuario_id, sessao_id)
         sessao.desistir(relogio=self._relogio)
         self._sessoes.salvar(sessao)
-        self._publicador.publicar(SessaoPodada(sessao.id, sessao.usuario_id, sessao.duracao.minutos, sessao.encerrada_em, sessao.materia_id))
+        self._publicar_poda(sessao)
         return sessao
 
     def podar_orfas(self) -> int:
@@ -135,9 +148,18 @@ class SessaoService:
         expirou = sessao.expirar_se_abandonada(self._relogio())
         if expirou:
             self._sessoes.salvar(sessao)
-            self._publicador.publicar(SessaoPodada(sessao.id, sessao.usuario_id, sessao.duracao.minutos, sessao.encerrada_em, sessao.materia_id))
+            self._publicar_poda(sessao)
         return expirou
 
-    def _registrar_neuronio_podado(self, sessao: SessaoFoco) -> None:
+    def _publicar_poda(self, sessao: SessaoFoco) -> None:
         """Poda sináptica (#23): a sessão podada deixa um neurônio morto na rede."""
-        self._rede.registrar(self._fabrica.criar(sessao))
+        self._publicador.publicar(
+            SessaoPodada(
+                sessao.id,
+                sessao.usuario_id,
+                sessao.duracao.minutos,
+                sessao.encerrada_em,
+                sessao.materia_id,
+                neuronio=self._fabrica.criar(sessao),
+            )
+        )
