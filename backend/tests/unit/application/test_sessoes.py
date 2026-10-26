@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -13,6 +14,7 @@ from app.domain.entidades.neuronio import (
     Purkinje,
     TipoNeuronio,
 )
+from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
 from app.domain.excecoes import (
     DuracaoInvalida,
     HorarioInvalido,
@@ -23,6 +25,7 @@ from app.domain.excecoes import (
     TransicaoInvalida,
 )
 from app.domain.formacao_sinapses import RegraFormacaoSinapses
+from app.domain.observadores import AtualizadorRede
 from tests.repositorios import (
     RepositorioMateriaMemoria,
     RepositorioRedeNeuralMemoria,
@@ -60,16 +63,32 @@ def redes():
     return RepositorioRedeNeuralMemoria()
 
 
+def _publicador_com_rede(rede: RedeNeuralService) -> PublicadorEventos:
+    """Monta o publicador como a API: o AtualizadorRede inscrito nos dois eventos."""
+    publicador = PublicadorEventos()
+    atualizador = AtualizadorRede(rede)
+    publicador.inscrever(SessaoConcluida, atualizador)
+    publicador.inscrever(SessaoPodada, atualizador)
+    return publicador
+
+
+@pytest.fixture
+def publicador(redes):
+    # Publicador de verdade (os neurônios chegam à rede); o Mock só registra as
+    # chamadas, para os testes conferirem os eventos publicados.
+    return Mock(
+        spec=PublicadorEventos, wraps=_publicador_com_rede(RedeNeuralService(redes))
+    )
+
+
 @pytest.fixture
 def materias():
     return RepositorioMateriaMemoria()
 
 
 @pytest.fixture
-def servico(sessoes, redes, relogio, materias):
-    return SessaoService(
-        sessoes, RedeNeuralService(redes), relogio=relogio, materias=materias
-    )
+def servico(sessoes, publicador, relogio, materias):
+    return SessaoService(sessoes, publicador, relogio=relogio, materias=materias)
 
 
 @pytest.fixture
@@ -121,7 +140,7 @@ def test_concluir_antes_da_hora_e_recusado(servico, usuario_id, relogio):
 
 
 def test_concluir_ate_2_segundos_antes_conta_como_no_tempo(
-    servico, usuario_id, relogio
+    servico, publicador, usuario_id, relogio
 ):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=25, seconds=-2)
@@ -130,6 +149,7 @@ def test_concluir_ate_2_segundos_antes_conta_como_no_tempo(
 
     assert concluida.codigo_estado == "concluida"
     assert concluida.encerrada_em == sessao.fim_previsto
+    publicador.publicar.assert_called_once()
 
 
 def test_concluir_3_segundos_antes_ainda_e_cedo(servico, usuario_id, relogio):
@@ -138,6 +158,22 @@ def test_concluir_3_segundos_antes_ainda_e_cedo(servico, usuario_id, relogio):
 
     with pytest.raises(TransicaoInvalida):
         servico.concluir(usuario_id, sessao.id)
+
+
+def test_concluir_publica_evento_sessao_concluida(
+    servico, publicador, usuario_id, relogio
+):
+    sessao = servico.iniciar(usuario_id, 25, "estrito")
+    relogio.avancar(minutes=25, seconds=1)
+
+    concluida, _ = servico.concluir(usuario_id, sessao.id)
+
+    assert concluida.codigo_estado == "concluida"
+    publicador.publicar.assert_called_once()
+    evento = publicador.publicar.call_args[0][0]
+    assert isinstance(evento, SessaoConcluida)
+    assert evento.sessao_id == sessao.id
+    assert evento.usuario_id == usuario_id
 
 
 def _neuronio_da_sessao(redes, usuario_id, sessao_id):
@@ -178,7 +214,9 @@ def test_neuronios_de_sessoes_concluidas_formam_sinapses(
     }
 
 
-def test_interrupcao_no_estrito_poda_no_momento_da_saida(servico, usuario_id, relogio):
+def test_interrupcao_no_estrito_poda_no_momento_da_saida(
+    servico, publicador, usuario_id, relogio
+):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=6)
 
@@ -189,8 +227,13 @@ def test_interrupcao_no_estrito_poda_no_momento_da_saida(servico, usuario_id, re
     assert podada.codigo_estado == "podada"
     assert podada.encerrada_em == INICIO + timedelta(minutes=5)
 
+    evento = publicador.publicar.call_args[0][0]
+    assert isinstance(evento, SessaoPodada)
 
-def test_interrupcoes_no_tolerante_somam_ate_o_saldo(servico, usuario_id, relogio):
+
+def test_interrupcoes_no_tolerante_somam_ate_o_saldo(
+    servico, publicador, usuario_id, relogio
+):
     # 10 min: saldo de 60 s.
     sessao = servico.iniciar(usuario_id, 10, "tolerante")
     relogio.avancar(minutes=5)
@@ -200,6 +243,7 @@ def test_interrupcoes_no_tolerante_somam_ate_o_saldo(servico, usuario_id, relogi
         usuario_id, sessao.id, saida, saida + timedelta(seconds=40)
     )
     assert sessao.codigo_estado == "em_andamento"
+    publicador.publicar.assert_not_called()
 
     saida = INICIO + timedelta(minutes=3)
     servico.registrar_interrupcao(
@@ -207,6 +251,9 @@ def test_interrupcoes_no_tolerante_somam_ate_o_saldo(servico, usuario_id, relogi
     )
     assert sessao.codigo_estado == "podada"
     assert sessao.encerrada_em == saida + timedelta(seconds=20)
+
+    evento = publicador.publicar.call_args[0][0]
+    assert isinstance(evento, SessaoPodada)
 
 
 def test_recusa_saida_no_futuro(servico, usuario_id):
@@ -230,7 +277,9 @@ def test_recusa_saida_anterior_ao_inicio_da_sessao(servico, usuario_id, relogio)
     assert sessao.historico_interrupcoes == []
 
 
-def test_desistir_conta_como_poda(servico, usuario_id, relogio):
+def test_desistir_conta_como_poda_e_publica_evento(
+    servico, publicador, usuario_id, relogio
+):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
     relogio.avancar(minutes=3)
 
@@ -238,6 +287,10 @@ def test_desistir_conta_como_poda(servico, usuario_id, relogio):
 
     assert podada.codigo_estado == "podada"
     assert podada.encerrada_em == INICIO + timedelta(minutes=3)
+
+    evento = publicador.publicar.call_args[0][0]
+    assert isinstance(evento, SessaoPodada)
+    assert evento.sessao_id == sessao.id
 
 
 def _podar_por_saida_no_estrito(servico, usuario_id, sessao, relogio):
@@ -267,6 +320,30 @@ def _podar_por_abandono_ao_acessar(servico, usuario_id, sessao, relogio):
 def _podar_por_abandono_na_varredura(servico, usuario_id, sessao, relogio):
     relogio.avancar(minutes=31)
     servico.podar_orfas()
+
+
+@pytest.mark.parametrize(
+    ("modo", "podar"),
+    [
+        ("estrito", _podar_por_saida_no_estrito),
+        ("tolerante", _podar_por_saldo_no_tolerante),
+        ("estrito", _podar_por_desistencia),
+        ("estrito", _podar_por_abandono_ao_acessar),
+        ("tolerante", _podar_por_abandono_na_varredura),
+    ],
+)
+def test_criterios_de_poda_publicam_evento_sessao_podada(
+    servico, sessoes, publicador, usuario_id, relogio, modo, podar
+):
+    sessao = servico.iniciar(usuario_id, 25, modo)
+
+    podar(servico, usuario_id, sessao, relogio)
+
+    assert sessoes.buscar_por_id(sessao.id).codigo_estado == "podada"
+
+    evento = publicador.publicar.call_args[0][0]
+    assert isinstance(evento, SessaoPodada)
+    assert evento.sessao_id == sessao.id
 
 
 @pytest.mark.parametrize(
@@ -322,9 +399,8 @@ def test_criterio_regra_trocada_sem_mexer_no_servico_de_sessao(
         def conexoes(self, novo, rede):
             return []
 
-    servico = SessaoService(
-        sessoes, RedeNeuralService(redes, regra=SemLigacoes()), relogio=relogio
-    )
+    publicador = _publicador_com_rede(RedeNeuralService(redes, regra=SemLigacoes()))
+    servico = SessaoService(sessoes, publicador, relogio=relogio)
     for _ in range(3):
         sessao = servico.iniciar(usuario_id, 10, "estrito")
         relogio.avancar(minutes=10)
@@ -359,7 +435,7 @@ def test_sessao_abandonada_e_podada_ao_ser_acessada(
     servico.iniciar(usuario_id, 25, "estrito")
 
 
-def test_podar_orfas_varre_todos_os_usuarios(servico, relogio):
+def test_podar_orfas_varre_todos_os_usuarios(servico, relogio, publicador):
     abandonadas = [servico.iniciar(uuid4(), 10, "estrito") for _ in range(2)]
     relogio.avancar(minutes=14)
     recente = servico.iniciar(uuid4(), 25, "estrito")
@@ -368,6 +444,7 @@ def test_podar_orfas_varre_todos_os_usuarios(servico, relogio):
     assert servico.podar_orfas() == 2
     assert all(s.codigo_estado == "podada" for s in abandonadas)
     assert recente.codigo_estado == "em_andamento"
+    assert publicador.publicar.call_count == 2
 
 
 def test_iniciar_sessao_com_materia_valida_associa_materia(
@@ -445,7 +522,7 @@ def test_concluir_cria_neuronio_com_tipo_da_fabrica(
 
 
 def test_criterio_tipo_novo_na_fabrica_sem_mexer_no_servico_de_sessao(
-    sessoes, redes, usuario_id, relogio
+    sessoes, publicador, usuario_id, relogio
 ):
     class Fusiforme(TipoNeuronio):
         duracao_minima = 40
@@ -468,9 +545,7 @@ def test_criterio_tipo_novo_na_fabrica_sem_mexer_no_servico_de_sessao(
             return 7.5
 
     fabrica = FabricaNeuronio((*FabricaNeuronio.TIPOS_PADRAO, Fusiforme()))
-    servico = SessaoService(
-        sessoes, RedeNeuralService(redes), relogio=relogio, fabrica=fabrica
-    )
+    servico = SessaoService(sessoes, publicador, relogio=relogio, fabrica=fabrica)
     sessao = servico.iniciar(usuario_id, 45, "estrito")
     relogio.avancar(minutes=45)
 

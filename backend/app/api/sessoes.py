@@ -12,6 +12,7 @@ from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
+from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
 from app.domain.excecoes import (
     DuracaoInvalida,
     ErroDominio,
@@ -22,6 +23,7 @@ from app.domain.excecoes import (
     SessaoNaoEncontrada,
     TransicaoInvalida,
 )
+from app.domain.observadores import AtualizadorRede
 from app.domain.tempo import agora
 from app.infra.repositorios import (
     RepositorioMateriaDjango,
@@ -43,10 +45,19 @@ ERROS_SESSAO: dict[type[ErroDominio], tuple[int, str]] = {
 
 
 def _servico() -> SessaoService:
+    # Configura a rede e o observador
+    rede_service = RedeNeuralService(RepositorioRedeNeuralDjango())
+    atualizador = AtualizadorRede(rede_service)
+
+    # Configura o publicador e inscreve o observador
+    publicador = PublicadorEventos()
+    publicador.inscrever(SessaoConcluida, atualizador)
+    publicador.inscrever(SessaoPodada, atualizador)
+
     # O relógio é lido a cada chamada, o que permite controlá-lo nos testes.
     return SessaoService(
         RepositorioSessaoDjango(),
-        RedeNeuralService(RepositorioRedeNeuralDjango()),
+        publicador,  # <-- Injetamos o publicador aqui
         relogio=lambda: agora(),
         materias=RepositorioMateriaDjango(),
     )

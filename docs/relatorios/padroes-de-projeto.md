@@ -16,3 +16,4 @@ Cada PR que introduzir um padrão adiciona uma linha na tabela e uma seção com
 ## Padrões considerados e descartados
 
 - **Active Record** (descartado para as entidades de domínio, issue #13): embora seja o padrão natural do Django (onde `UsuarioModel.objects.create()` ou `model.save()` misturam persistência e estado), adotá-lo no domínio acoplaria todas as regras de negócio ao framework e ao banco de dados relacional. Foi descartado em favor do padrão **Repository**, mantendo os models do Django restritos à camada de infraestrutura (`backend/app/infra/modelos/`).
+- **Django Signals** (descartado para mensageria de domínio, issue #24): embora seja o mecanismo nativo do framework para desacoplar ações, utilizá-lo para a lógica de negócio principal acoplaria o domínio à infraestrutura, dificultando a testabilidade isolada e ocultando o fluxo lógico que agora é explícito no sistema. Foi descartado em favor do padrão **Observer** construído em puro Python.
