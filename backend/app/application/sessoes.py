@@ -46,8 +46,9 @@ class SessaoService:
 
     Toda sessão que termina vira um neurônio (#23), criado pela `FabricaNeuronio`
     (#22): vivo, se foi concluída; morto, se foi podada. O serviço só publica o evento
-    (`SessaoConcluida` ou `SessaoPodada`, #24); quem coloca o neurônio na rede, e no
-    futuro atualiza estatísticas e conquistas, são os observadores inscritos.
+    (`SessaoConcluida` ou `SessaoPodada`, #24); quem coloca o neurônio na rede e
+    desbloqueia as conquistas (#32), e no futuro atualiza as estatísticas, são os
+    observadores inscritos.
     """
 
     def __init__(

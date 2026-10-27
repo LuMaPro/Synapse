@@ -1,5 +1,6 @@
 # O Django procura os models em app.models. Eles ficam em app/infra/modelos/
 # (camada de infraestrutura) e são reexportados aqui.
+from app.infra.modelos.conquista import ConquistaModel
 from app.infra.modelos.materia import MateriaModel
 from app.infra.modelos.neuronio import NeuronioModel
 from app.infra.modelos.sessao_foco import (
@@ -18,5 +19,6 @@ __all__ = [
     "NeuronioModel",
     "SinapseModel",
     "MateriaModel",
+    "ConquistaModel",
 ]
 

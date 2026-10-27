@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from django.db import IntegrityError, transaction
 
+from app.domain.entidades.conquista import ConquistaDesbloqueada
 from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, EmAndamento, Podada, SessaoFoco
@@ -14,6 +15,7 @@ from app.infra.modelos.sessao_foco import SessaoFocoModel
 from app.infra.modelos.sinapse import SinapseModel
 from app.infra.modelos.usuario import UsuarioModel
 from app.infra.repositorios import (
+    RepositorioConquistaDjango,
     RepositorioMateriaDjango,
     RepositorioNeuronioDjango,
     RepositorioRedeNeuralDjango,
@@ -416,3 +418,43 @@ class TestRepositorioMateriaDjango:
 
         assert repo.buscar_por_id(materia.id) is None
 
+
+class TestRepositorioConquistaDjango:
+    """Persistência das conquistas desbloqueadas (#32)."""
+
+    @pytest.fixture
+    def usuario(self):
+        return UsuarioModel.objects.create_user(
+            email="conquista@synapse.com", nome="Estudante Conquista"
+        )
+
+    def test_salva_e_lista_as_conquistas_do_estudante(self, usuario):
+        outro = UsuarioModel.objects.create_user(email="o@synapse.com", nome="Outro")
+        repo = RepositorioConquistaDjango()
+        quando = datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
+        primeira = ConquistaDesbloqueada(usuario.id, "primeiro_neuronio", quando)
+        repo.salvar(primeira)
+        repo.salvar(
+            ConquistaDesbloqueada(
+                usuario.id, "dias_seguidos_7", quando + timedelta(days=6)
+            )
+        )
+        repo.salvar(ConquistaDesbloqueada(outro.id, "primeiro_neuronio", quando))
+
+        conquistas = repo.listar_por_usuario(usuario.id)
+
+        assert [c.codigo for c in conquistas] == [
+            "primeiro_neuronio",
+            "dias_seguidos_7",
+        ]
+        assert conquistas[0] == primeira
+        assert conquistas[0].usuario_id == usuario.id
+        assert conquistas[0].desbloqueada_em == quando
+
+    def test_o_banco_recusa_a_mesma_conquista_duas_vezes(self, usuario):
+        repo = RepositorioConquistaDjango()
+        quando = datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
+        repo.salvar(ConquistaDesbloqueada(usuario.id, "primeiro_neuronio", quando))
+
+        with pytest.raises(IntegrityError), transaction.atomic():
+            repo.salvar(ConquistaDesbloqueada(usuario.id, "primeiro_neuronio", quando))

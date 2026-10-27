@@ -12,3 +12,20 @@ class AtualizadorRede(ObservadorSessao):
     def processar(self, evento):
         if isinstance(evento, SessaoConcluida | SessaoPodada) and evento.neuronio:
             self.rede.registrar(evento.neuronio)
+
+
+class AvaliadorConquistas(ObservadorSessao):
+    """Ao fim de cada sessão concluída, desbloqueia as conquistas que o estudante
+    acabou de cumprir (#32), com a data da conclusão. As regras ficam no
+    `ConquistaService`.
+
+    Precisa ser inscrito depois do `AtualizadorRede`: as conquistas olham a rede, e
+    o neurônio e as sinapses da sessão já têm de estar nela (ex.: "100 sinapses").
+    """
+
+    def __init__(self, conquistas):
+        self.conquistas = conquistas
+
+    def processar(self, evento):
+        if isinstance(evento, SessaoConcluida):
+            self.conquistas.avaliar(evento.usuario_id, evento.conclusao)

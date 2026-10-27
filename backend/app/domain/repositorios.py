@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import UUID
 
+from app.domain.entidades.conquista import ConquistaDesbloqueada
 from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
@@ -172,4 +173,18 @@ class RepositorioMateria(ABC):
     @abstractmethod
     def remover(self, id: UUID) -> None:
         """Remove a matéria do repositório."""
+        ...
+
+
+class RepositorioConquista(ABC):
+    """Persistência das conquistas desbloqueadas (Padrão Repository, #32)."""
+
+    @abstractmethod
+    def listar_por_usuario(self, usuario_id: UUID) -> list[ConquistaDesbloqueada]:
+        """Lista as conquistas que o estudante já desbloqueou."""
+        ...
+
+    @abstractmethod
+    def salvar(self, conquista: ConquistaDesbloqueada) -> None:
+        """Persiste uma conquista recém-desbloqueada."""
         ...

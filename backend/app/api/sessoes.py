@@ -15,6 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from app.api.periodo import DESCRICAO_PERIODO, FiltroPeriodoSerializer
+from app.application.conquistas import ConquistaService
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.entidades.neuronio import Neuronio
@@ -30,9 +31,10 @@ from app.domain.excecoes import (
     SessaoNaoEncontrada,
     TransicaoInvalida,
 )
-from app.domain.observadores import AtualizadorRede
+from app.domain.observadores import AtualizadorRede, AvaliadorConquistas
 from app.domain.tempo import agora
 from app.infra.repositorios import (
+    RepositorioConquistaDjango,
     RepositorioMateriaDjango,
     RepositorioRedeNeuralDjango,
     RepositorioSessaoDjango,
@@ -53,13 +55,19 @@ ERROS_SESSAO: dict[type[ErroDominio], tuple[int, str]] = {
 
 def _servico() -> SessaoService:
     # Configura a rede e o observador
-    rede_service = RedeNeuralService(RepositorioRedeNeuralDjango())
+    redes = RepositorioRedeNeuralDjango()
+    rede_service = RedeNeuralService(redes)
     atualizador = AtualizadorRede(rede_service)
+    avaliador = AvaliadorConquistas(
+        ConquistaService(RepositorioConquistaDjango(), redes)
+    )
 
-    # Configura o publicador e inscreve o observador
+    # Configura o publicador e inscreve os observadores. O avaliador de conquistas
+    # vem depois do atualizador da rede: ele olha a rede já com o neurônio novo.
     publicador = PublicadorEventos()
     publicador.inscrever(SessaoConcluida, atualizador)
     publicador.inscrever(SessaoPodada, atualizador)
+    publicador.inscrever(SessaoConcluida, avaliador)
 
     # O relógio é lido a cada chamada, o que permite controlá-lo nos testes.
     return SessaoService(

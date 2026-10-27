@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from app.domain.entidades.conquista import ConquistaDesbloqueada
 from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
@@ -9,6 +10,7 @@ from app.domain.entidades.usuario import Usuario
 from app.domain.formacao_sinapses import RegraFormacaoSinapses
 from app.domain.rede_neural import RedeNeural
 from app.domain.repositorios import (
+    RepositorioConquista,
     RepositorioMateria,
     RepositorioNeuronio,
     RepositorioRedeNeural,
@@ -231,3 +233,25 @@ class RepositorioMateriaMemoria(RepositorioMateria):
 RepositorioUsuarioEmMemoria = RepositorioUsuarioMemoria
 RepositorioSessaoEmMemoria = RepositorioSessaoMemoria
 RepositorioMateriaEmMemoria = RepositorioMateriaMemoria
+
+
+class RepositorioConquistaMemoria(RepositorioConquista):
+    """Implementação em memória de RepositorioConquista para testes unitários."""
+
+    def __init__(self) -> None:
+        self._conquistas: dict[UUID, ConquistaDesbloqueada] = {}
+
+    def listar_por_usuario(self, usuario_id: UUID) -> list[ConquistaDesbloqueada]:
+        return [c for c in self._conquistas.values() if c.usuario_id == usuario_id]
+
+    def salvar(self, conquista: ConquistaDesbloqueada) -> None:
+        # O banco recusa a mesma conquista duas vezes para o estudante; aqui também.
+        if any(
+            c.codigo == conquista.codigo and c.id != conquista.id
+            for c in self.listar_por_usuario(conquista.usuario_id)
+        ):
+            raise ValueError(f"Conquista {conquista.codigo!r} já desbloqueada.")
+        self._conquistas[conquista.id] = conquista
+
+    def __len__(self) -> int:
+        return len(self._conquistas)
