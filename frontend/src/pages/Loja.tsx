@@ -1,19 +1,16 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { NeuronioAnimado } from '../components/NeuronioAnimado'
 import { ApiError } from '../services/api'
-import { lojaApi, type LojaApi, type TipoLojaApi } from '../services/loja'
+import { lojaApi, type CorLojaApi, type LojaApi } from '../services/loja'
 import '../styles/foco.css'
 import '../styles/rede.css'
 import '../styles/loja.css'
-import { NOME_TIPO_NEURONIO, type TipoNeuronio } from '../utils/neuronio'
 
-const FORMAS: TipoNeuronio[] = ['granular', 'piramidal', 'purkinje']
-
-function faixa(tipo: TipoLojaApi): string {
-  return tipo.duracao_maxima === null
-    ? `${tipo.duracao_minima} min ou mais`
-    : `${tipo.duracao_minima} a ${tipo.duracao_maxima} min`
-}
+const SECOES: { titulo: string; descricao: string; comEfeito: boolean }[] = [
+  { titulo: 'Cores exclusivas', descricao: 'Tons que não estão na paleta.', comEfeito: false },
+  { titulo: 'Cores com efeito', descricao: 'Neurônios que se mexem.', comEfeito: true },
+]
 
 function mensagemDeErro(erro: unknown): string {
   // O servidor explica o motivo (ex.: "Faltam 50 ATP..."); sem resposta, é a rede.
@@ -21,38 +18,30 @@ function mensagemDeErro(erro: unknown): string {
   return 'Não foi possível concluir. Verifique sua conexão e tente de novo.'
 }
 
-interface CartaoTipoProps {
-  tipo: TipoLojaApi
+interface CartaoCorProps {
+  cor: CorLojaApi
   saldo: number
   confirmando: boolean
   ocupado: boolean
   onComprar: () => void
   onConfirmar: () => void
   onCancelar: () => void
-  onUsar: () => void
 }
 
-function CartaoTipo({
-  tipo,
+function CartaoCor({
+  cor,
   saldo,
   confirmando,
   ocupado,
   onComprar,
   onConfirmar,
   onCancelar,
-  onUsar,
-}: CartaoTipoProps) {
-  const falta = tipo.preco - saldo
+}: CartaoCorProps) {
+  const falta = cor.preco - saldo
 
   let acao
-  if (tipo.em_uso) {
-    acao = <span className="selo loja-em-uso">Em uso</span>
-  } else if (tipo.desbloqueado) {
-    acao = (
-      <button type="button" className="botao secundario" onClick={onUsar} disabled={ocupado}>
-        Usar
-      </button>
-    )
+  if (cor.desbloqueada) {
+    acao = <span className="selo loja-sua">Sua</span>
   } else if (confirmando) {
     acao = (
       <div className="loja-confirmacao">
@@ -61,7 +50,7 @@ function CartaoTipo({
           className="botao primario"
           onClick={onConfirmar}
           disabled={ocupado}
-          aria-label={`Confirmar a compra do ${tipo.nome} por ${tipo.preco} ATP`}
+          aria-label={`Confirmar a compra da cor ${cor.nome} por ${cor.preco} ATP`}
         >
           Confirmar
         </button>
@@ -84,7 +73,7 @@ function CartaoTipo({
         className="botao primario"
         onClick={onComprar}
         disabled={ocupado}
-        aria-label={`Comprar o ${tipo.nome} por ${tipo.preco} ATP`}
+        aria-label={`Comprar a cor ${cor.nome} por ${cor.preco} ATP`}
       >
         Comprar
       </button>
@@ -92,32 +81,33 @@ function CartaoTipo({
   }
 
   return (
-    <li className={tipo.em_uso ? 'loja-cartao em-uso' : 'loja-cartao'}>
+    <li className={cor.desbloqueada ? 'loja-cartao desbloqueada' : 'loja-cartao'}>
       <NeuronioAnimado
-        tipo={tipo.forma}
+        tipo="piramidal"
         progresso={1}
-        cor={tipo.cor}
+        cor={cor.cor}
+        efeito={cor.efeito}
         tamanho={96}
-        rotulo={`Prévia do ${tipo.nome}`}
+        rotulo={`Prévia da cor ${cor.nome}`}
       />
       <div className="loja-info">
-        <h3>{tipo.nome}</h3>
-        <p>{tipo.preco === 0 ? 'Original' : `${tipo.preco} ATP`}</p>
+        <h3>{cor.nome}</h3>
+        <p>{cor.preco} ATP</p>
       </div>
       {acao}
     </li>
   )
 }
 
-/** Loja de ATP (issue #34): troque o ATP das sessões por novas cores de neurônio. */
+/** Loja de ATP (issue #34): troque o ATP das sessões por cores para as matérias. */
 export function Loja() {
   const [loja, setLoja] = useState<LojaApi | null>(null)
   const [erroAoCarregar, setErroAoCarregar] = useState(false)
   const [tentativa, setTentativa] = useState(0)
   const [confirmando, setConfirmando] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
-  const [erroDaAcao, setErroDaAcao] = useState<string | null>(null)
-  const [aviso, setAviso] = useState<string | null>(null)
+  const [erroDaCompra, setErroDaCompra] = useState<string | null>(null)
+  const [comprada, setComprada] = useState<CorLojaApi | null>(null)
 
   useEffect(() => {
     let ativo = true
@@ -134,16 +124,16 @@ export function Loja() {
     }
   }, [tentativa])
 
-  async function executar(acao: () => Promise<LojaApi>, sucesso: string) {
+  async function comprar(cor: CorLojaApi) {
     setOcupado(true)
-    setErroDaAcao(null)
-    setAviso(null)
+    setErroDaCompra(null)
+    setComprada(null)
     try {
-      setLoja(await acao())
+      setLoja(await lojaApi.comprar(cor.codigo))
       setConfirmando(null)
-      setAviso(sucesso)
+      setComprada(cor)
     } catch (erro) {
-      setErroDaAcao(mensagemDeErro(erro))
+      setErroDaCompra(mensagemDeErro(erro))
     } finally {
       setOcupado(false)
     }
@@ -171,39 +161,30 @@ export function Loja() {
       </p>
     )
   } else {
-    conteudo = FORMAS.map((forma) => {
-      const tipos = loja.tipos.filter((t) => t.forma === forma)
-      if (tipos.length === 0) return null
+    conteudo = SECOES.map(({ titulo, descricao, comEfeito }) => {
+      // As 8 cores da paleta são de todos e não estão à venda.
+      const cores = loja.cores.filter((c) => c.preco > 0 && Boolean(c.efeito) === comEfeito)
+      if (cores.length === 0) return null
+      const id = comEfeito ? 'secao-efeitos' : 'secao-exclusivas'
       return (
-        <section key={forma} className="loja-forma" aria-labelledby={`forma-${forma}`}>
-          <h2 id={`forma-${forma}`}>
-            {NOME_TIPO_NEURONIO[forma]} <span>· sessões de {faixa(tipos[0])}</span>
+        <section key={id} className="loja-secao" aria-labelledby={id}>
+          <h2 id={id}>
+            {titulo} <span>· {descricao}</span>
           </h2>
           <ul>
-            {tipos.map((tipo) => (
-              <CartaoTipo
-                key={tipo.codigo}
-                tipo={tipo}
+            {cores.map((cor) => (
+              <CartaoCor
+                key={cor.codigo}
+                cor={cor}
                 saldo={loja.saldo}
-                confirmando={confirmando === tipo.codigo}
+                confirmando={confirmando === cor.codigo}
                 ocupado={ocupado}
                 onComprar={() => {
-                  setErroDaAcao(null)
-                  setConfirmando(tipo.codigo)
+                  setErroDaCompra(null)
+                  setConfirmando(cor.codigo)
                 }}
                 onCancelar={() => setConfirmando(null)}
-                onConfirmar={() =>
-                  executar(
-                    () => lojaApi.comprar(tipo.codigo),
-                    `${tipo.nome} desbloqueado! Suas próximas sessões de ${faixa(tipo)} já nascem com ele.`,
-                  )
-                }
-                onUsar={() =>
-                  executar(
-                    () => lojaApi.usar(tipo.codigo),
-                    `Suas próximas sessões de ${faixa(tipo)} vão usar o ${tipo.nome}.`,
-                  )
-                }
+                onConfirmar={() => comprar(cor)}
               />
             ))}
           </ul>
@@ -223,17 +204,19 @@ export function Loja() {
         )}
       </div>
       <p className="loja-intro">
-        Cada minuto de foco concluído rende 1 ATP. Troque por novas cores de neurônio: a forma
-        continua mostrando quanto durou a sessão. Nas sessões com matéria, vale a cor da matéria.
+        Cada minuto de foco concluído rende 1 ATP. Troque por cores exclusivas para as suas
+        matérias: os neurônios de cada matéria nascem na cor dela. As 8 cores da paleta são de
+        todos.
       </p>
-      {erroDaAcao && (
+      {erroDaCompra && (
         <p className="loja-erro" role="alert">
-          {erroDaAcao}
+          {erroDaCompra}
         </p>
       )}
-      {aviso && (
+      {comprada && (
         <p className="loja-aviso" role="status">
-          {aviso}
+          Cor {comprada.nome} desbloqueada! Escolha-a para uma matéria em{' '}
+          <Link to="/materias">Matérias</Link>.
         </p>
       )}
       {conteudo}

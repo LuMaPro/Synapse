@@ -1,0 +1,255 @@
+/* Cores com efeito da loja de ATP (issue #34).
+
+   Cada efeito vale para três lugares: o neurônio animado (.neuronio), o neurônio da
+   rede (.rede-neuronio) e as amostras de cor (.amostra: paleta, bolinhas). A cor fica
+   na variável --cor-neuronio; registrá-la como <color> permite animar a cor de um
+   tom para outro, e o hexadecimal da cor continua sendo o valor sem animação. */
+
+@property --cor-neuronio {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #8b7bff;
+}
+
+/* Amostras e neurônios da rede com efeito pintam com a variável, que é animada. */
+.amostra.com-efeito {
+  background: var(--cor-neuronio) !important;
+  color: var(--cor-neuronio) !important;
+}
+
+.rede-neuronio.com-efeito .rede-corpo {
+  fill: var(--cor-neuronio);
+}
+
+.rede-neuronio.com-efeito .rede-dendritos {
+  stroke: var(--cor-neuronio);
+}
+
+/* Arco-íris: a cor percorre o espectro. */
+@keyframes cor-arco-iris {
+  0%,
+  100% {
+    --cor-neuronio: #ff6b6b;
+  }
+
+  17% {
+    --cor-neuronio: #ffb84d;
+  }
+
+  33% {
+    --cor-neuronio: #fff05c;
+  }
+
+  50% {
+    --cor-neuronio: #5be49b;
+  }
+
+  67% {
+    --cor-neuronio: #4db8ff;
+  }
+
+  83% {
+    --cor-neuronio: #b57bff;
+  }
+}
+
+.efeito-arco_iris {
+  animation: cor-arco-iris 5s linear infinite;
+}
+
+/* Aurora: a cor passeia, devagar, entre verde, ciano e violeta. */
+@keyframes cor-aurora {
+  0%,
+  100% {
+    --cor-neuronio: #5bffb0;
+  }
+
+  33% {
+    --cor-neuronio: #3ee6e0;
+  }
+
+  66% {
+    --cor-neuronio: #a58bff;
+  }
+}
+
+.efeito-aurora {
+  animation: cor-aurora 8s ease-in-out infinite;
+}
+
+/* Galáxia: violeta e azul profundos, com estrelas girando em volta. */
+@keyframes cor-galaxia {
+  0%,
+  100% {
+    --cor-neuronio: #b69cff;
+  }
+
+  50% {
+    --cor-neuronio: #7f9cff;
+  }
+}
+
+.efeito-galaxia {
+  animation: cor-galaxia 10s ease-in-out infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.neuronio-orbita {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: girar 14s linear infinite;
+}
+
+.neuronio-orbita circle {
+  fill: #fff;
+  filter: drop-shadow(0 0 2px var(--cor-neuronio));
+}
+
+/* Pulsar: o brilho respira. */
+@keyframes pulsar-brilho {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 var(--raio-brilho) var(--cor-neuronio)) drop-shadow(0 0 0 transparent);
+  }
+
+  50% {
+    filter: drop-shadow(0 0 calc(var(--raio-brilho) * 3) var(--cor-neuronio))
+      drop-shadow(0 0 var(--raio-brilho) var(--cor-neuronio));
+  }
+}
+
+.neuronio.efeito-pulsar .neuronio-desenho {
+  animation: pulsar-brilho 1.6s ease-in-out infinite;
+}
+
+@keyframes pulsar-escala {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.35);
+  }
+}
+
+.rede-neuronio.efeito-pulsar .rede-corpo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulsar-escala 1.6s ease-in-out infinite;
+}
+
+@keyframes pulsar-amostra {
+  0%,
+  100% {
+    box-shadow: 0 0 2px currentcolor;
+  }
+
+  50% {
+    box-shadow: 0 0 12px currentcolor;
+  }
+}
+
+.amostra.efeito-pulsar {
+  animation: pulsar-amostra 1.6s ease-in-out infinite;
+}
+
+/* Tempestade: faíscas de raio em volta do neurônio. */
+.neuronio-raio {
+  fill: none;
+  stroke: #eef4ff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  filter: drop-shadow(0 0 2px var(--cor-neuronio));
+  animation: relampejar 2.6s steps(1, end) infinite;
+}
+
+.neuronio-raio:nth-child(2) {
+  animation-delay: 0.7s;
+}
+
+.neuronio-raio:nth-child(3) {
+  animation-delay: 1.3s;
+}
+
+.neuronio-raio:nth-child(4) {
+  animation-delay: 1.9s;
+}
+
+.neuronio-raio:nth-child(5) {
+  animation-delay: 0.35s;
+}
+
+/* Cada raio acende por uns 0,3 s, com uma piscada no meio, como um relâmpago. */
+@keyframes relampejar {
+  0%,
+  16%,
+  100% {
+    opacity: 0;
+  }
+
+  2%,
+  10% {
+    opacity: 1;
+  }
+
+  6% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes faiscar {
+  0%,
+  100% {
+    box-shadow: 0 0 3px currentcolor;
+  }
+
+  4%,
+  8% {
+    box-shadow:
+      0 0 10px #eef4ff,
+      0 0 4px currentcolor;
+  }
+}
+
+.amostra.efeito-tempestade {
+  animation: faiscar 2.6s steps(1, end) infinite;
+}
+
+/* Aura dos neurônios da rede com Tempestade e Galáxia: um anel pontilhado que gira
+   (e, na tempestade, pisca como faísca). */
+.rede-aura {
+  fill: none;
+  stroke: var(--cor-neuronio);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-dasharray: 0.5 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: calc(var(--opacidade, 0.8) * 0.9);
+  animation: girar 6s linear infinite;
+  pointer-events: none;
+}
+
+.efeito-tempestade .rede-aura {
+  stroke: #eef4ff;
+  stroke-dasharray: 2 4;
+  animation:
+    girar 3s linear infinite,
+    relampejar 2.6s steps(1, end) infinite;
+}
+
+/* Quem prefere menos movimento vê só a cor, sem animação. */
+@media (prefers-reduced-motion: reduce) {
+  .com-efeito,
+  .com-efeito * {
+    animation: none !important;
+  }
+}

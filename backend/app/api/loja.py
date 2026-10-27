@@ -5,7 +5,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from app.application.loja import LojaService, SituacaoItem, VitrineLoja
+from app.application.loja import LojaService, SituacaoCor, VitrineLoja
+from app.domain.loja import Efeito
 from app.domain.tempo import agora
 from app.infra.repositorios import RepositorioCarteiraDjango
 
@@ -15,90 +16,86 @@ def _servico() -> LojaService:
     return LojaService(RepositorioCarteiraDjango(), relogio=lambda: agora())
 
 
-def _item_json(situacao: SituacaoItem) -> dict:
-    item = situacao.item
+def _cor_json(situacao: SituacaoCor) -> dict:
+    cor = situacao.cor
     return {
-        "codigo": item.codigo,
-        "nome": item.tipo.nome,
-        "forma": item.forma,
-        "cor": item.tipo.cor,
-        "preco": item.preco,
-        "duracao_minima": item.tipo.duracao_minima,
-        "duracao_maxima": item.tipo.duracao_maxima,
-        "desbloqueado": situacao.desbloqueado,
-        "em_uso": situacao.em_uso,
+        "codigo": cor.codigo,
+        "nome": cor.nome,
+        "cor": cor.hex,
+        "efeito": cor.efeito.value if cor.efeito else None,
+        "preco": cor.preco,
+        "desbloqueada": situacao.desbloqueada,
     }
 
 
 def _vitrine_json(vitrine: VitrineLoja) -> dict:
-    return {"saldo": vitrine.saldo, "tipos": [_item_json(i) for i in vitrine.itens]}
+    return {"saldo": vitrine.saldo, "cores": [_cor_json(c) for c in vitrine.cores]}
 
 
-class TipoLojaSerializer(serializers.Serializer):
-    codigo = serializers.CharField(help_text="Identificador do tipo, usado na compra.")
+class CorLojaSerializer(serializers.Serializer):
+    codigo = serializers.CharField(help_text="Identificador da cor, usado na compra.")
     nome = serializers.CharField()
-    forma = serializers.ChoiceField(
-        choices=["granular", "piramidal", "purkinje"],
-        help_text="O desenho do neurônio, que continua ligado à duração da sessão.",
+    cor = serializers.CharField(
+        help_text="Hexadecimal #RRGGBB: vai na matéria; é o que se vê sem animação."
     )
-    cor = serializers.CharField(help_text="Cor do neurônio (hexadecimal).")
-    preco = serializers.IntegerField(help_text="Em ATP. 0: tipo original, de todos.")
-    duracao_minima = serializers.IntegerField(help_text="Em minutos.")
-    duracao_maxima = serializers.IntegerField(
-        allow_null=True, help_text="Em minutos; null: sem limite."
+    efeito = serializers.ChoiceField(
+        choices=[e.value for e in Efeito],
+        allow_null=True,
+        help_text="Animação da cor; null nas cores lisas.",
     )
-    desbloqueado = serializers.BooleanField()
-    em_uso = serializers.BooleanField(
-        help_text="Se as próximas sessões desta faixa criam neurônios deste tipo."
+    preco = serializers.IntegerField(help_text="Em ATP. 0: cor da paleta, de todos.")
+    desbloqueada = serializers.BooleanField(
+        help_text="Se o estudante pode dar esta cor a uma matéria."
     )
 
 
 class LojaRespostaSerializer(serializers.Serializer):
     saldo = serializers.IntegerField(help_text="ATP disponível.")
-    tipos = TipoLojaSerializer(many=True)
+    cores = CorLojaSerializer(many=True)
 
 
 _EXEMPLO_LOJA = {
     "saldo": 120,
-    "tipos": [
+    "cores": [
         {
-            "codigo": "piramidal",
-            "nome": "Piramidal",
-            "forma": "piramidal",
+            "codigo": "violeta",
+            "nome": "Violeta",
             "cor": "#8B7BFF",
+            "efeito": None,
             "preco": 0,
-            "duracao_minima": 25,
-            "duracao_maxima": 59,
-            "desbloqueado": True,
-            "em_uso": False,
+            "desbloqueada": True,
         },
         {
-            "codigo": "piramidal_rosa",
-            "nome": "Piramidal Rosa",
-            "forma": "piramidal",
-            "cor": "#FF6FB5",
+            "codigo": "magenta_neon",
+            "nome": "Magenta neon",
+            "cor": "#FF3DF0",
+            "efeito": None,
             "preco": 250,
-            "duracao_minima": 25,
-            "duracao_maxima": 59,
-            "desbloqueado": True,
-            "em_uso": True,
+            "desbloqueada": True,
+        },
+        {
+            "codigo": "arco_iris",
+            "nome": "Arco-íris",
+            "cor": "#FF7AD9",
+            "efeito": "arco_iris",
+            "preco": 1200,
+            "desbloqueada": False,
         },
     ],
 }
 
 _RESPOSTA_LOJA = OpenApiResponse(
     LojaRespostaSerializer,
-    examples=[OpenApiExample("Com uma variação comprada", _EXEMPLO_LOJA)],
+    examples=[OpenApiExample("Com uma cor comprada", _EXEMPLO_LOJA)],
 )
-_404 = OpenApiResponse(description="Tipo que não está à venda.")
 
 
 @extend_schema(
     summary="Loja de ATP",
     description=(
-        "O saldo de ATP e os tipos de neurônio: os originais (preço 0) e as "
-        "variações de cor que podem ser compradas. Cada sessão concluída rende 1 "
-        "ATP por minuto."
+        "O saldo de ATP e todas as cores das matérias: as 8 da paleta (preço 0) e as "
+        "exclusivas da loja, algumas com efeitos animados. Cada sessão concluída "
+        "rende 1 ATP por minuto."
     ),
     responses={200: _RESPOSTA_LOJA, 401: OpenApiResponse(description="Sem login.")},
     tags=["Loja"],
@@ -110,16 +107,16 @@ def loja(request):
 
 
 @extend_schema(
-    summary="Comprar tipo de neurônio",
+    summary="Comprar cor",
     description=(
-        "Desconta o preço do saldo, desbloqueia o tipo e já passa a usá-lo nas "
-        "próximas sessões da faixa de duração dele. Devolve a loja atualizada."
+        "Desconta o preço do saldo e desbloqueia a cor para as matérias do "
+        "estudante. Devolve a loja atualizada."
     ),
     request=None,
     responses={
         200: _RESPOSTA_LOJA,
-        404: _404,
-        409: OpenApiResponse(description="Saldo insuficiente ou tipo já comprado."),
+        404: OpenApiResponse(description="Cor que não está à venda."),
+        409: OpenApiResponse(description="Saldo insuficiente ou cor já comprada."),
     },
     tags=["Loja"],
 )
@@ -128,26 +125,4 @@ def loja(request):
 def comprar(request, codigo):
     with transaction.atomic():
         vitrine = _servico().comprar(request.user.id, codigo)
-    return Response(_vitrine_json(vitrine))
-
-
-@extend_schema(
-    summary="Usar tipo de neurônio",
-    description=(
-        "Escolhe o tipo das próximas sessões da faixa de duração dele. Usar um tipo "
-        "original volta ao padrão. Devolve a loja atualizada."
-    ),
-    request=None,
-    responses={
-        200: _RESPOSTA_LOJA,
-        404: _404,
-        409: OpenApiResponse(description="Tipo ainda não comprado."),
-    },
-    tags=["Loja"],
-)
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def usar(request, codigo):
-    with transaction.atomic():
-        vitrine = _servico().usar(request.user.id, codigo)
     return Response(_vitrine_json(vitrine))

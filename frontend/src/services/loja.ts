@@ -1,36 +1,38 @@
-import type { TipoNeuronio } from '../utils/neuronio'
+import type { Efeito } from '../utils/efeitos'
 import { api } from './api'
+import { CORES_MATERIAS } from './materias'
 
-/** Um tipo de neurônio da loja de ATP, como vem do `GET /loja` (issue #34). */
-export interface TipoLojaApi {
+/** Uma cor das matérias, como vem do `GET /loja` (issue #34). */
+export interface CorLojaApi {
   codigo: string
   nome: string
-  /** O desenho do neurônio, que continua ligado à duração da sessão. */
-  forma: TipoNeuronio
+  /** Hexadecimal `#RRGGBB`: vai na matéria e é o que se vê sem animação. */
   cor: string
-  /** Em ATP; 0 é o tipo original, que todo estudante já tem. */
+  efeito: Efeito | null
+  /** Em ATP; 0 é uma das 8 cores da paleta, que todo estudante já tem. */
   preco: number
-  duracao_minima: number
-  duracao_maxima: number | null
-  desbloqueado: boolean
-  /** Se as próximas sessões desta faixa de duração criam neurônios deste tipo. */
-  em_uso: boolean
+  /** Se o estudante pode dar esta cor a uma matéria. */
+  desbloqueada: boolean
 }
 
 export interface LojaApi {
   saldo: number
-  tipos: TipoLojaApi[]
+  /** A paleta inteira: as gratuitas primeiro, depois as da loja. */
+  cores: CorLojaApi[]
 }
+
+/** As 8 cores gratuitas, para quando a paleta completa (`GET /loja`) não carregar. */
+export const PALETA_GRATUITA: CorLojaApi[] = CORES_MATERIAS.map((cor) => ({
+  codigo: cor.nome.toLowerCase(),
+  nome: cor.nome,
+  cor: cor.hex,
+  efeito: null,
+  preco: 0,
+  desbloqueada: true,
+}))
 
 export const lojaApi = {
   buscar: () => api.get<LojaApi>('/loja'),
-  /** Compra e já passa a usar o tipo. Devolve a loja atualizada. */
+  /** Compra a cor para as matérias. Devolve a loja atualizada. */
   comprar: (codigo: string) => api.post<LojaApi>(`/loja/${encodeURIComponent(codigo)}/comprar`),
-  /** Escolhe o tipo das próximas sessões; o original volta ao padrão. */
-  usar: (codigo: string) => api.post<LojaApi>(`/loja/${encodeURIComponent(codigo)}/usar`),
-}
-
-/** A cor do tipo em uso para cada forma, para desenhar o neurônio que vai nascer. */
-export function coresEmUso(loja: LojaApi): Partial<Record<TipoNeuronio, string>> {
-  return Object.fromEntries(loja.tipos.filter((t) => t.em_uso).map((t) => [t.forma, t.cor]))
 }

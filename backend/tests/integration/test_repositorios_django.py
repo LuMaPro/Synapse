@@ -7,12 +7,12 @@ from django.db import IntegrityError, transaction
 from app.domain.carteira import Carteira
 from app.domain.entidades.conquista import ConquistaDesbloqueada
 from app.domain.entidades.materia import Materia
-from app.domain.entidades.neuronio import Neuronio, Piramidal
+from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import Concluida, EmAndamento, Podada, SessaoFoco
 from app.domain.entidades.usuario import Usuario
-from app.domain.loja import item_por_codigo
+from app.domain.loja import cor_por_codigo
 from app.domain.politica_interrupcao import Interrupcao, ModoTolerante
-from app.infra.modelos.carteira import CarteiraModel
+from app.infra.modelos.carteira import CarteiraModel, CorDesbloqueadaModel
 from app.infra.modelos.neuronio import NeuronioModel
 from app.infra.modelos.sessao_foco import SessaoFocoModel
 from app.infra.modelos.sinapse import SinapseModel
@@ -465,7 +465,7 @@ class TestRepositorioConquistaDjango:
 
 
 class TestRepositorioCarteiraDjango:
-    """Persistência da carteira de ATP e dos tipos da loja (#34)."""
+    """Persistência da carteira de ATP e das cores compradas (#34)."""
 
     @pytest.fixture
     def usuario(self):
@@ -475,29 +475,22 @@ class TestRepositorioCarteiraDjango:
         carteira = RepositorioCarteiraDjango().carregar(usuario.id)
 
         assert carteira.saldo == 0
-        assert carteira.desbloqueados == {}
+        assert carteira.desbloqueadas == {}
         assert not CarteiraModel.objects.filter(usuario=usuario).exists()
 
     def test_carteira_ida_e_volta(self, usuario):
         repo = RepositorioCarteiraDjango()
         quando = datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
         carteira = Carteira(usuario.id, saldo=400)
-        carteira.comprar(item_por_codigo("piramidal_rosa"), quando)
-        carteira.comprar(item_por_codigo("granular_lima"), quando)
+        carteira.comprar(cor_por_codigo("magenta_neon"), quando)
+        carteira.comprar(cor_por_codigo("lavanda"), quando)
         repo.salvar(carteira)
-        repo.salvar(carteira)  # Gravar de novo não duplica os tipos.
+        repo.salvar(carteira)  # Gravar de novo não duplica as cores.
 
         lida = repo.carregar(usuario.id)
 
         assert lida.saldo == 50
-        assert lida.desbloqueados == {
-            "piramidal_rosa": quando,
-            "granular_lima": quando,
-        }
-        assert lida.em_uso == {
-            "piramidal": "piramidal_rosa",
-            "granular": "granular_lima",
-        }
+        assert lida.desbloqueadas == {"magenta_neon": quando, "lavanda": quando}
 
     def test_carregar_para_alterar_cria_a_carteira(self, usuario):
         with transaction.atomic():
@@ -512,32 +505,13 @@ class TestRepositorioCarteiraDjango:
         with pytest.raises(IntegrityError), transaction.atomic():
             CarteiraModel.objects.create(usuario=usuario, saldo=-1)
 
-    def test_neuronio_guarda_o_tipo_da_loja(self, usuario):
-        sessao = SessaoFoco(usuario.id, 30, inicio=INICIO, estado=Concluida())
-        RepositorioSessaoDjango().salvar(sessao)
-        rosa = item_por_codigo("piramidal_rosa").tipo
-        repo = RepositorioRedeNeuralDjango()
-        rede = repo.carregar(usuario.id)
-        rede.adicionar(Neuronio(usuario.id, sessao.id, 30, tipo=rosa, criado_em=INICIO))
-        repo.salvar(rede)
-
-        [neuronio] = repo.carregar(usuario.id).neuronios
-
-        assert neuronio.tipo == rosa
-        assert neuronio.cor == "#FF6FB5"
-
-    @pytest.mark.parametrize("codigo", ["", "aposentado"])
-    def test_neuronio_sem_tipo_conhecido_usa_o_da_duracao(self, usuario, codigo):
-        sessao = SessaoFoco(usuario.id, 30, inicio=INICIO, estado=Concluida())
-        RepositorioSessaoDjango().salvar(sessao)
-        NeuronioModel.objects.create(
-            usuario=usuario,
-            sessao_id=sessao.id,
-            duracao_minutos=30,
-            criado_em=INICIO,
-            tipo=codigo,
+    def test_o_banco_recusa_a_mesma_cor_duas_vezes(self, usuario):
+        quando = datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
+        CorDesbloqueadaModel.objects.create(
+            usuario=usuario, codigo="lavanda", desbloqueada_em=quando
         )
 
-        [neuronio] = RepositorioRedeNeuralDjango().carregar(usuario.id).neuronios
-
-        assert neuronio.tipo == Piramidal()
+        with pytest.raises(IntegrityError), transaction.atomic():
+            CorDesbloqueadaModel.objects.create(
+                usuario=usuario, codigo="lavanda", desbloqueada_em=quando
+            )

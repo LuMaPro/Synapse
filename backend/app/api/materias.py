@@ -9,34 +9,45 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from app.application.loja import LojaService
 from app.application.materias import MateriaService
 from app.domain.entidades.materia import Materia
 from app.domain.excecoes import (
+    CorBloqueada,
     CorInvalida,
     ErroDominio,
     MateriaJaExiste,
     MateriaNaoEncontrada,
     NomeMateriaInvalido,
 )
-from app.infra.repositorios import RepositorioMateriaDjango
+from app.domain.loja import Efeito, cor_por_hex
+from app.infra.repositorios import RepositorioCarteiraDjango, RepositorioMateriaDjango
 
 ERROS_MATERIA: dict[type[ErroDominio], tuple[int, str]] = {
     MateriaNaoEncontrada: (status.HTTP_404_NOT_FOUND, "materia_nao_encontrada"),
     MateriaJaExiste: (status.HTTP_409_CONFLICT, "materia_ja_existe"),
     NomeMateriaInvalido: (status.HTTP_400_BAD_REQUEST, "nome_invalido"),
     CorInvalida: (status.HTTP_400_BAD_REQUEST, "cor_invalido"),
+    CorBloqueada: (status.HTTP_409_CONFLICT, "cor_bloqueada"),
 }
 
 
 def _servico() -> MateriaService:
-    return MateriaService(RepositorioMateriaDjango())
+    # Com a loja, a cor precisa ser da paleta: gratuita ou comprada (#34).
+    return MateriaService(
+        RepositorioMateriaDjango(), LojaService(RepositorioCarteiraDjango())
+    )
 
 
 def _materia_json(materia: Materia) -> dict[str, Any]:
+    cor_da_loja = cor_por_hex(materia.cor)
     return {
         "id": str(materia.id),
         "nome": materia.nome,
         "cor": materia.cor,
+        "efeito": cor_da_loja.efeito.value
+        if cor_da_loja and cor_da_loja.efeito
+        else None,
         "criada_em": materia.criada_em.isoformat(),
     }
 
@@ -66,7 +77,12 @@ def _erro_de_validacao(serializer: serializers.Serializer) -> Response:
 class MateriaRespostaSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     nome = serializers.CharField()
-    cor = serializers.CharField()
+    cor = serializers.CharField(help_text="Hexadecimal #RRGGBB.")
+    efeito = serializers.ChoiceField(
+        choices=[e.value for e in Efeito],
+        allow_null=True,
+        help_text="Animação da cor, se ela for uma cor com efeito da loja (#34).",
+    )
     criada_em = serializers.DateTimeField()
 
 
@@ -120,13 +136,16 @@ _404 = OpenApiResponse(description="Matéria inexistente ou de outro estudante."
     methods=["POST"],
     summary="Criar matéria",
     description=(
-        "Cadastra uma nova matéria com nome e código hexadecimal de cor (#RRGGBB)."
+        "Cadastra uma nova matéria com nome e cor (#RRGGBB). A cor é uma das da "
+        "paleta (`GET /loja`): uma das 8 gratuitas ou uma comprada na loja."
     ),
     request=CriarMateriaSerializer,
     responses={
         201: MateriaRespostaSerializer,
-        400: OpenApiResponse(description="Nome ou cor inválidos."),
-        409: OpenApiResponse(description="Matéria com este nome já cadastrada."),
+        400: OpenApiResponse(description="Nome inválido ou cor fora da paleta."),
+        409: OpenApiResponse(
+            description="Nome já cadastrado em outra matéria, ou cor não comprada."
+        ),
     },
     tags=["Matérias"],
 )
@@ -161,13 +180,18 @@ def materias(request) -> Response:
 @extend_schema(
     methods=["PATCH"],
     summary="Atualizar matéria",
-    description="Atualiza o nome e/ou cor de uma matéria existente.",
+    description=(
+        "Atualiza o nome e/ou cor de uma matéria existente. A nova cor vale para "
+        "todos os neurônios da matéria na rede."
+    ),
     request=AtualizarMateriaSerializer,
     responses={
         200: MateriaRespostaSerializer,
-        400: OpenApiResponse(description="Dados inválidos."),
+        400: OpenApiResponse(description="Dados inválidos ou cor fora da paleta."),
         404: _404,
-        409: OpenApiResponse(description="Nome em conflito com outra matéria."),
+        409: OpenApiResponse(
+            description="Nome em conflito com outra matéria, ou cor ainda não comprada."
+        ),
     },
     tags=["Matérias"],
 )

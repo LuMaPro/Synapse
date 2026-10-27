@@ -1,10 +1,22 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { PaletaCores } from '../components/PaletaCores'
 import { useMaterias } from '../hooks/useMaterias'
+import { lojaApi, PALETA_GRATUITA, type CorLojaApi } from '../services/loja'
 import { CORES_MATERIAS, type Materia } from '../services/materias'
 import '../styles/materias.css'
+import { amostraDaCor } from '../utils/efeitos'
 
 export function Materias() {
   const { materias, carregando, erro: erroListagem, criar, atualizar, remover } = useMaterias()
+  // A paleta completa, com as cores da loja (#34); sem ela, as 8 gratuitas.
+  const [paleta, setPaleta] = useState<CorLojaApi[]>(PALETA_GRATUITA)
+
+  useEffect(() => {
+    lojaApi
+      .buscar()
+      .then((loja) => setPaleta(loja.cores))
+      .catch(() => {})
+  }, [])
 
   // Estado do formulário de criação
   const [nomeNovo, setNomeNovo] = useState('')
@@ -114,22 +126,13 @@ export function Materias() {
           <span className="rotulo-paleta" id="rotulo-cor-nova">
             Cor
           </span>
-          <div className="paleta-cores" role="radiogroup" aria-labelledby="rotulo-cor-nova">
-            {CORES_MATERIAS.map((cor) => (
-              <button
-                key={cor.hex}
-                type="button"
-                className={`amostra-cor ${corNova === cor.hex ? 'ativa' : ''}`}
-                style={{ background: cor.hex }}
-                aria-label={`Cor ${cor.nome}`}
-                title={cor.nome}
-                role="radio"
-                aria-checked={corNova === cor.hex}
-                onClick={() => setCorNova(cor.hex)}
-                disabled={salvandoNovo}
-              />
-            ))}
-          </div>
+          <PaletaCores
+            cores={paleta}
+            valor={corNova}
+            onEscolher={setCorNova}
+            rotuloId="rotulo-cor-nova"
+            desabilitada={salvandoNovo}
+          />
         </div>
 
         {erroCriacao && (
@@ -198,26 +201,13 @@ export function Materias() {
                         <span className="rotulo-paleta" id={`rotulo-cor-${materia.id}`}>
                           Cor
                         </span>
-                        <div
-                          className="paleta-cores"
-                          role="radiogroup"
-                          aria-labelledby={`rotulo-cor-${materia.id}`}
-                        >
-                          {CORES_MATERIAS.map((cor) => (
-                            <button
-                              key={cor.hex}
-                              type="button"
-                              className={`amostra-cor ${corEdicao === cor.hex ? 'ativa' : ''}`}
-                              style={{ background: cor.hex }}
-                              aria-label={`Cor ${cor.nome}`}
-                              title={cor.nome}
-                              role="radio"
-                              aria-checked={corEdicao === cor.hex}
-                              onClick={() => setCorEdicao(cor.hex)}
-                              disabled={salvandoEdicao}
-                            />
-                          ))}
-                        </div>
+                        <PaletaCores
+                          cores={paleta}
+                          valor={corEdicao}
+                          onEscolher={setCorEdicao}
+                          rotuloId={`rotulo-cor-${materia.id}`}
+                          desabilitada={salvandoEdicao}
+                        />
                       </div>
 
                       {erroEdicao && (
@@ -253,8 +243,7 @@ export function Materias() {
                   <div className="materia-linha">
                     <div className="materia-info">
                       <i
-                        className="indicador-cor"
-                        style={{ background: materia.cor, color: materia.cor }}
+                        {...amostraDaCor(materia.cor, materia.efeito, 'indicador-cor')}
                         aria-hidden="true"
                       />
                       <span>{materia.nome}</span>

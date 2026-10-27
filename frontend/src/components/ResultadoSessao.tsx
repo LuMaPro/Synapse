@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import type { MotivoPoda } from '../hooks/useSessaoFoco'
+import type { Efeito } from '../utils/efeitos'
 import { NOME_TIPO_NEURONIO, tipoNeuronio } from '../utils/neuronio'
 import { formatarTempo } from '../utils/tempo'
 import { NeuronioAnimado } from './NeuronioAnimado'
@@ -11,8 +12,10 @@ interface ResultadoSessaoProps {
   decorridoMs: number
   /** Quanto o neurônio tinha crescido quando a sessão terminou. */
   progresso: number
-  /** Cor do neurônio: a da matéria (#28) ou a do tipo escolhido na loja (#34). */
+  /** Cor da matéria selecionada na sessão (#28). */
   cor?: string
+  /** Animação da cor da matéria, se for uma cor com efeito da loja (#34). */
+  efeito?: Efeito | null
   /** Nome da matéria selecionada na sessão (#28). */
   nomeMateria?: string | null
   /** ATP ganho com a sessão concluída (#34). */
@@ -28,6 +31,7 @@ export function ResultadoSessao({
   decorridoMs,
   progresso,
   cor,
+  efeito,
   nomeMateria,
   atp,
   onFocarDeNovo,
@@ -43,7 +47,14 @@ export function ResultadoSessao({
             Neurônio formado!
           </h1>
         </div>
-        <NeuronioAnimado tipo={tipo} progresso={1} brilho="forte" tamanho={240} cor={cor} />
+        <NeuronioAnimado
+          tipo={tipo}
+          progresso={1}
+          brilho="forte"
+          tamanho={240}
+          cor={cor}
+          efeito={efeito}
+        />
         <p className="subtitulo-resultado">
           {NOME_TIPO_NEURONIO[tipo]} · {duracaoMin} min
           {nomeMateria ? ` · ${nomeMateria}` : ''}

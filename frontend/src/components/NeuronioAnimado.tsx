@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import '../styles/neuronio.css'
+import { classeDoEfeito, type Efeito } from '../utils/efeitos'
 import { desenharNeuronio } from '../utils/geometriaNeuronio'
 import { COR_PADRAO_TIPO_NEURONIO, NOME_TIPO_NEURONIO, type TipoNeuronio } from '../utils/neuronio'
 
@@ -30,8 +31,10 @@ interface NeuronioAnimadoProps {
   progresso: number
   /** Sessão interrompida: recolhe os ramos e fica cinza, sem brilho. */
   podado?: boolean
-  /** Cor da matéria (#28) ou do tipo escolhido na loja (#34). Sem ela, a padrão. */
+  /** Cor da matéria (#28). Sem ela, usa a cor padrão do tipo. */
   cor?: string
+  /** Animação da cor da matéria, se ela for uma cor com efeito da loja (#34). */
+  efeito?: Efeito | null
   /** Brilho mais forte para o neurônio recém-formado (tela de sucesso). */
   brilho?: 'normal' | 'forte'
   /** Largura e altura em px. */
@@ -54,6 +57,7 @@ export function NeuronioAnimado({
   brilho = 'normal',
   tamanho = 260,
   rotulo,
+  efeito,
 }: NeuronioAnimadoProps) {
   // O primeiro quadro mostra o neurônio vivo e com brilho normal; só depois aplica a
   // poda ou o brilho forte. Assim a transição acontece na frente do estudante.
@@ -70,6 +74,9 @@ export function NeuronioAnimado({
   const classes = ['neuronio']
   if (podadoAgora) classes.push('neuronio-podado')
   if (brilhoForte) classes.push('neuronio-brilho-forte')
+  // O neurônio podado é sempre cinza, sem efeito.
+  const efeitoAtivo = podado ? null : efeito
+  if (efeitoAtivo) classes.push(classeDoEfeito(efeitoAtivo))
 
   // Podado, a cor cinza vem do CSS (.neuronio-podado); vivo, a da matéria ou a do tipo.
   // O raio equivale ao feGaussianBlur (stdDeviation 2.6) do protótipo, na escala do SVG.
@@ -139,6 +146,48 @@ export function NeuronioAnimado({
           />
         )}
       </g>
+      {efeitoAtivo === 'tempestade' && <Raios />}
+      {efeitoAtivo === 'galaxia' && <Estrelas />}
     </svg>
+  )
+}
+
+/** Faíscas da cor Tempestade: raios curtos em volta do neurônio, piscando. */
+function Raios() {
+  return (
+    <g className="neuronio-raios" aria-hidden="true">
+      {[-60, 15, 95, 160, 235].map((angulo) => (
+        <path
+          key={angulo}
+          className="neuronio-raio"
+          d="M-1 -9 L3 -2 L-2 0 L2 9"
+          transform={`rotate(${angulo}) translate(0 -64)`}
+        />
+      ))}
+    </g>
+  )
+}
+
+/** Estrelas da cor Galáxia, girando em volta do neurônio. */
+function Estrelas() {
+  const estrelas = [
+    [0, 66, 2.8],
+    [50, 58, 1.8],
+    [110, 70, 2.4],
+    [170, 61, 1.6],
+    [225, 68, 2.6],
+    [290, 57, 2],
+  ]
+  return (
+    <g className="neuronio-orbita" aria-hidden="true">
+      {estrelas.map(([angulo, distancia, raio]) => (
+        <circle
+          key={angulo}
+          cx={Math.sin((angulo * Math.PI) / 180) * distancia}
+          cy={-Math.cos((angulo * Math.PI) / 180) * distancia}
+          r={raio}
+        />
+      ))}
+    </g>
   )
 }

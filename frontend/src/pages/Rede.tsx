@@ -6,6 +6,7 @@ import { listarMaterias, type Materia } from '../services/materias'
 import { buscarRede, type NeuronioRede, type RedeApi } from '../services/rede'
 import '../styles/foco.css'
 import '../styles/rede.css'
+import { amostraDaCor } from '../utils/efeitos'
 import { inicioDoPeriodo, type Periodo } from '../utils/redeNeural'
 
 const PERIODOS: { valor: Periodo; rotulo: string }[] = [
@@ -58,6 +59,10 @@ export function Rede() {
   const materiaPorId = useMemo(() => new Map(materias.map((m) => [m.id, m])), [materias])
   const corDe = useCallback(
     (n: NeuronioRede) => (n.materia_id && materiaPorId.get(n.materia_id)?.cor) || n.cor,
+    [materiaPorId],
+  )
+  const efeitoDe = useCallback(
+    (n: NeuronioRede) => (n.materia_id && materiaPorId.get(n.materia_id)?.efeito) || null,
     [materiaPorId],
   )
   const nomeDaMateria = useCallback(
@@ -124,6 +129,7 @@ export function Rede() {
             neuronios={rede.neuronios}
             sinapses={rede.sinapses}
             corDe={corDe}
+            efeitoDe={efeitoDe}
             nomeDaMateria={nomeDaMateria}
           />
         </div>
@@ -175,7 +181,7 @@ export function Rede() {
               aria-pressed={materiaId === materia.id}
               onClick={() => setMateriaId(materia.id)}
             >
-              <i style={{ background: materia.cor }} aria-hidden="true" />
+              <i {...amostraDaCor(materia.cor, materia.efeito)} aria-hidden="true" />
               {materia.nome}
             </button>
           ))}

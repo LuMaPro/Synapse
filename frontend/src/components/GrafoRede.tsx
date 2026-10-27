@@ -8,10 +8,12 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
   type PointerEvent,
 } from 'react'
 import type { NeuronioRede, SinapseRede } from '../services/rede'
+import { classeDoEfeito, type Efeito } from '../utils/efeitos'
 import { NOME_TIPO_NEURONIO } from '../utils/neuronio'
 import {
   dendritos,
@@ -34,6 +36,8 @@ interface NeuronioGrafoProps {
   x: number
   y: number
   cor: string
+  /** Animação da cor da matéria (#34); o podado nunca tem. */
+  efeito: Efeito | null
   estado: EstadoNeuronio
   onAtivar: (id: string) => void
 }
@@ -44,15 +48,23 @@ const NeuronioGrafo = memo(function NeuronioGrafo({
   x,
   y,
   cor,
+  efeito,
   estado,
   onAtivar,
 }: NeuronioGrafoProps) {
   const raio = raioDoNeuronio(neuronio) * (estado === 'foco' ? AUMENTO_FOCO : 1)
-  const classes = ['rede-neuronio', estado, neuronio.vivo ? undefined : 'podado']
+  const comEfeito = neuronio.vivo ? efeito : null
+  const classes = [
+    'rede-neuronio',
+    estado,
+    neuronio.vivo ? undefined : 'podado',
+    classeDoEfeito(comEfeito),
+  ]
 
   return (
     <g
       className={classes.filter(Boolean).join(' ')}
+      style={comEfeito ? ({ '--cor-neuronio': cor } as CSSProperties) : undefined}
       transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}
       data-id={neuronio.id}
       onPointerEnter={(evento: PointerEvent) => {
@@ -70,6 +82,9 @@ const NeuronioGrafo = memo(function NeuronioGrafo({
             strokeWidth={RAIO_TIPO[neuronio.tipo] * 0.28}
           />
           <circle className="rede-corpo" r={raio} fill={cor} />
+          {(comEfeito === 'tempestade' || comEfeito === 'galaxia') && (
+            <circle className="rede-aura" r={raio + 3.5} />
+          )}
         </>
       ) : (
         <circle className="rede-contorno-podado" r={raio} />
@@ -133,6 +148,8 @@ interface GrafoRedeProps {
   sinapses: SinapseRede[]
   /** Cor do neurônio vivo: a da matéria ou, sem matéria, a do tipo. */
   corDe: (neuronio: NeuronioRede) => string
+  /** Animação da cor da matéria, se for uma cor com efeito da loja (#34). */
+  efeitoDe?: (neuronio: NeuronioRede) => Efeito | null
   nomeDaMateria: (neuronio: NeuronioRede) => string | null
 }
 
@@ -145,7 +162,7 @@ interface GrafoRedeProps {
  * `transform` de um grupo, direto no DOM: o React não redesenha os neurônios a cada
  * quadro, o que mantém o movimento fluido com centenas deles.
  */
-export function GrafoRede({ neuronios, sinapses, corDe, nomeDaMateria }: GrafoRedeProps) {
+export function GrafoRede({ neuronios, sinapses, corDe, efeitoDe, nomeDaMateria }: GrafoRedeProps) {
   const areaRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const camadaRef = useRef<SVGGElement>(null)
@@ -317,6 +334,7 @@ export function GrafoRede({ neuronios, sinapses, corDe, nomeDaMateria }: GrafoRe
                   x={posicao.x}
                   y={posicao.y}
                   cor={n.vivo ? corDe(n) : n.cor}
+                  efeito={efeitoDe?.(n) ?? null}
                   estado={estadoDoNeuronio(n.id)}
                   onAtivar={ativar}
                 />

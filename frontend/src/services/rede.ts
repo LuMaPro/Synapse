@@ -1,3 +1,4 @@
+import type { Efeito } from '../utils/efeitos'
 import type { TipoNeuronio } from '../utils/neuronio'
 import { api } from './api'
 
@@ -5,11 +6,11 @@ import { api } from './api'
 export interface NeuronioRede {
   id: string
   tipo: TipoNeuronio
-  /** O tipo usado: o original ou uma variação de cor da loja (issue #34). */
-  variante?: string
   materia_id: string | null
   /** Cor do tipo; o podado vem sempre cinza. A tela troca pela cor da matéria. */
   cor: string
+  /** Animação da cor da matéria, se for uma cor com efeito da loja (issue #34). */
+  efeito?: Efeito | null
   criado_em: string
   duracao_minutos: number
   vivo: boolean

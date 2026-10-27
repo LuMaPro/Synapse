@@ -62,6 +62,35 @@ describe('NeuronioAnimado', () => {
     expect(corDoNeuronio()).toBe('')
   })
 
+  it('a cor com efeito da loja anima o neurônio (issue #34)', () => {
+    const { container, rerender } = render(
+      <NeuronioAnimado tipo="piramidal" progresso={1} cor="#A8C8FF" efeito="tempestade" />,
+    )
+    const svg = screen.getByRole('img')
+
+    expect(svg).toHaveClass('com-efeito', 'efeito-tempestade')
+    expect(container.querySelectorAll('.neuronio-raio')).toHaveLength(5)
+    expect(container.querySelector('.neuronio-orbita')).toBeNull()
+
+    rerender(<NeuronioAnimado tipo="piramidal" progresso={1} cor="#B69CFF" efeito="galaxia" />)
+    expect(svg).toHaveClass('efeito-galaxia')
+    expect(container.querySelectorAll('.neuronio-orbita circle')).toHaveLength(6)
+    expect(container.querySelector('.neuronio-raio')).toBeNull()
+
+    rerender(<NeuronioAnimado tipo="piramidal" progresso={1} cor="#FF7AD9" efeito="arco_iris" />)
+    expect(svg).toHaveClass('efeito-arco_iris')
+    expect(container.querySelector('.neuronio-orbita, .neuronio-raio')).toBeNull()
+  })
+
+  it('o neurônio podado não tem efeito', () => {
+    const { container } = render(
+      <NeuronioAnimado tipo="piramidal" progresso={1} cor="#A8C8FF" efeito="tempestade" podado />,
+    )
+
+    expect(screen.getByRole('img')).not.toHaveClass('com-efeito')
+    expect(container.querySelector('.neuronio-raio')).toBeNull()
+  })
+
   it('o tamanho controla a largura e a altura', () => {
     render(<NeuronioAnimado tipo="granular" progresso={1} tamanho={120} />)
 

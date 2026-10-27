@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AvisoSaida } from '../components/AvisoSaida'
 import { DialogoDesistir } from '../components/DialogoDesistir'
 import { NeuronioAnimado } from '../components/NeuronioAnimado'
@@ -9,9 +9,9 @@ import { SeletorModo } from '../components/SeletorModo'
 import { useDeteccaoSaida } from '../hooks/useDeteccaoSaida'
 import { useMaterias } from '../hooks/useMaterias'
 import { PROPORCAO_TOLERANCIA, useSessaoFoco } from '../hooks/useSessaoFoco'
-import { coresEmUso, lojaApi } from '../services/loja'
 import '../styles/foco.css'
 import { tipoNeuronio } from '../utils/neuronio'
+import { amostraDaCor } from '../utils/efeitos'
 import { formatarTempo } from '../utils/tempo'
 
 const MS_POR_MINUTO = 60_000
@@ -20,24 +20,12 @@ export function Foco() {
   const sessao = useSessaoFoco()
   const { materias } = useMaterias()
   const [confirmandoDesistencia, setConfirmandoDesistencia] = useState(false)
-  /** Cor do tipo escolhido na loja (#34) para cada forma; sem ela, a cor padrão. */
-  const [coresDaLoja, setCoresDaLoja] = useState<ReturnType<typeof coresEmUso>>({})
   const { foraDaTelaCheia } = useDeteccaoSaida(sessao.fase === 'em_andamento', {
     onSaida: sessao.sairDaTela,
     onRetorno: sessao.voltarParaTela,
   })
 
-  useEffect(() => {
-    // Só muda a cor do neurônio; sem a loja, a sessão segue igual.
-    lojaApi
-      .buscar()
-      .then((loja) => setCoresDaLoja(coresEmUso(loja)))
-      .catch(() => {})
-  }, [])
-
   const materiaAtual = materias.find((m) => m.id === sessao.materiaId)
-  // A cor da matéria vale mais; sem matéria, a do tipo em uso na loja.
-  const corDoNeuronio = materiaAtual?.cor ?? coresDaLoja[tipoNeuronio(sessao.duracaoMin)]
 
   if (sessao.fase === 'configurando') {
     return (
@@ -84,14 +72,15 @@ export function Foco() {
       <section className="tela-sessao" aria-label="Sessão de foco">
         <p className="selo">
           {materiaAtual && (
-            <i style={{ background: materiaAtual.cor }} aria-hidden="true" />
+            <i {...amostraDaCor(materiaAtual.cor, materiaAtual.efeito)} aria-hidden="true" />
           )}
           {materiaAtual ? `${materiaAtual.nome} · Modo ${sessao.modo}` : `Modo ${sessao.modo}`}
         </p>
         <NeuronioAnimado
           tipo={tipoNeuronio(sessao.duracaoMin)}
           progresso={sessao.progresso}
-          cor={corDoNeuronio}
+          cor={materiaAtual?.cor}
+          efeito={materiaAtual?.efeito}
         />
         <div className="centro">
           <p className="timer numero" role="timer" aria-label="Tempo restante">
@@ -144,8 +133,8 @@ export function Foco() {
       motivoPoda={sessao.motivoPoda}
       decorridoMs={sessao.decorridoMs}
       progresso={sessao.progresso}
-      // O neurônio que o servidor formou tem a cor do tipo com que ele nasceu.
-      cor={materiaAtual?.cor ?? sessao.conclusao?.neuronio.cor ?? corDoNeuronio}
+      cor={materiaAtual?.cor}
+      efeito={materiaAtual?.efeito}
       nomeMateria={materiaAtual?.nome}
       atp={sessao.conclusao?.atp}
       onFocarDeNovo={() => {

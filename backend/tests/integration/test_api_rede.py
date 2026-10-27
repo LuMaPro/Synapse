@@ -112,9 +112,9 @@ def test_devolve_a_rede_no_formato_de_grafo(cliente, usuario):
     assert corpo["neuronios"][0] == {
         "id": primeiro,
         "tipo": "granular",
-        "variante": "granular",
         "materia_id": str(CALCULO),
         "cor": "#3EE6E0",
+        "efeito": None,
         "criado_em": "2026-10-01T12:00:00+00:00",
         "duracao_minutos": 20,
         "vivo": True,
@@ -360,9 +360,9 @@ def test_swagger_documenta_o_formato_os_filtros_e_um_exemplo(cliente):
     assert set(componentes["NeuronioRede"]["properties"]) == {
         "id",
         "tipo",
-        "variante",
         "materia_id",
         "cor",
+        "efeito",
         "criado_em",
         "duracao_minutos",
         "vivo",

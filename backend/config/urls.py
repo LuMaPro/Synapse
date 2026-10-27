@@ -24,7 +24,6 @@ urlpatterns = [
     path("conquistas", conquistas.conquistas),
     path("loja", loja.loja),
     path("loja/<str:codigo>/comprar", loja.comprar),
-    path("loja/<str:codigo>/usar", loja.usar),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),
 ]

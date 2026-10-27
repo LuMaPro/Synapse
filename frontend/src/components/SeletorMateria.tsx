@@ -1,4 +1,5 @@
 import type { Materia } from '../services/materias'
+import { amostraDaCor } from '../utils/efeitos'
 
 interface SeletorMateriaProps {
   materias: Materia[]
@@ -31,7 +32,7 @@ export function SeletorMateria({
               onClick={() => onEscolher(materia.id)}
               disabled={disabled}
             >
-              <i style={{ background: materia.cor }} aria-hidden="true" />
+              <i {...amostraDaCor(materia.cor, materia.efeito)} aria-hidden="true" />
               {materia.nome}
             </button>
           )

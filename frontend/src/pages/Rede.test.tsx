@@ -286,6 +286,27 @@ describe('tela da rede neural', () => {
     expect(await screen.findByText('4 neurônios · 3 sinapses')).toBeInTheDocument()
   })
 
+  it('neurônios de matéria com cor de efeito animam, e os podados não (issue #34)', async () => {
+    const tempestade = { ...CALCULO, cor: '#A8C8FF', efeito: 'tempestade' as const }
+    simularApi({ materias: [tempestade, FISICA] })
+    renderizar()
+    await screen.findByText('4 neurônios · 3 sinapses')
+
+    // a e c são de Cálculo: com o efeito e a aura em volta; b e d, sem.
+    for (const id of ['a', 'c']) {
+      expect(doNeuronio(id)).toHaveClass('com-efeito', 'efeito-tempestade')
+      expect(doNeuronio(id)).toHaveStyle({ '--cor-neuronio': '#A8C8FF' })
+      expect(doNeuronio(id).querySelector('.rede-aura')).toBeInTheDocument()
+    }
+    for (const id of ['b', 'd']) {
+      expect(doNeuronio(id)).not.toHaveClass('com-efeito')
+      expect(doNeuronio(id).querySelector('.rede-aura')).toBeNull()
+    }
+    // O filtro de matéria mostra a cor com o efeito.
+    const chip = screen.getByRole('button', { name: 'Cálculo' })
+    expect(chip.querySelector('i')).toHaveClass('efeito-tempestade')
+  })
+
   it('se as matérias não carregarem, a rede aparece com as cores dos tipos', async () => {
     simularApi({ materias: 'erro' })
     renderizar()

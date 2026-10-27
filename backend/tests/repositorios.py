@@ -280,9 +280,4 @@ class RepositorioCarteiraMemoria(RepositorioCarteira):
 
     @staticmethod
     def _copia(carteira: Carteira) -> Carteira:
-        return Carteira(
-            carteira.usuario_id,
-            carteira.saldo,
-            carteira.desbloqueados,
-            carteira.em_uso,
-        )
+        return Carteira(carteira.usuario_id, carteira.saldo, carteira.desbloqueadas)

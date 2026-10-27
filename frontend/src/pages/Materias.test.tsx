@@ -3,8 +3,39 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../services/api'
+import { lojaApi, type CorLojaApi } from '../services/loja'
 import { materiasApi, type Materia } from '../services/materias'
 import { Materias } from './Materias'
+
+/** A paleta como vem do `GET /loja` (#34): três gratuitas, uma comprada e uma não. */
+const PALETA: CorLojaApi[] = [
+  {
+    codigo: 'violeta',
+    nome: 'Violeta',
+    cor: '#8B7BFF',
+    efeito: null,
+    preco: 0,
+    desbloqueada: true,
+  },
+  { codigo: 'verde', nome: 'Verde', cor: '#5BE49B', efeito: null, preco: 0, desbloqueada: true },
+  { codigo: 'ambar', nome: 'Âmbar', cor: '#FFC857', efeito: null, preco: 0, desbloqueada: true },
+  {
+    codigo: 'aurora',
+    nome: 'Aurora',
+    cor: '#5BFFB0',
+    efeito: 'aurora',
+    preco: 700,
+    desbloqueada: true,
+  },
+  {
+    codigo: 'arco_iris',
+    nome: 'Arco-íris',
+    cor: '#FF7AD9',
+    efeito: 'arco_iris',
+    preco: 1200,
+    desbloqueada: false,
+  },
+]
 
 function renderizar() {
   const usuario = userEvent.setup()
@@ -42,6 +73,7 @@ describe('tela de gerenciamento de matérias (Materias)', () => {
     })
     vi.spyOn(materiasApi, 'atualizar').mockResolvedValue(listaExemplo[0])
     vi.spyOn(materiasApi, 'remover').mockResolvedValue(undefined)
+    vi.spyOn(lojaApi, 'buscar').mockResolvedValue({ saldo: 0, cores: PALETA })
   })
 
   afterEach(() => {
@@ -179,6 +211,61 @@ describe('tela de gerenciamento de matérias (Materias)', () => {
       expect(screen.getByText('Cálculo Avançado')).toBeInTheDocument()
       expect(screen.queryByText('Cálculo I')).not.toBeInTheDocument()
     })
+  })
+
+  it('critério: a paleta mostra todas as cores, com as não compradas bloqueadas', async () => {
+    const aurora: Materia = {
+      id: 'mat-4',
+      nome: 'Artes',
+      cor: '#5BFFB0',
+      efeito: 'aurora',
+      criada_em: '2026-10-24T12:00:00Z',
+    }
+    vi.spyOn(materiasApi, 'criar').mockResolvedValueOnce(aurora)
+    const usuario = renderizar()
+    const form = screen.getByRole('form', { name: 'Cadastrar nova matéria' })
+
+    const bloqueada = await within(form).findByRole('radio', {
+      name: 'Cor Arco-íris, bloqueada: 1200 ATP na loja',
+    })
+    expect(bloqueada).toBeDisabled()
+    expect(within(form).getByRole('link', { name: 'Loja' })).toHaveAttribute('href', '/loja')
+
+    // A cor comprada, com efeito, pode ser escolhida como qualquer outra.
+    const corAurora = within(form).getByRole('radio', { name: 'Cor Aurora' })
+    expect(corAurora).toHaveClass('com-efeito', 'efeito-aurora')
+    await usuario.type(within(form).getByLabelText('Nome da matéria'), 'Artes')
+    await usuario.click(corAurora)
+    await usuario.click(within(form).getByRole('button', { name: 'Adicionar matéria' }))
+
+    expect(materiasApi.criar).toHaveBeenCalledWith({ nome: 'Artes', cor: '#5BFFB0' })
+    // Na lista, a bolinha da matéria já anima.
+    const item = (await screen.findByText('Artes')).closest('li')!
+    expect(item.querySelector('.indicador-cor')).toHaveClass('efeito-aurora')
+  })
+
+  it('mostra o motivo quando a cor ainda não foi comprada', async () => {
+    vi.spyOn(materiasApi, 'criar').mockRejectedValueOnce(
+      new ApiError(409, 'cor_bloqueada', 'Compre a cor Arco-íris na loja para usá-la.'),
+    )
+    const usuario = renderizar()
+    const form = screen.getByRole('form', { name: 'Cadastrar nova matéria' })
+
+    await usuario.type(within(form).getByLabelText('Nome da matéria'), 'Artes')
+    await usuario.click(within(form).getByRole('button', { name: 'Adicionar matéria' }))
+
+    expect(await within(form).findByRole('alert')).toHaveTextContent(
+      'Compre a cor Arco-íris na loja para usá-la.',
+    )
+  })
+
+  it('sem a loja, a paleta mostra as 8 cores gratuitas', async () => {
+    vi.spyOn(lojaApi, 'buscar').mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    renderizar()
+    const form = screen.getByRole('form', { name: 'Cadastrar nova matéria' })
+
+    await waitFor(() => expect(within(form).getAllByRole('radio')).toHaveLength(8))
+    expect(within(form).queryByRole('link', { name: 'Loja' })).not.toBeInTheDocument()
   })
 
   it('permite cancelar a edição sem salvar', async () => {

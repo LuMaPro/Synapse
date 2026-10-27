@@ -150,6 +150,19 @@ describe('tela do histórico', () => {
     expect(podada).toHaveClass('podada')
   })
 
+  it('a bolinha da sessão anima com a cor de efeito da matéria (issue #34)', async () => {
+    simularApi({ materias: [{ ...CALCULO, cor: '#5BFFB0', efeito: 'aurora' }] })
+    renderizar()
+    await screen.findByText('4 sessões')
+
+    const bolinha = (item: HTMLElement) => item.querySelector('.sessao-cor') as HTMLElement
+    const [andamento, , calculo] = itens()
+    expect(bolinha(calculo)).toHaveClass('com-efeito', 'efeito-aurora')
+    expect(bolinha(calculo)).toHaveStyle({ '--cor-neuronio': '#5BFFB0' })
+    // Sem matéria: a cor padrão do tipo, sem efeito.
+    expect(bolinha(andamento)).not.toHaveClass('com-efeito')
+  })
+
   it('filtra pelo resultado e pelo período', async () => {
     const api = simularApi()
     const usuario = renderizar()

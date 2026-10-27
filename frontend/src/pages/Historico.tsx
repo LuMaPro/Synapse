@@ -5,6 +5,7 @@ import { buscarHistorico, type SessaoApi } from '../services/sessoes'
 import '../styles/foco.css'
 import '../styles/rede.css'
 import '../styles/historico.css'
+import { amostraDaCor } from '../utils/efeitos'
 import { agruparPorDia, descreverResultado, horaDoInicio } from '../utils/historico'
 import { COR_PADRAO_TIPO_NEURONIO, NOME_TIPO_NEURONIO, tipoNeuronio } from '../utils/neuronio'
 import { inicioDoPeriodo, type Periodo } from '../utils/redeNeural'
@@ -42,14 +43,15 @@ function plural(quantidade: number, singular: string, plural: string): string {
 
 function ItemSessao({ sessao, materia }: { sessao: SessaoApi; materia?: Materia }) {
   const tipo = tipoNeuronio(sessao.duracao_minutos)
-  const cor =
-    sessao.estado === 'podada'
-      ? 'var(--cor-podado)'
-      : (materia?.cor ?? COR_PADRAO_TIPO_NEURONIO[tipo])
+  const podada = sessao.estado === 'podada'
+  // A mesma cor do neurônio na rede: a da matéria (com o efeito, se for da loja) ou,
+  // sem matéria, a do tipo; podada, cinza.
+  const cor = podada ? 'var(--cor-podado)' : (materia?.cor ?? COR_PADRAO_TIPO_NEURONIO[tipo])
+  const efeito = podada ? null : materia?.efeito
 
   return (
     <li className={`sessao-item ${sessao.estado}`}>
-      <span className="sessao-cor" style={{ background: cor, color: cor }} aria-hidden="true" />
+      <span {...amostraDaCor(cor, efeito, 'sessao-cor')} aria-hidden="true" />
       <div className="sessao-info">
         <span className="sessao-materia">{materia?.nome ?? 'Sem matéria'}</span>
         <span className="sessao-detalhes">

@@ -100,6 +100,40 @@
   outline-offset: 3px;
 }
 
+/* Cor da loja ainda não comprada (#34): apagada, com cadeado. */
+.amostra-cor.bloqueada {
+  display: grid;
+  place-items: center;
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A amostra usa `color` para o brilho (currentColor); o cadeado fica escuro. */
+.amostra-cor.bloqueada svg {
+  color: var(--cor-fundo);
+}
+
+.amostra-cor.bloqueada:hover {
+  transform: none;
+}
+
+.paleta-separador {
+  width: 1px;
+  align-self: stretch;
+  margin: 0 2px;
+  background: var(--cor-borda);
+}
+
+.paleta-dica {
+  margin: 8px 0 0;
+  color: var(--cor-texto-fraco);
+  font-size: 13px;
+}
+
+.paleta-dica a {
+  color: var(--cor-atp);
+}
+
 /* Lista de matérias */
 
 .materias-secao {

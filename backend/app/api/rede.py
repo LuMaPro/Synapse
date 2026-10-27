@@ -16,6 +16,7 @@ from app.api.periodo import DESCRICAO_PERIODO, FiltroPeriodoSerializer
 from app.application.rede import RedeNeuralService
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sinapse import Sinapse
+from app.domain.loja import Efeito, cor_por_hex
 from app.infra.repositorios import (
     RepositorioMateriaDjango,
     RepositorioRedeNeuralDjango,
@@ -25,18 +26,22 @@ from app.infra.repositorios import (
 def _neuronio_json(
     neuronio: Neuronio, cores_materias: dict[UUID, str] | None = None
 ) -> dict:
-    # Vivo com matéria: a cor da matéria (#28). Senão, a do tipo, e o podado é cinza.
+    # Vivo com matéria: a cor da matéria (#28), com o efeito dela, se for da loja
+    # (#34). Senão, a do tipo, e o podado é cinza.
     cor_materia = (
         (cores_materias or {}).get(neuronio.materia_id)
         if neuronio.vivo and neuronio.materia_id
         else None
     )
+    cor_da_loja = cor_por_hex(cor_materia) if cor_materia else None
     return {
         "id": str(neuronio.id),
-        "tipo": neuronio.tipo.forma,
-        "variante": neuronio.tipo.codigo,
+        "tipo": neuronio.tipo.codigo,
         "materia_id": str(neuronio.materia_id) if neuronio.materia_id else None,
         "cor": cor_materia or neuronio.cor,
+        "efeito": cor_da_loja.efeito.value
+        if cor_da_loja and cor_da_loja.efeito
+        else None,
         "criado_em": neuronio.criado_em.isoformat(),
         "duracao_minutos": neuronio.duracao.minutos,
         "vivo": neuronio.vivo,
@@ -62,17 +67,19 @@ class NeuronioRedeSerializer(serializers.Serializer):
         choices=["granular", "piramidal", "purkinje"],
         help_text="Pela duração: até 24 min granular, 25 a 59 piramidal, 60+ Purkinje.",
     )
-    variante = serializers.CharField(
-        help_text="Código do tipo (ex.: piramidal ou piramidal_rosa, da loja, #34)."
-    )
     materia_id = serializers.UUIDField(
         allow_null=True, help_text="Matéria da sessão (#27); null se não tiver."
     )
     cor = serializers.CharField(
         help_text=(
-            "Cor do tipo ou da variação da loja (hexadecimal); a da matéria, se "
-            "houver; neurônio podado é sempre #4A4F6E."
+            "Cor da matéria ou, sem matéria, a do tipo (hexadecimal); neurônio "
+            "podado é sempre #4A4F6E."
         )
+    )
+    efeito = serializers.ChoiceField(
+        choices=[e.value for e in Efeito],
+        allow_null=True,
+        help_text="Animação da cor da matéria, se ela for uma cor com efeito da loja.",
     )
     criado_em = serializers.DateTimeField(help_text="Quando a sessão terminou.")
     duracao_minutos = serializers.IntegerField()
@@ -100,9 +107,9 @@ _EXEMPLO_REDE = {
         {
             "id": "8f1c3e2a-6b7d-4c1e-9a2b-3d4e5f6a7b8c",
             "tipo": "piramidal",
-            "variante": "piramidal",
             "materia_id": None,
             "cor": "#8B7BFF",
+            "efeito": None,
             "criado_em": "2026-10-20T14:25:00+00:00",
             "duracao_minutos": 25,
             "vivo": True,
@@ -110,9 +117,9 @@ _EXEMPLO_REDE = {
         {
             "id": "1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d",
             "tipo": "granular",
-            "variante": "granular",
             "materia_id": None,
             "cor": "#4A4F6E",
+            "efeito": None,
             "criado_em": "2026-10-20T15:03:00+00:00",
             "duracao_minutos": 15,
             "vivo": False,
@@ -120,9 +127,9 @@ _EXEMPLO_REDE = {
         {
             "id": "9e8d7c6b-5a4f-4e3d-2c1b-0a9f8e7d6c5b",
             "tipo": "purkinje",
-            "variante": "purkinje",
             "materia_id": None,
             "cor": "#FFC857",
+            "efeito": None,
             "criado_em": "2026-10-20T17:00:00+00:00",
             "duracao_minutos": 60,
             "vivo": True,

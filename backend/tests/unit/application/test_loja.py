@@ -4,21 +4,28 @@ from uuid import uuid4
 
 import pytest
 
-from app.application.loja import FabricaDoEstudante, LojaService
+from app.application.loja import LojaService
+from app.application.materias import MateriaService
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
-from app.domain.entidades.neuronio import Granular, Piramidal, VarianteCor
 from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
-from app.domain.excecoes import SaldoInsuficiente, TipoBloqueado, TipoNaoEncontrado
-from app.domain.loja import ItemLoja
+from app.domain.excecoes import (
+    CorBloqueada,
+    CorInvalida,
+    CorNaoEncontrada,
+    SaldoInsuficiente,
+)
+from app.domain.loja import CorLoja
 from app.domain.observadores import AtualizadorRede, CreditadorATP
 from tests.repositorios import (
     RepositorioCarteiraMemoria,
+    RepositorioMateriaMemoria,
     RepositorioRedeNeuralMemoria,
     RepositorioSessaoMemoria,
 )
 
 INICIO = datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
+MAGENTA = "#FF3DF0"  # Magenta neon, 250 ATP
 
 
 class Relogio:
@@ -50,21 +57,19 @@ def loja(carteiras, relogio):
 
 
 def _situacao(vitrine, codigo):
-    return next(s for s in vitrine.itens if s.item.codigo == codigo)
+    return next(s for s in vitrine.cores if s.cor.codigo == codigo)
 
 
-# ------------------------------------------------------------------ casos de uso
+# ------------------------------------------------------------------ loja
 
 
 def test_vitrine_de_estudante_novo(loja):
     vitrine = loja.consultar(uuid4())
 
     assert vitrine.saldo == 0
-    assert len(vitrine.itens) == 9
-    originais = [s for s in vitrine.itens if s.item.gratuito]
-    assert all(s.desbloqueado and s.em_uso for s in originais)
-    variacoes = [s for s in vitrine.itens if not s.item.gratuito]
-    assert not any(s.desbloqueado or s.em_uso for s in variacoes)
+    assert len(vitrine.cores) == 8 + 12
+    assert all(s.desbloqueada for s in vitrine.cores if s.cor.gratuita)
+    assert not any(s.desbloqueada for s in vitrine.cores if not s.cor.gratuita)
 
 
 def test_creditar_sessao_guarda_o_atp(loja, carteiras):
@@ -82,15 +87,13 @@ def test_comprar_grava_e_devolve_a_vitrine_atualizada(loja, carteiras, relogio):
     loja.creditar_sessao(usuario, 120)
     loja.creditar_sessao(usuario, 120)
 
-    vitrine = loja.comprar(usuario, "piramidal_rosa")
+    vitrine = loja.comprar(usuario, "magenta_neon")
 
     assert vitrine.saldo == 110
-    rosa = _situacao(vitrine, "piramidal_rosa")
-    assert rosa.desbloqueado and rosa.em_uso
-    assert not _situacao(vitrine, "piramidal").em_uso
+    assert _situacao(vitrine, "magenta_neon").desbloqueada
     guardada = carteiras.carregar(usuario)
     assert guardada.saldo == 110
-    assert guardada.desbloqueados == {"piramidal_rosa": relogio.instante}
+    assert guardada.desbloqueadas == {"magenta_neon": relogio.instante}
 
 
 def test_compra_sem_saldo_nao_grava_nada(loja, carteiras):
@@ -98,34 +101,14 @@ def test_compra_sem_saldo_nao_grava_nada(loja, carteiras):
     loja.creditar_sessao(usuario, 60)
 
     with pytest.raises(SaldoInsuficiente):
-        loja.comprar(usuario, "granular_lima")
+        loja.comprar(usuario, "lavanda")
 
     assert carteiras.carregar(usuario).saldo == 60
 
 
-def test_usar_troca_o_tipo_em_uso(loja):
-    usuario = uuid4()
-    for _ in range(3):
-        loja.creditar_sessao(usuario, 120)
-    loja.comprar(usuario, "piramidal_rosa")
-
-    vitrine = loja.usar(usuario, "piramidal")
-
-    assert _situacao(vitrine, "piramidal").em_uso
-    assert not _situacao(vitrine, "piramidal_rosa").em_uso
-    assert _situacao(vitrine, "piramidal_rosa").desbloqueado
-    assert loja.tipos_em_uso(usuario)[1] == Piramidal()
-
-
-def test_usar_tipo_nao_comprado_e_recusado(loja):
-    with pytest.raises(TipoBloqueado):
-        loja.usar(uuid4(), "piramidal_rosa")
-
-
-@pytest.mark.parametrize("acao", ["comprar", "usar"])
-def test_tipo_fora_da_loja(loja, acao):
-    with pytest.raises(TipoNaoEncontrado):
-        getattr(loja, acao)(uuid4(), "unicornio")
+def test_cor_fora_da_loja(loja):
+    with pytest.raises(CorNaoEncontrada):
+        loja.comprar(uuid4(), "unicornio")
 
 
 def test_carteiras_de_estudantes_diferentes_nao_se_misturam(loja):
@@ -135,59 +118,91 @@ def test_carteiras_de_estudantes_diferentes_nao_se_misturam(loja):
     assert loja.consultar(outro).saldo == 0
 
 
-def test_catalogo_proprio(carteiras):
-    violeta = VarianteCor(Granular(), "granular_violeta", "Violeta", "#8B00FF")
-    loja = LojaService(
-        carteiras, catalogo=[ItemLoja(Granular(), 0), ItemLoja(violeta, 10)]
-    )
+def test_cor_disponivel_para_uma_materia(loja):
+    usuario = uuid4()
 
-    assert [s.item.codigo for s in loja.consultar(uuid4()).itens] == [
-        "granular",
-        "granular_violeta",
-    ]
+    assert loja.exigir_cor_disponivel(usuario, "#8b7bff").codigo == "violeta"
+    with pytest.raises(CorBloqueada, match="Compre a cor Magenta neon"):
+        loja.exigir_cor_disponivel(usuario, MAGENTA)
+    with pytest.raises(CorInvalida):
+        loja.exigir_cor_disponivel(usuario, "#123456")
+
+    for _ in range(3):
+        loja.creditar_sessao(usuario, 120)
+    loja.comprar(usuario, "magenta_neon")
+    assert loja.exigir_cor_disponivel(usuario, MAGENTA).codigo == "magenta_neon"
 
 
 @pytest.mark.parametrize(
     "catalogo",
     [
-        # Código repetido.
-        [ItemLoja(Granular(), 0), ItemLoja(Granular(), 0)],
-        # Variação sem o original gratuito da forma.
-        [ItemLoja(VarianteCor(Piramidal(), "p", "P", "#000000"), 10)],
-        # Dois gratuitos para a mesma forma.
-        [
-            ItemLoja(Piramidal(), 0),
-            ItemLoja(VarianteCor(Piramidal(), "p", "P", "#000000"), 0),
-        ],
+        [CorLoja("a", "A", "#111111"), CorLoja("a", "B", "#222222")],
+        [CorLoja("a", "A", "#111111"), CorLoja("b", "B", "#111111")],
     ],
 )
-def test_recusa_catalogo_mal_formado(carteiras, catalogo):
+def test_recusa_catalogo_com_codigo_ou_cor_repetidos(carteiras, catalogo):
     with pytest.raises(ValueError):
         LojaService(carteiras, catalogo=catalogo)
 
 
-# ------------------------------------------------------------- observador e fábrica
+# ------------------------------------------------------------------ matérias
 
 
 @pytest.fixture
-def redes():
-    return RepositorioRedeNeuralMemoria()
+def materias(loja):
+    return MateriaService(RepositorioMateriaMemoria(), loja)
+
+
+def test_criterio_materia_so_usa_cor_gratuita_ou_comprada(materias, loja):
+    usuario = uuid4()
+
+    assert materias.criar(usuario, "Cálculo", "#8B7BFF").cor == "#8B7BFF"
+    with pytest.raises(CorBloqueada):
+        materias.criar(usuario, "Física", MAGENTA)
+    with pytest.raises(CorInvalida):
+        materias.criar(usuario, "Física", "#123456")
+
+    for _ in range(3):
+        loja.creditar_sessao(usuario, 120)
+    loja.comprar(usuario, "magenta_neon")
+    assert materias.criar(usuario, "Física", MAGENTA).cor == MAGENTA
+
+
+def test_editar_para_uma_cor_bloqueada_e_recusado_e_nada_muda(materias):
+    usuario = uuid4()
+    materia = materias.criar(usuario, "Cálculo", "#8B7BFF")
+
+    with pytest.raises(CorBloqueada):
+        materias.atualizar(usuario, materia.id, cor=MAGENTA)
+
+    assert materias.buscar(usuario, materia.id).cor == "#8B7BFF"
+
+
+def test_cor_antiga_fora_da_paleta_continua_ao_editar_so_o_nome(loja):
+    # Matéria criada antes da paleta valer (ex.: pela API, com qualquer cor).
+    repo = RepositorioMateriaMemoria()
+    usuario = uuid4()
+    materia = MateriaService(repo).criar(usuario, "Química", "#123456")
+
+    renomeada = MateriaService(repo, loja).atualizar(
+        usuario, materia.id, nome="Química orgânica", cor="#123456"
+    )
+
+    assert renomeada.cor == "#123456"
+
+
+# ------------------------------------------------------------------ observador
 
 
 @pytest.fixture
-def sessao_service(loja, redes, relogio):
-    """Montado como a API: a fábrica do estudante e o CreditadorATP inscrito."""
+def sessao_service(loja, relogio):
+    """Montado como a API: o CreditadorATP inscrito em SessaoConcluida."""
     publicador = PublicadorEventos()
-    atualizador = AtualizadorRede(RedeNeuralService(redes))
+    atualizador = AtualizadorRede(RedeNeuralService(RepositorioRedeNeuralMemoria()))
     publicador.inscrever(SessaoConcluida, atualizador)
     publicador.inscrever(SessaoPodada, atualizador)
     publicador.inscrever(SessaoConcluida, CreditadorATP(loja))
-    return SessaoService(
-        RepositorioSessaoMemoria(),
-        publicador,
-        relogio=relogio,
-        fabrica=FabricaDoEstudante(loja),
-    )
+    return SessaoService(RepositorioSessaoMemoria(), publicador, relogio=relogio)
 
 
 def _concluir(servico, relogio, usuario, duracao):
@@ -213,43 +228,6 @@ def test_sessao_podada_nao_rende_atp(sessao_service, loja, relogio):
     sessao_service.desistir(usuario, sessao.id)
 
     assert loja.consultar(usuario).saldo == 0
-
-
-def test_criterio_a_fabrica_usa_o_tipo_escolhido_na_loja(
-    sessao_service, loja, relogio, redes
-):
-    usuario = uuid4()
-    for _ in range(3):
-        _concluir(sessao_service, relogio, usuario, 120)
-    _, antes = _concluir(sessao_service, relogio, usuario, 25)
-    loja.comprar(usuario, "piramidal_rosa")
-
-    _, rosa = _concluir(sessao_service, relogio, usuario, 25)
-    _, granular = _concluir(sessao_service, relogio, usuario, 10)
-
-    assert antes.tipo == Piramidal()
-    assert rosa.tipo.codigo == "piramidal_rosa"
-    assert rosa.tipo.forma == "piramidal"
-    assert rosa.cor == "#FF6FB5"
-    # Outra faixa de duração continua com o tipo original.
-    assert granular.tipo == Granular()
-    # Os neurônios antigos não mudam; a rede guarda cada um com o seu tipo.
-    tipos = [n.tipo.codigo for n in redes.carregar(usuario).neuronios]
-    assert tipos[-3:] == ["piramidal", "piramidal_rosa", "granular"]
-
-
-def test_voltar_ao_original_vale_para_as_proximas_sessoes(
-    sessao_service, loja, relogio
-):
-    usuario = uuid4()
-    for _ in range(3):
-        _concluir(sessao_service, relogio, usuario, 120)
-    loja.comprar(usuario, "piramidal_rosa")
-    loja.usar(usuario, "piramidal")
-
-    _, neuronio = _concluir(sessao_service, relogio, usuario, 30)
-
-    assert neuronio.tipo == Piramidal()
 
 
 def test_o_creditador_ignora_sessoes_podadas():

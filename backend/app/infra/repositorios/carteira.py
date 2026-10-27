@@ -4,7 +4,7 @@ from django.db import transaction
 
 from app.domain.carteira import Carteira
 from app.domain.repositorios import RepositorioCarteira
-from app.infra.modelos.carteira import CarteiraModel, TipoDesbloqueadoModel
+from app.infra.modelos.carteira import CarteiraModel, CorDesbloqueadaModel
 
 
 class RepositorioCarteiraDjango(RepositorioCarteira):
@@ -20,35 +20,35 @@ class RepositorioCarteiraDjango(RepositorioCarteira):
             )
         else:
             modelo = CarteiraModel.objects.filter(usuario_id=usuario_id).first()
-        desbloqueados = {
-            t.codigo: t.desbloqueado_em
-            for t in TipoDesbloqueadoModel.objects.filter(usuario_id=usuario_id)
+        desbloqueadas = {
+            c.codigo: c.desbloqueada_em
+            for c in CorDesbloqueadaModel.objects.filter(usuario_id=usuario_id)
         }
-        if modelo is None:
-            return Carteira(usuario_id, desbloqueados=desbloqueados)
-        return Carteira(usuario_id, modelo.saldo, desbloqueados, modelo.em_uso)
+        saldo = modelo.saldo if modelo else 0
+        return Carteira(usuario_id, saldo, desbloqueadas)
 
     def salvar(self, carteira: Carteira) -> None:
         with transaction.atomic():
             # Quase sempre a linha já existe (foi reservada ao carregar): um UPDATE
             # direto, sem o SELECT extra do update_or_create.
-            dados = {"saldo": carteira.saldo, "em_uso": carteira.em_uso}
             if not CarteiraModel.objects.filter(usuario_id=carteira.usuario_id).update(
-                **dados
+                saldo=carteira.saldo
             ):
-                CarteiraModel.objects.create(usuario_id=carteira.usuario_id, **dados)
-            # Um tipo comprado não é devolvido: só há inserções.
-            gravados = set(
-                TipoDesbloqueadoModel.objects.filter(
+                CarteiraModel.objects.create(
+                    usuario_id=carteira.usuario_id, saldo=carteira.saldo
+                )
+            # Uma cor comprada não é devolvida: só há inserções.
+            gravadas = set(
+                CorDesbloqueadaModel.objects.filter(
                     usuario_id=carteira.usuario_id
                 ).values_list("codigo", flat=True)
             )
-            TipoDesbloqueadoModel.objects.bulk_create(
-                TipoDesbloqueadoModel(
+            CorDesbloqueadaModel.objects.bulk_create(
+                CorDesbloqueadaModel(
                     usuario_id=carteira.usuario_id,
                     codigo=codigo,
-                    desbloqueado_em=quando,
+                    desbloqueada_em=quando,
                 )
-                for codigo, quando in carteira.desbloqueados.items()
-                if codigo not in gravados
+                for codigo, quando in carteira.desbloqueadas.items()
+                if codigo not in gravadas
             )

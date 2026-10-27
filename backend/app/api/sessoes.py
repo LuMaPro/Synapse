@@ -16,7 +16,7 @@ from rest_framework.response import Response
 
 from app.api.periodo import DESCRICAO_PERIODO, FiltroPeriodoSerializer
 from app.application.conquistas import ConquistaService
-from app.application.loja import FabricaDoEstudante, LojaService
+from app.application.loja import LojaService
 from app.application.rede import RedeNeuralService
 from app.application.sessoes import SessaoService
 from app.domain.carteira import atp_da_sessao
@@ -68,7 +68,6 @@ def _servico() -> SessaoService:
     avaliador = AvaliadorConquistas(
         ConquistaService(RepositorioConquistaDjango(), redes)
     )
-    loja = LojaService(RepositorioCarteiraDjango())
 
     # Configura o publicador e inscreve os observadores. O avaliador de conquistas
     # vem depois do atualizador da rede: ele olha a rede já com o neurônio novo.
@@ -76,7 +75,9 @@ def _servico() -> SessaoService:
     publicador.inscrever(SessaoConcluida, atualizador)
     publicador.inscrever(SessaoPodada, atualizador)
     publicador.inscrever(SessaoConcluida, avaliador)
-    publicador.inscrever(SessaoConcluida, CreditadorATP(loja))
+    publicador.inscrever(
+        SessaoConcluida, CreditadorATP(LojaService(RepositorioCarteiraDjango()))
+    )
 
     # O relógio é lido a cada chamada, o que permite controlá-lo nos testes.
     return SessaoService(
@@ -84,8 +85,6 @@ def _servico() -> SessaoService:
         publicador,  # <-- Injetamos o publicador aqui
         relogio=lambda: agora(),
         materias=RepositorioMateriaDjango(),
-        # Os neurônios saem com os tipos que o estudante escolheu na loja (#34).
-        fabrica=FabricaDoEstudante(loja),
     )
 
 
@@ -142,9 +141,6 @@ def _neuronio_json(neuronio: Neuronio) -> dict:
         "duracao_minutos": neuronio.duracao.minutos,
         "materia_id": str(neuronio.materia_id) if neuronio.materia_id else None,
         "criado_em": neuronio.criado_em.isoformat(),
-        "tipo": neuronio.tipo.forma,
-        "variante": neuronio.tipo.codigo,
-        "cor": neuronio.cor,
     }
 
 
@@ -191,14 +187,6 @@ class NeuronioRespostaSerializer(serializers.Serializer):
     duracao_minutos = serializers.IntegerField()
     materia_id = serializers.UUIDField(allow_null=True, required=False)
     criado_em = serializers.DateTimeField()
-    tipo = serializers.ChoiceField(
-        choices=["granular", "piramidal", "purkinje"],
-        help_text="A forma do neurônio, pela duração.",
-    )
-    variante = serializers.CharField(
-        help_text="Código do tipo usado (ex.: piramidal ou piramidal_rosa, da loja)."
-    )
-    cor = serializers.CharField(help_text="Cor do tipo (hexadecimal).")
 
 
 class ConclusaoRespostaSerializer(serializers.Serializer):

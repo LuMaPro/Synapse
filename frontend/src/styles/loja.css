@@ -1,5 +1,6 @@
 /* Loja de ATP (issue #34). O protótipo (docs/design) não desenha esta tela: ela segue
-   o cabeçalho da rede, os cartões da lista de matérias e a cor do ATP. */
+   o cabeçalho da rede, os cartões da lista de matérias e a cor do ATP. Os efeitos das
+   cores ficam em efeitos.css. */
 
 .loja-saldo {
   padding: 6px 14px;
@@ -33,17 +34,21 @@
   color: var(--cor-texto);
 }
 
-.loja-forma h2 {
+.loja-aviso a {
+  color: var(--cor-atp);
+}
+
+.loja-secao h2 {
   margin: 8px 0 10px;
   font-size: 18px;
 }
 
-.loja-forma h2 span {
+.loja-secao h2 span {
   color: var(--cor-texto-fraco);
   font: 400 14px var(--fonte-texto);
 }
 
-.loja-forma ul {
+.loja-secao ul {
   display: grid;
   /* Duas colunas já no celular (360 px). */
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -65,7 +70,7 @@
   text-align: center;
 }
 
-.loja-cartao.em-uso {
+.loja-cartao.desbloqueada {
   border-color: var(--cor-atp);
   box-shadow: 0 0 18px rgb(255 200 87 / 18%);
 }
@@ -93,7 +98,7 @@
   box-shadow: none;
 }
 
-.loja-em-uso {
+.loja-sua {
   height: 44px;
   padding: 0 16px;
   color: var(--cor-atp);

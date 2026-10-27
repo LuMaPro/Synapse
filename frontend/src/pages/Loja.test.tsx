@@ -1,40 +1,29 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { LojaApi, TipoLojaApi } from '../services/loja'
+import type { CorLojaApi, LojaApi } from '../services/loja'
+import type { Efeito } from '../utils/efeitos'
 import { Loja } from './Loja'
 
-type Forma = TipoLojaApi['forma']
-
-const FAIXA: Record<Forma, [number, number | null]> = {
-  granular: [10, 24],
-  piramidal: [25, 59],
-  purkinje: [60, null],
+function cor(
+  codigo: string,
+  nome: string,
+  hex: string,
+  preco: number,
+  efeito: Efeito | null = null,
+): CorLojaApi {
+  return { codigo, nome, cor: hex, efeito, preco, desbloqueada: preco === 0 }
 }
 
-function tipo(codigo: string, nome: string, forma: Forma, cor: string, preco: number) {
-  return {
-    codigo,
-    nome,
-    forma,
-    cor,
-    preco,
-    duracao_minima: FAIXA[forma][0],
-    duracao_maxima: FAIXA[forma][1],
-    desbloqueado: preco === 0,
-    em_uso: preco === 0,
-  }
-}
-
-function catalogo(): TipoLojaApi[] {
+function catalogo(): CorLojaApi[] {
   return [
-    tipo('granular', 'Granular', 'granular', '#3EE6E0', 0),
-    tipo('granular_lima', 'Granular Lima', 'granular', '#C3E86B', 100),
-    tipo('piramidal', 'Piramidal', 'piramidal', '#8B7BFF', 0),
-    tipo('piramidal_rosa', 'Piramidal Rosa', 'piramidal', '#FF6FB5', 250),
-    tipo('purkinje', 'Purkinje', 'purkinje', '#FFC857', 0),
-    tipo('purkinje_lunar', 'Purkinje Lunar', 'purkinje', '#ECEDF7', 500),
+    cor('violeta', 'Violeta', '#8B7BFF', 0),
+    cor('rosa', 'Rosa', '#FF6FB5', 0),
+    cor('lavanda', 'Lavanda', '#C9B3FF', 100),
+    cor('magenta_neon', 'Magenta neon', '#FF3DF0', 250),
+    cor('pulsar', 'Pulsar', '#7DF9FF', 500, 'pulsar'),
+    cor('arco_iris', 'Arco-íris', '#FF7AD9', 1200, 'arco_iris'),
   ]
 }
 
@@ -42,13 +31,13 @@ interface Opcoes {
   saldo?: number
   /** Faz o `GET /loja` falhar (sem rede) enquanto devolver true. */
   falharAoCarregar?: () => boolean
-  /** Faz a próxima compra ou uso falhar sem rede. */
-  semRedeNaAcao?: () => boolean
+  /** Faz a compra falhar sem rede enquanto devolver true. */
+  semRedeNaCompra?: () => boolean
 }
 
 /** API falsa da loja, com as mesmas regras do backend (issue #34). */
-function simularApi({ saldo = 300, falharAoCarregar, semRedeNaAcao }: Opcoes = {}) {
-  const loja: LojaApi = { saldo, tipos: catalogo() }
+function simularApi({ saldo = 300, falharAoCarregar, semRedeNaCompra }: Opcoes = {}) {
+  const loja: LojaApi = { saldo, cores: catalogo() }
   const pedidos: string[] = []
   const json = (corpo: unknown, status = 200) =>
     new Response(JSON.stringify(corpo), {
@@ -64,31 +53,24 @@ function simularApi({ saldo = 300, falharAoCarregar, semRedeNaAcao }: Opcoes = {
         if (falharAoCarregar?.()) throw new TypeError('Failed to fetch')
         return json(loja)
       }
-      if (semRedeNaAcao?.()) throw new TypeError('Failed to fetch')
-      const [, , codigo, acao] = caminho.split('/')
-      const item = loja.tipos.find((t) => t.codigo === codigo)
-      if (!item) return json({ erro: 'tipo_nao_encontrado', mensagem: 'Não está à venda.' }, 404)
-      if (acao === 'comprar') {
-        if (item.desbloqueado)
-          return json({ erro: 'tipo_ja_desbloqueado', mensagem: 'Já tem.' }, 409)
-        if (loja.saldo < item.preco) {
-          const falta = item.preco - loja.saldo
-          return json(
-            {
-              erro: 'saldo_insuficiente',
-              mensagem: `Faltam ${falta} ATP para comprar o ${item.nome}.`,
-            },
-            409,
-          )
-        }
-        loja.saldo -= item.preco
-        item.desbloqueado = true
-      } else if (!item.desbloqueado) {
-        return json({ erro: 'tipo_bloqueado', mensagem: 'Compre antes.' }, 409)
+      if (semRedeNaCompra?.()) throw new TypeError('Failed to fetch')
+      const [, , codigo] = caminho.split('/')
+      const item = loja.cores.find((c) => c.codigo === codigo)
+      if (!item) return json({ erro: 'cor_nao_encontrada', mensagem: 'Não está à venda.' }, 404)
+      if (item.desbloqueada)
+        return json({ erro: 'cor_ja_desbloqueada', mensagem: 'Já é sua.' }, 409)
+      if (loja.saldo < item.preco) {
+        const falta = item.preco - loja.saldo
+        return json(
+          {
+            erro: 'saldo_insuficiente',
+            mensagem: `Faltam ${falta} ATP para comprar a cor ${item.nome}.`,
+          },
+          409,
+        )
       }
-      for (const outro of loja.tipos) {
-        if (outro.forma === item.forma) outro.em_uso = outro.codigo === item.codigo
-      }
+      loja.saldo -= item.preco
+      item.desbloqueada = true
       return json(loja)
     }),
   )
@@ -112,55 +94,52 @@ describe('tela da loja', () => {
     vi.unstubAllGlobals()
   })
 
-  it('mostra o saldo e os tipos agrupados pela forma, com prévia na cor de cada um', async () => {
+  it('mostra o saldo e só as cores à venda, separando as que têm efeito', async () => {
     simularApi({ saldo: 120 })
     renderizar()
 
     expect(screen.getByRole('status')).toHaveTextContent('Carregando a loja')
     expect(await screen.findByLabelText('Saldo: 120 ATP')).toHaveTextContent('120 ATP')
 
-    const granular = screen.getByRole('region', { name: /Granular · sessões de 10 a 24 min/ })
-    expect(
-      within(granular)
+    const titulos = (secao: RegExp) =>
+      within(screen.getByRole('region', { name: secao }))
         .getAllByRole('heading', { level: 3 })
-        .map((h) => h.textContent),
-    ).toEqual(['Granular', 'Granular Lima'])
-    expect(
-      screen.getByRole('region', { name: /Purkinje · sessões de 60 min ou mais/ }),
-    ).toBeVisible()
-    expect(screen.getByRole('img', { name: 'Prévia do Piramidal Rosa' })).toHaveStyle({
-      '--cor-neuronio': '#FF6FB5',
-    })
-    // Os originais já são do estudante e estão em uso.
-    expect(within(cartao('Piramidal')).getByText('Em uso')).toBeInTheDocument()
-    expect(within(cartao('Piramidal')).getByText('Original')).toBeInTheDocument()
-    expect(within(cartao('Piramidal Rosa')).getByText('250 ATP')).toBeInTheDocument()
+        .map((h) => h.textContent)
+    expect(titulos(/Cores exclusivas/)).toEqual(['Lavanda', 'Magenta neon'])
+    expect(titulos(/Cores com efeito/)).toEqual(['Pulsar', 'Arco-íris'])
+    // As cores da paleta são de todos e não aparecem à venda.
+    expect(screen.queryByRole('heading', { name: 'Violeta' })).not.toBeInTheDocument()
+    // A prévia mostra a cor e o efeito.
+    const previa = screen.getByRole('img', { name: 'Prévia da cor Arco-íris' })
+    expect(previa).toHaveStyle({ '--cor-neuronio': '#FF7AD9' })
+    expect(previa).toHaveClass('com-efeito', 'efeito-arco_iris')
+    expect(screen.getByRole('img', { name: 'Prévia da cor Lavanda' })).not.toHaveClass('com-efeito')
   })
 
-  it('critério: compra com confirmação, desconta o saldo e passa a usar o tipo', async () => {
+  it('critério: compra com confirmação, desconta o saldo e manda para as matérias', async () => {
     const api = simularApi({ saldo: 300 })
     const usuario = renderizar()
     await screen.findByLabelText('Saldo: 300 ATP')
 
     await usuario.click(
-      within(cartao('Piramidal Rosa')).getByRole('button', {
-        name: 'Comprar o Piramidal Rosa por 250 ATP',
-      }),
+      screen.getByRole('button', { name: 'Comprar a cor Magenta neon por 250 ATP' }),
     )
     // Gastar ATP pede um segundo toque.
     expect(api.pedidos.filter((p) => p.startsWith('POST'))).toEqual([])
     await usuario.click(
-      within(cartao('Piramidal Rosa')).getByRole('button', {
-        name: 'Confirmar a compra do Piramidal Rosa por 250 ATP',
-      }),
+      screen.getByRole('button', { name: 'Confirmar a compra da cor Magenta neon por 250 ATP' }),
     )
 
     expect(await screen.findByLabelText('Saldo: 50 ATP')).toBeInTheDocument()
-    expect(api.pedidos).toContain('POST /loja/piramidal_rosa/comprar')
-    expect(within(cartao('Piramidal Rosa')).getByText('Em uso')).toBeInTheDocument()
-    expect(within(cartao('Piramidal')).getByRole('button', { name: 'Usar' })).toBeEnabled()
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Piramidal Rosa desbloqueado! Suas próximas sessões de 25 a 59 min já nascem com ele.',
+    expect(api.pedidos).toContain('POST /loja/magenta_neon/comprar')
+    expect(within(cartao('Magenta neon')).getByText('Sua')).toBeInTheDocument()
+    const aviso = screen.getByRole('status')
+    expect(aviso).toHaveTextContent(
+      'Cor Magenta neon desbloqueada! Escolha-a para uma matéria em Matérias.',
+    )
+    expect(within(aviso).getByRole('link', { name: 'Matérias' })).toHaveAttribute(
+      'href',
+      '/materias',
     )
   })
 
@@ -169,12 +148,10 @@ describe('tela da loja', () => {
     const usuario = renderizar()
     await screen.findByLabelText('Saldo: 300 ATP')
 
-    await usuario.click(screen.getByRole('button', { name: 'Comprar o Granular Lima por 100 ATP' }))
+    await usuario.click(screen.getByRole('button', { name: 'Comprar a cor Lavanda por 100 ATP' }))
     await usuario.click(screen.getByRole('button', { name: 'Cancelar' }))
 
-    expect(
-      screen.getByRole('button', { name: 'Comprar o Granular Lima por 100 ATP' }),
-    ).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Comprar a cor Lavanda por 100 ATP' })).toBeEnabled()
     expect(api.pedidos.filter((p) => p.startsWith('POST'))).toEqual([])
   })
 
@@ -183,11 +160,13 @@ describe('tela da loja', () => {
     renderizar()
     await screen.findByLabelText('Saldo: 120 ATP')
 
-    expect(screen.getByRole('button', { name: 'Faltam 130 ATP' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Faltam 380 ATP' })).toBeDisabled()
     expect(
-      screen.getByRole('button', { name: 'Comprar o Granular Lima por 100 ATP' }),
-    ).toBeEnabled()
+      within(cartao('Magenta neon')).getByRole('button', { name: 'Faltam 130 ATP' }),
+    ).toBeDisabled()
+    expect(
+      within(cartao('Arco-íris')).getByRole('button', { name: 'Faltam 1080 ATP' }),
+    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Comprar a cor Lavanda por 100 ATP' })).toBeEnabled()
   })
 
   it('mostra o motivo quando o servidor recusa a compra', async () => {
@@ -198,59 +177,33 @@ describe('tela da loja', () => {
     api.loja.saldo = 200
 
     await usuario.click(
-      screen.getByRole('button', { name: 'Comprar o Piramidal Rosa por 250 ATP' }),
+      screen.getByRole('button', { name: 'Comprar a cor Magenta neon por 250 ATP' }),
     )
     await usuario.click(
-      screen.getByRole('button', { name: 'Confirmar a compra do Piramidal Rosa por 250 ATP' }),
+      screen.getByRole('button', { name: 'Confirmar a compra da cor Magenta neon por 250 ATP' }),
     )
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Faltam 50 ATP para comprar o Piramidal Rosa.',
+      'Faltam 50 ATP para comprar a cor Magenta neon.',
     )
     expect(screen.getByLabelText('Saldo: 300 ATP')).toBeInTheDocument()
   })
 
   it('sem rede na compra, avisa e deixa tentar de novo', async () => {
     let semRede = true
-    simularApi({ semRedeNaAcao: () => semRede })
+    simularApi({ semRedeNaCompra: () => semRede })
     const usuario = renderizar()
     await screen.findByLabelText('Saldo: 300 ATP')
 
-    await usuario.click(screen.getByRole('button', { name: 'Comprar o Granular Lima por 100 ATP' }))
-    await usuario.click(
-      screen.getByRole('button', { name: 'Confirmar a compra do Granular Lima por 100 ATP' }),
-    )
+    await usuario.click(screen.getByRole('button', { name: 'Comprar a cor Lavanda por 100 ATP' }))
+    const confirmar = { name: 'Confirmar a compra da cor Lavanda por 100 ATP' }
+    await usuario.click(screen.getByRole('button', confirmar))
     expect(await screen.findByRole('alert')).toHaveTextContent('Verifique sua conexão')
 
     semRede = false
-    await usuario.click(
-      screen.getByRole('button', { name: 'Confirmar a compra do Granular Lima por 100 ATP' }),
-    )
+    await usuario.click(screen.getByRole('button', confirmar))
     expect(await screen.findByLabelText('Saldo: 200 ATP')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
-  it('troca entre a variação comprada e o original', async () => {
-    simularApi({ saldo: 300 })
-    const usuario = renderizar()
-    await screen.findByLabelText('Saldo: 300 ATP')
-    await usuario.click(
-      screen.getByRole('button', { name: 'Comprar o Piramidal Rosa por 250 ATP' }),
-    )
-    await usuario.click(
-      screen.getByRole('button', { name: 'Confirmar a compra do Piramidal Rosa por 250 ATP' }),
-    )
-    await screen.findByLabelText('Saldo: 50 ATP')
-
-    await usuario.click(within(cartao('Piramidal')).getByRole('button', { name: 'Usar' }))
-
-    await waitFor(() => expect(within(cartao('Piramidal')).getByText('Em uso')).toBeInTheDocument())
-    expect(within(cartao('Piramidal Rosa')).getByRole('button', { name: 'Usar' })).toBeEnabled()
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Suas próximas sessões de 25 a 59 min vão usar o Piramidal.',
-    )
-    // Voltar a usar não cobra de novo.
-    expect(screen.getByLabelText('Saldo: 50 ATP')).toBeInTheDocument()
   })
 
   it('sem conexão ao abrir, avisa e deixa tentar de novo', async () => {

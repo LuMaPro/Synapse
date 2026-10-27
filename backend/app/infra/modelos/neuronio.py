@@ -4,7 +4,6 @@ from django.conf import settings
 from django.db import models
 
 from app.domain.entidades.neuronio import Neuronio
-from app.domain.loja import tipo_por_codigo
 from app.infra.modelos.sessao_foco import SessaoFocoModel
 
 
@@ -31,9 +30,6 @@ class NeuronioModel(models.Model):
     # Vira chave estrangeira para as matérias na #27.
     materia_id = models.UUIDField("matéria", null=True, blank=True)
     criado_em = models.DateTimeField("criado em")
-    # Código do tipo (ex.: "piramidal" ou a variação "piramidal_rosa", da loja, #34).
-    # Vazio nos neurônios de antes da loja: o tipo sai da duração.
-    tipo = models.CharField("tipo", max_length=50, blank=True, default="")
 
     class Meta:
         db_table = "neuronios"
@@ -49,8 +45,6 @@ class NeuronioModel(models.Model):
             self.usuario_id,
             self.sessao_id,
             self.duracao_minutos,
-            # Um tipo que saiu do catálogo também volta para o da duração.
-            tipo=tipo_por_codigo(self.tipo) if self.tipo else None,
             vivo=self.vivo,
             materia_id=self.materia_id,
             criado_em=self.criado_em,

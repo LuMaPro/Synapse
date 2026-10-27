@@ -51,6 +51,10 @@ export function useMaterias() {
       })
       return nova
     } catch (e) {
+      // Cor da loja ainda não comprada (#34): o servidor diz qual e onde comprar.
+      if (e instanceof ApiError && e.codigo === 'cor_bloqueada') {
+        throw new Error(e.message, { cause: e })
+      }
       if (e instanceof ApiError && (e.status === 409 || e.codigo === 'materia_ja_existe')) {
         throw new Error('Você já tem uma matéria com este nome.', { cause: e })
       }
@@ -76,6 +80,10 @@ export function useMaterias() {
         })
         return atualizada
       } catch (e) {
+        // Cor da loja ainda não comprada (#34): o servidor diz qual e onde comprar.
+        if (e instanceof ApiError && e.codigo === 'cor_bloqueada') {
+          throw new Error(e.message, { cause: e })
+        }
         if (e instanceof ApiError && (e.status === 409 || e.codigo === 'materia_ja_existe')) {
           throw new Error('Você já tem uma matéria com este nome.', { cause: e })
         }

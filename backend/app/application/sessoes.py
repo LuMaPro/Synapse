@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from app.domain.entidades.neuronio import CriadorNeuronio, FabricaNeuronio, Neuronio
+from app.domain.entidades.neuronio import FabricaNeuronio, Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
 from app.domain.excecoes import (
@@ -57,7 +57,7 @@ class SessaoService:
         publicador: PublicadorEventos,
         relogio: Callable[[], datetime] = agora,
         materias: RepositorioMateria | None = None,
-        fabrica: CriadorNeuronio = FabricaNeuronio,
+        fabrica: FabricaNeuronio | type[FabricaNeuronio] = FabricaNeuronio,
     ):
         self._sessoes = sessoes
         self._publicador = publicador

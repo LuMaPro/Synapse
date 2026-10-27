@@ -177,9 +177,4 @@ SIMPLE_JWT = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Synapse API",
     "VERSION": "0.1.0",
-    # As formas de neurônio aparecem como `tipo` (rede, conclusão) e como `forma`
-    # (loja, #34): um nome só para a mesma lista no Swagger.
-    "ENUM_NAME_OVERRIDES": {
-        "FormaNeuronioEnum": ["granular", "piramidal", "purkinje"],
-    },
 }

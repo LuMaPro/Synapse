@@ -1,3 +1,4 @@
+import type { Efeito } from '../utils/efeitos'
 import { api } from './api'
 
 /** Matéria (etiqueta) do estudante (issues #27 e #28). */
@@ -7,6 +8,8 @@ export interface MateriaApi {
   nome: string
   /** Hexadecimal `#RRGGBB`. */
   cor: string
+  /** Animação da cor, se for uma cor com efeito da loja (issue #34). */
+  efeito?: Efeito | null
   criada_em: string
 }
 
@@ -29,8 +32,9 @@ export interface CorMateria {
 }
 
 /**
- * 8 cores oficiais do design do Synapse (docs/design/README.md).
- * O estudante escolhe uma delas ao criar ou editar uma matéria.
+ * 8 cores oficiais do design do Synapse (docs/design/README.md), de todos. A paleta
+ * completa, com as cores da loja (#34), vem do `GET /loja`; estas ficam para quando
+ * ela não carregar.
  */
 export const CORES_MATERIAS: readonly CorMateria[] = [
   { nome: 'Violeta', hex: '#8B7BFF' },

@@ -64,7 +64,7 @@ describe('rotas e proteção de acesso', () => {
             '/rede': { neuronios: [], sinapses: [] },
             '/materias': [],
             '/sessoes': { total: 0, pagina: 1, tamanho: 20, paginas: 1, resultados: [] },
-            '/loja': { saldo: 0, tipos: [] },
+            '/loja': { saldo: 0, cores: [] },
           }[pathname]
           return corpo === undefined
             ? new Response(null, { status: 204 })
