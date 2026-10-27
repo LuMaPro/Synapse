@@ -33,7 +33,8 @@ def _neuronio_json(
     )
     return {
         "id": str(neuronio.id),
-        "tipo": neuronio.tipo.codigo,
+        "tipo": neuronio.tipo.forma,
+        "variante": neuronio.tipo.codigo,
         "materia_id": str(neuronio.materia_id) if neuronio.materia_id else None,
         "cor": cor_materia or neuronio.cor,
         "criado_em": neuronio.criado_em.isoformat(),
@@ -61,11 +62,17 @@ class NeuronioRedeSerializer(serializers.Serializer):
         choices=["granular", "piramidal", "purkinje"],
         help_text="Pela duração: até 24 min granular, 25 a 59 piramidal, 60+ Purkinje.",
     )
+    variante = serializers.CharField(
+        help_text="Código do tipo (ex.: piramidal ou piramidal_rosa, da loja, #34)."
+    )
     materia_id = serializers.UUIDField(
         allow_null=True, help_text="Matéria da sessão (#27); null se não tiver."
     )
     cor = serializers.CharField(
-        help_text="Cor do tipo (hexadecimal); neurônio podado é sempre #4A4F6E."
+        help_text=(
+            "Cor do tipo ou da variação da loja (hexadecimal); a da matéria, se "
+            "houver; neurônio podado é sempre #4A4F6E."
+        )
     )
     criado_em = serializers.DateTimeField(help_text="Quando a sessão terminou.")
     duracao_minutos = serializers.IntegerField()
@@ -93,6 +100,7 @@ _EXEMPLO_REDE = {
         {
             "id": "8f1c3e2a-6b7d-4c1e-9a2b-3d4e5f6a7b8c",
             "tipo": "piramidal",
+            "variante": "piramidal",
             "materia_id": None,
             "cor": "#8B7BFF",
             "criado_em": "2026-10-20T14:25:00+00:00",
@@ -102,6 +110,7 @@ _EXEMPLO_REDE = {
         {
             "id": "1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d",
             "tipo": "granular",
+            "variante": "granular",
             "materia_id": None,
             "cor": "#4A4F6E",
             "criado_em": "2026-10-20T15:03:00+00:00",
@@ -111,6 +120,7 @@ _EXEMPLO_REDE = {
         {
             "id": "9e8d7c6b-5a4f-4e3d-2c1b-0a9f8e7d6c5b",
             "tipo": "purkinje",
+            "variante": "purkinje",
             "materia_id": None,
             "cor": "#FFC857",
             "criado_em": "2026-10-20T17:00:00+00:00",

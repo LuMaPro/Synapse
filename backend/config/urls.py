@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from app.api import conquistas, materias, rede, sessoes
+from app.api import conquistas, loja, materias, rede, sessoes
 from app.api.auth import cadastro, login, me, renovar
 from app.api.views import health
 
@@ -22,6 +22,9 @@ urlpatterns = [
     path("sessoes/<uuid:sessao_id>/concluir", sessoes.concluir),
     path("sessoes/<uuid:sessao_id>/desistir", sessoes.desistir),
     path("conquistas", conquistas.conquistas),
+    path("loja", loja.loja),
+    path("loja/<str:codigo>/comprar", loja.comprar),
+    path("loja/<str:codigo>/usar", loja.usar),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),
 ]

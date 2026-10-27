@@ -163,6 +163,8 @@ describe('tela de foco', () => {
     expect(await screen.findByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
     expect(screen.getByText('Granular · 20 min')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Neurônio Granular, 100% formado' })).toBeInTheDocument()
+    // O ATP que o servidor creditou (#34): 1 por minuto.
+    expect(screen.getByText('+20 ATP')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver na minha rede' })).toHaveAttribute('href', '/rede')
 
     await usuario.click(screen.getByRole('button', { name: 'Focar de novo' }))
@@ -193,6 +195,53 @@ describe('tela de foco', () => {
 
     expect(await screen.findByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
     expect(screen.getByText('Piramidal · 25 min · Cálculo')).toBeInTheDocument()
+  })
+
+  it('usa a cor do tipo escolhido na loja, e a da matéria vale mais (issue #34)', async () => {
+    const tipo = (
+      codigo: string,
+      forma: 'granular' | 'piramidal',
+      cor: string,
+      emUso: boolean,
+    ) => ({
+      codigo,
+      nome: codigo,
+      forma,
+      cor,
+      preco: emUso && codigo !== forma ? 250 : 0,
+      duracao_minima: forma === 'granular' ? 10 : 25,
+      duracao_maxima: forma === 'granular' ? 24 : 59,
+      desbloqueado: true,
+      em_uso: emUso,
+    })
+    servidor.definirLoja({
+      saldo: 10,
+      tipos: [
+        tipo('granular', 'granular', '#3EE6E0', true),
+        tipo('piramidal', 'piramidal', '#8B7BFF', false),
+        tipo('piramidal_rosa', 'piramidal', '#FF6FB5', true),
+      ],
+    })
+    servidor.definirMaterias([{ id: 'mat-fis', nome: 'Física', cor: '#FFC857', criada_em: '' }])
+    const usuario = renderizar()
+    await screen.findByRole('radio', { name: 'Física' })
+
+    await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+    const crescendo = screen.getByRole('img', { name: /Neurônio Piramidal/ })
+    await waitFor(() => expect(crescendo).toHaveStyle({ '--cor-neuronio': '#FF6FB5' }))
+
+    act(() => vi.advanceTimersByTime(25 * MINUTO))
+    const formado = await screen.findByRole('img', { name: 'Neurônio Piramidal, 100% formado' })
+    expect(formado).toHaveStyle({ '--cor-neuronio': '#FF6FB5' })
+    expect(screen.getByText('+25 ATP')).toBeInTheDocument()
+
+    // Com matéria, a cor da matéria vale mais que a da loja.
+    await usuario.click(screen.getByRole('button', { name: 'Focar de novo' }))
+    await usuario.click(screen.getByRole('radio', { name: 'Física' }))
+    await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+    expect(screen.getByRole('img', { name: /Neurônio Piramidal/ })).toHaveStyle({
+      '--cor-neuronio': '#FFC857',
+    })
   })
 
   describe('saída da tela (issue #18)', () => {

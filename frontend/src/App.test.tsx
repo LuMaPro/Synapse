@@ -25,7 +25,7 @@ describe('rotas e proteção de acesso', () => {
       expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
     })
 
-    it.each(['/foco', '/rede', '/historico', '/estatisticas', '/materias'])(
+    it.each(['/foco', '/rede', '/historico', '/estatisticas', '/materias', '/loja'])(
       'redireciona rota protegida %s para /login',
       (rota) => {
         renderizarEm(rota)
@@ -64,6 +64,7 @@ describe('rotas e proteção de acesso', () => {
             '/rede': { neuronios: [], sinapses: [] },
             '/materias': [],
             '/sessoes': { total: 0, pagina: 1, tamanho: 20, paginas: 1, resultados: [] },
+            '/loja': { saldo: 0, tipos: [] },
           }[pathname]
           return corpo === undefined
             ? new Response(null, { status: 204 })
@@ -89,6 +90,7 @@ describe('rotas e proteção de acesso', () => {
       ['/historico', 'Histórico'],
       ['/estatisticas', 'Estatísticas'],
       ['/materias', 'Matérias'],
+      ['/loja', 'Loja'],
     ])('abre rota protegida %s diretamente', (rota, titulo) => {
       renderizarEm(rota)
       expect(screen.getByRole('heading', { name: titulo })).toBeInTheDocument()
@@ -123,6 +125,9 @@ describe('rotas e proteção de acesso', () => {
 
       await usuario.click(screen.getByRole('link', { name: 'Matérias' }))
       expect(screen.getByRole('heading', { name: 'Matérias' })).toBeInTheDocument()
+
+      await usuario.click(screen.getByRole('link', { name: 'Loja' }))
+      expect(screen.getByRole('heading', { name: 'Loja' })).toBeInTheDocument()
 
       await usuario.click(screen.getByRole('link', { name: 'Estatísticas' }))
       expect(screen.getByRole('heading', { name: 'Estatísticas' })).toBeInTheDocument()

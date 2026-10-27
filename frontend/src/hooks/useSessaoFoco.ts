@@ -8,6 +8,7 @@ import {
   fecharSaidaEmCurso,
   guardarSaidaEmCurso,
   sessoesApi,
+  type ConclusaoApi,
   type RespostaAviso,
   type SessaoApi,
 } from '../services/sessoes'
@@ -88,6 +89,8 @@ export function useSessaoFoco() {
   const [erro, setErro] = useState<string | null>(null)
   /** A conclusão não chegou ao servidor e está sendo tentada de novo. */
   const [semConexao, setSemConexao] = useState(false)
+  /** A resposta do servidor ao concluir: o neurônio formado e o ATP ganho (#34). */
+  const [conclusao, setConclusao] = useState<ConclusaoApi | null>(null)
   // Os eventos de saída chegam de fora do React (ex.: fullscreenchange disparado pelo
   // próprio fim da sessão) e podem vir antes do próximo render; o ref é atualizado na hora.
   const emAndamentoRef = useRef(false)
@@ -231,9 +234,10 @@ export function useSessaoFoco() {
         // Os avisos pendentes vão antes: o servidor precisa deles para decidir a conclusão.
         if (!(await enviarAvisosPendentes(tratarResposta))) throw new Error('Sem conexão')
         if (!ativo || !concluindoRef.current) return
-        await sessoesApi.concluir(sessaoId)
+        const resposta = await sessoesApi.concluir(sessaoId)
         if (!ativo) return
         concluindoRef.current = false
+        setConclusao(resposta)
         setFase('concluida')
       } catch (erroConclusao) {
         if (!ativo) return
@@ -415,6 +419,7 @@ export function useSessaoFoco() {
     setFimEm(null)
     setSaidaEm(null)
     setErro(null)
+    setConclusao(null)
     setFase('configurando')
   }, [])
 
@@ -432,6 +437,7 @@ export function useSessaoFoco() {
     iniciando,
     erro,
     semConexao,
+    conclusao,
     foraDaTela: saidaEm !== null,
     podeDiminuir: duracaoMin > DURACAO_MINIMA,
     podeAumentar: duracaoMin < DURACAO_MAXIMA,

@@ -1,3 +1,4 @@
+import type { TipoNeuronio } from '../utils/neuronio'
 import { api, ApiError } from './api'
 
 /**
@@ -31,11 +32,19 @@ export interface NeuronioApi {
   duracao_minutos: number
   materia_id?: string | null
   criado_em: string
+  /** A forma, pela duração (issue #34). */
+  tipo?: TipoNeuronio
+  /** O tipo usado: o original (ex.: `piramidal`) ou uma variação da loja. */
+  variante?: string
+  /** A cor do tipo usado; a da matéria, se houver, vale mais na tela. */
+  cor?: string
 }
 
 export interface ConclusaoApi {
   sessao: SessaoApi
   neuronio: NeuronioApi
+  /** ATP ganho com a sessão: 1 por minuto (issue #34). */
+  atp?: number
 }
 
 export const sessoesApi = {

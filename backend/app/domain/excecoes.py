@@ -69,3 +69,18 @@ class MateriaNaoEncontrada(ErroDominio):
 class MateriaJaExiste(ErroDominio):
     """O estudante já tem uma matéria cadastrada com este nome."""
 
+
+class TipoNaoEncontrado(ErroDominio):
+    """Tipo de neurônio que não está à venda na loja (#34)."""
+
+
+class SaldoInsuficiente(ErroDominio):
+    """O estudante não tem ATP suficiente para comprar o tipo de neurônio."""
+
+
+class TipoJaDesbloqueado(ErroDominio):
+    """Compra de um tipo de neurônio que o estudante já tem."""
+
+
+class TipoBloqueado(ErroDominio):
+    """Uso de um tipo de neurônio que o estudante ainda não comprou."""

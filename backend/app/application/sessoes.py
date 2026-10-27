@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from app.domain.entidades.neuronio import FabricaNeuronio, Neuronio
+from app.domain.entidades.neuronio import CriadorNeuronio, FabricaNeuronio, Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
 from app.domain.excecoes import (
@@ -46,9 +46,9 @@ class SessaoService:
 
     Toda sessão que termina vira um neurônio (#23), criado pela `FabricaNeuronio`
     (#22): vivo, se foi concluída; morto, se foi podada. O serviço só publica o evento
-    (`SessaoConcluida` ou `SessaoPodada`, #24); quem coloca o neurônio na rede e
-    desbloqueia as conquistas (#32), e no futuro atualiza as estatísticas, são os
-    observadores inscritos.
+    (`SessaoConcluida` ou `SessaoPodada`, #24); quem coloca o neurônio na rede,
+    desbloqueia as conquistas (#32) e credita o ATP (#34), e no futuro atualiza as
+    estatísticas, são os observadores inscritos.
     """
 
     def __init__(
@@ -57,7 +57,7 @@ class SessaoService:
         publicador: PublicadorEventos,
         relogio: Callable[[], datetime] = agora,
         materias: RepositorioMateria | None = None,
-        fabrica: FabricaNeuronio | type[FabricaNeuronio] = FabricaNeuronio,
+        fabrica: CriadorNeuronio = FabricaNeuronio,
     ):
         self._sessoes = sessoes
         self._publicador = publicador

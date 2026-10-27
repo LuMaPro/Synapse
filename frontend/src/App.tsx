@@ -7,6 +7,7 @@ import { Estatisticas } from './pages/Estatisticas'
 import { Foco } from './pages/Foco'
 import { Historico } from './pages/Historico'
 import { Login } from './pages/Login'
+import { Loja } from './pages/Loja'
 import { Materias } from './pages/Materias'
 import { NaoEncontrada } from './pages/NaoEncontrada'
 import { Rede } from './pages/Rede'
@@ -25,6 +26,7 @@ export function AppRoutes() {
             <Route path="rede" element={<Rede />} />
             <Route path="historico" element={<Historico />} />
             <Route path="materias" element={<Materias />} />
+            <Route path="loja" element={<Loja />} />
             <Route path="estatisticas" element={<Estatisticas />} />
           </Route>
 

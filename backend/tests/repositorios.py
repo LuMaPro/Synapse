@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from app.domain.carteira import Carteira
 from app.domain.entidades.conquista import ConquistaDesbloqueada
 from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
@@ -10,6 +11,7 @@ from app.domain.entidades.usuario import Usuario
 from app.domain.formacao_sinapses import RegraFormacaoSinapses
 from app.domain.rede_neural import RedeNeural
 from app.domain.repositorios import (
+    RepositorioCarteira,
     RepositorioConquista,
     RepositorioMateria,
     RepositorioNeuronio,
@@ -255,3 +257,32 @@ class RepositorioConquistaMemoria(RepositorioConquista):
 
     def __len__(self) -> int:
         return len(self._conquistas)
+
+
+class RepositorioCarteiraMemoria(RepositorioCarteira):
+    """Implementação em memória de RepositorioCarteira para testes unitários.
+
+    Guarda cópias, como o banco: mudar uma carteira carregada não muda a guardada
+    até ela ser salva.
+    """
+
+    def __init__(self) -> None:
+        self._carteiras: dict[UUID, Carteira] = {}
+
+    def carregar(self, usuario_id: UUID, *, para_alterar: bool = False) -> Carteira:
+        guardada = self._carteiras.get(usuario_id)
+        if guardada is None:
+            return Carteira(usuario_id)
+        return self._copia(guardada)
+
+    def salvar(self, carteira: Carteira) -> None:
+        self._carteiras[carteira.usuario_id] = self._copia(carteira)
+
+    @staticmethod
+    def _copia(carteira: Carteira) -> Carteira:
+        return Carteira(
+            carteira.usuario_id,
+            carteira.saldo,
+            carteira.desbloqueados,
+            carteira.em_uso,
+        )

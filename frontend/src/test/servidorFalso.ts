@@ -1,6 +1,8 @@
 import { vi } from 'vitest'
+import type { LojaApi } from '../services/loja'
 import type { Materia } from '../services/materias'
 import type { SessaoApi } from '../services/sessoes'
+import { tipoNeuronio } from '../utils/neuronio'
 
 /** Uma requisição recebida pelo servidor falso. */
 export interface Chamada {
@@ -23,6 +25,9 @@ interface SessaoFalsa {
 
 const TOLERANCIA_RELOGIO_MS = 2_000
 
+/** As cores dos tipos originais, como o backend manda. */
+const COR_ORIGINAL = { granular: '#3EE6E0', piramidal: '#8B7BFF', purkinje: '#FFC857' }
+
 function json(status: number, corpo?: unknown) {
   if (corpo === undefined) return new Response(null, { status })
   return new Response(JSON.stringify(corpo), {
@@ -40,6 +45,8 @@ export function criarServidorFalso() {
   const chamadas: Chamada[] = []
   let sessoes: SessaoFalsa[] = []
   let materias: Materia[] = []
+  /** A loja de ATP (#34); sem ela, `GET /loja` responde 404. */
+  let loja: LojaApi | null = null
   let proximoId = 1
   let semRede = false
   /** Rotas que respondem 500 (terminadas neste trecho). */
@@ -115,6 +122,9 @@ export function criarServidorFalso() {
     if (metodo === 'GET' && caminho === '/materias') {
       return json(200, materias)
     }
+    if (metodo === 'GET' && caminho === '/loja') {
+      return loja ? json(200, loja) : json(404, { erro: 'nao_encontrado', mensagem: 'Sem loja.' })
+    }
 
     const [, , id, acao] = caminho.split('/')
     const sessao = sessoes.find((s) => s.id === id)
@@ -131,6 +141,8 @@ export function criarServidorFalso() {
       if (agora() < fimPrevisto(sessao) - TOLERANCIA_RELOGIO_MS) return transicaoInvalida()
       sessao.estado = 'concluida'
       sessao.encerradaEm = fimPrevisto(sessao)
+      const forma = tipoNeuronio(sessao.duracaoMin)
+      const emUso = loja?.tipos.find((t) => t.forma === forma && t.em_uso)
       return json(200, {
         sessao: comoJson(sessao),
         neuronio: {
@@ -139,7 +151,12 @@ export function criarServidorFalso() {
           duracao_minutos: sessao.duracaoMin,
           materia_id: sessao.materiaId,
           criado_em: new Date(fimPrevisto(sessao)).toISOString(),
+          tipo: forma,
+          variante: emUso?.codigo ?? forma,
+          cor: emUso?.cor ?? COR_ORIGINAL[forma],
         },
+        // 1 ATP por minuto, como o backend (#34).
+        atp: sessao.duracaoMin,
       })
     }
     return json(404, { erro: 'nao_encontrado', mensagem: 'Rota inexistente.' })
@@ -191,9 +208,13 @@ export function criarServidorFalso() {
     definirMaterias: (novas: Materia[]) => {
       materias = [...novas]
     },
+    definirLoja: (nova: LojaApi | null) => {
+      loja = nova
+    },
     limpar: () => {
       sessoes = []
       materias = []
+      loja = null
       chamadas.length = 0
     },
   }

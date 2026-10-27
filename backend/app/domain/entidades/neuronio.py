@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from datetime import datetime
 from types import MethodType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 from app.domain.duracao import Duracao
@@ -47,6 +47,12 @@ class TipoNeuronio(ABC):
     def codigo(self) -> str:
         """Identificador estável em minúsculas para a API."""
         return self.nome.lower()
+
+    @property
+    def forma(self) -> str:
+        """O desenho do neurônio (`granular`, `piramidal` ou `purkinje`). Uma variação
+        comprada na loja (#34) muda a cor, mas mantém a forma do tipo original."""
+        return self.codigo
 
     def aceita(self, duracao_minutos: int) -> bool:
         """Indica se a duração (em minutos) cai na faixa deste tipo."""
@@ -135,6 +141,62 @@ class Purkinje(TipoNeuronio):
         return 9.0
 
 
+class VarianteCor(TipoNeuronio):
+    """Variação de cor de um tipo de neurônio, desbloqueada na loja com ATP (#34).
+
+    Envolve um tipo (Decorator) e troca só o nome e a cor: a faixa de duração, a
+    forma, os dendritos e o raio continuam os do tipo envolvido. Assim a forma do
+    neurônio segue dizendo quanto durou a sessão, como pede o design.
+    """
+
+    def __init__(self, base: TipoNeuronio, codigo: str, nome: str, cor: str):
+        if isinstance(base, VarianteCor):
+            raise TypeError("Uma variação envolve um tipo original, e não outra.")
+        self._base = base
+        self._codigo = codigo
+        self._nome = nome
+        self._cor = cor
+        self.duracao_minima = base.duracao_minima
+        self.duracao_maxima = base.duracao_maxima
+
+    @property
+    def base(self) -> TipoNeuronio:
+        return self._base
+
+    @property
+    def nome(self) -> str:
+        return self._nome
+
+    @property
+    def cor(self) -> str:
+        return self._cor
+
+    @property
+    def numero_dendritos(self) -> int:
+        return self._base.numero_dendritos
+
+    @property
+    def raio(self) -> float:
+        return self._base.raio
+
+    @property
+    def codigo(self) -> str:
+        return self._codigo
+
+    @property
+    def forma(self) -> str:
+        return self._base.forma
+
+    def __eq__(self, outro: object) -> bool:
+        return isinstance(outro, VarianteCor) and self._codigo == outro._codigo
+
+    def __hash__(self) -> int:
+        return hash((VarianteCor, self._codigo))
+
+    def __repr__(self) -> str:
+        return f"VarianteCor({self._codigo!r})"
+
+
 class Neuronio(Entidade):
     """Neurônio que nasce quando uma sessão de foco termina (#16, #22 e #23).
 
@@ -216,6 +278,16 @@ class Neuronio(Entidade):
 
     def __repr__(self) -> str:
         return f"Neuronio(id={self.id}, sessao_id={self._sessao_id})"
+
+
+class CriadorNeuronio(Protocol):
+    """O que o `SessaoService` espera de uma fábrica: criar o neurônio da sessão.
+
+    A `FabricaNeuronio` atende (direto na classe ou numa instância), e a
+    `FabricaDoEstudante` (#34) também, com os tipos escolhidos na loja.
+    """
+
+    def criar(self, sessao: "SessaoFoco") -> Neuronio: ...
 
 
 class _MetodoFabrica:

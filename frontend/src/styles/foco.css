@@ -287,6 +287,11 @@
   font-weight: 600;
 }
 
+/* ATP, a moeda da loja (#34), na cor do design. */
+.selo.atp {
+  color: var(--cor-atp);
+}
+
 .timer {
   font-size: 64px;
   font-weight: 700;

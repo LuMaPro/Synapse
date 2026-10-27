@@ -1,0 +1,107 @@
+/* Loja de ATP (issue #34). O protótipo (docs/design) não desenha esta tela: ela segue
+   o cabeçalho da rede, os cartões da lista de matérias e a cor do ATP. */
+
+.loja-saldo {
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+.loja-intro {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 14px;
+}
+
+.loja-erro,
+.loja-aviso {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--raio);
+  font-size: 14px;
+}
+
+.loja-erro {
+  border: 1px solid rgb(255 92 122 / 40%);
+  background: rgb(255 92 122 / 10%);
+  color: var(--cor-perigo);
+}
+
+.loja-aviso {
+  border: 1px solid rgb(255 200 87 / 40%);
+  background: linear-gradient(90deg, rgb(255 200 87 / 16%), rgb(255 200 87 / 4%));
+  color: var(--cor-texto);
+}
+
+.loja-forma h2 {
+  margin: 8px 0 10px;
+  font-size: 18px;
+}
+
+.loja-forma h2 span {
+  color: var(--cor-texto-fraco);
+  font: 400 14px var(--fonte-texto);
+}
+
+.loja-forma ul {
+  display: grid;
+  /* Duas colunas já no celular (360 px). */
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loja-cartao {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  text-align: center;
+}
+
+.loja-cartao.em-uso {
+  border-color: var(--cor-atp);
+  box-shadow: 0 0 18px rgb(255 200 87 / 18%);
+}
+
+.loja-info h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.loja-info p {
+  margin: 2px 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 13px;
+}
+
+.loja-cartao .botao {
+  height: 44px;
+  padding: 0 8px;
+  font-size: 14px;
+}
+
+.loja-cartao .botao:disabled {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+}
+
+.loja-em-uso {
+  height: 44px;
+  padding: 0 16px;
+  color: var(--cor-atp);
+}
+
+.loja-confirmacao {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}

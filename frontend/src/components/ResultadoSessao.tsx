@@ -11,10 +11,12 @@ interface ResultadoSessaoProps {
   decorridoMs: number
   /** Quanto o neurônio tinha crescido quando a sessão terminou. */
   progresso: number
-  /** Cor da matéria selecionada na sessão (#28). */
+  /** Cor do neurônio: a da matéria (#28) ou a do tipo escolhido na loja (#34). */
   cor?: string
   /** Nome da matéria selecionada na sessão (#28). */
   nomeMateria?: string | null
+  /** ATP ganho com a sessão concluída (#34). */
+  atp?: number | null
   onFocarDeNovo: () => void
 }
 
@@ -27,6 +29,7 @@ export function ResultadoSessao({
   progresso,
   cor,
   nomeMateria,
+  atp,
   onFocarDeNovo,
 }: ResultadoSessaoProps) {
   const tipo = tipoNeuronio(duracaoMin)
@@ -45,6 +48,7 @@ export function ResultadoSessao({
           {NOME_TIPO_NEURONIO[tipo]} · {duracaoMin} min
           {nomeMateria ? ` · ${nomeMateria}` : ''}
         </p>
+        {atp ? <span className="selo atp">+{atp} ATP</span> : null}
         <div className="acoes">
           <Link className="botao primario" to="/rede">
             Ver na minha rede

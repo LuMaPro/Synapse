@@ -41,6 +41,7 @@ class RepositorioRedeNeuralDjango(RepositorioRedeNeural):
                     vivo=n.vivo,
                     materia_id=n.materia_id,
                     criado_em=n.criado_em,
+                    tipo=n.tipo.codigo,
                 )
                 for n in rede.neuronios_novos
             )

@@ -30,12 +30,14 @@ interface NeuronioAnimadoProps {
   progresso: number
   /** Sessão interrompida: recolhe os ramos e fica cinza, sem brilho. */
   podado?: boolean
-  /** Cor da matéria (#28). Sem ela, usa a cor padrão do tipo. */
+  /** Cor da matéria (#28) ou do tipo escolhido na loja (#34). Sem ela, a padrão. */
   cor?: string
   /** Brilho mais forte para o neurônio recém-formado (tela de sucesso). */
   brilho?: 'normal' | 'forte'
   /** Largura e altura em px. */
   tamanho?: number
+  /** Descrição para leitores de tela; sem ela, diz o tipo e quanto está formado. */
+  rotulo?: string
 }
 
 /**
@@ -51,6 +53,7 @@ export function NeuronioAnimado({
   cor,
   brilho = 'normal',
   tamanho = 260,
+  rotulo,
 }: NeuronioAnimadoProps) {
   // O primeiro quadro mostra o neurônio vivo e com brilho normal; só depois aplica a
   // poda ou o brilho forte. Assim a transição acontece na frente do estudante.
@@ -75,9 +78,11 @@ export function NeuronioAnimado({
     ...(podadoAgora ? {} : { '--cor-neuronio': cor ?? COR_PADRAO_TIPO_NEURONIO[tipo] }),
   } as CSSProperties
 
-  const descricao = podado
-    ? `Neurônio ${NOME_TIPO_NEURONIO[tipo]} podado`
-    : `Neurônio ${NOME_TIPO_NEURONIO[tipo]}, ${Math.round(desenho.progresso * 100)}% formado`
+  const descricao =
+    rotulo ??
+    (podado
+      ? `Neurônio ${NOME_TIPO_NEURONIO[tipo]} podado`
+      : `Neurônio ${NOME_TIPO_NEURONIO[tipo]}, ${Math.round(desenho.progresso * 100)}% formado`)
 
   const { corpo, axonio } = desenho
 

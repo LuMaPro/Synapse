@@ -5,6 +5,8 @@ import { api } from './api'
 export interface NeuronioRede {
   id: string
   tipo: TipoNeuronio
+  /** O tipo usado: o original ou uma variação de cor da loja (issue #34). */
+  variante?: string
   materia_id: string | null
   /** Cor do tipo; o podado vem sempre cinza. A tela troca pela cor da matéria. */
   cor: string

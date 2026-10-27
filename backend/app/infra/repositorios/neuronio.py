@@ -18,6 +18,7 @@ class RepositorioNeuronioDjango(RepositorioNeuronio):
                 "vivo": neuronio.vivo,
                 "materia_id": neuronio.materia_id,
                 "criado_em": neuronio.criado_em,
+                "tipo": neuronio.tipo.codigo,
             },
         )
 

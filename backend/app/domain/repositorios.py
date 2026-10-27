@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import UUID
 
+from app.domain.carteira import Carteira
 from app.domain.entidades.conquista import ConquistaDesbloqueada
 from app.domain.entidades.materia import Materia
 from app.domain.entidades.neuronio import Neuronio
@@ -187,4 +188,22 @@ class RepositorioConquista(ABC):
     @abstractmethod
     def salvar(self, conquista: ConquistaDesbloqueada) -> None:
         """Persiste uma conquista recém-desbloqueada."""
+        ...
+
+
+class RepositorioCarteira(ABC):
+    """Persistência do agregado Carteira (Padrão Repository, #34)."""
+
+    @abstractmethod
+    def carregar(self, usuario_id: UUID, *, para_alterar: bool = False) -> Carteira:
+        """A carteira do estudante; vazia (saldo 0) se ele nunca ganhou ATP.
+
+        Com `para_alterar`, a carteira fica reservada até o fim da transação, para
+        que duas compras ao mesmo tempo não gastem o mesmo ATP.
+        """
+        ...
+
+    @abstractmethod
+    def salvar(self, carteira: Carteira) -> None:
+        """Grava o saldo, os tipos desbloqueados e os escolhidos."""
         ...

@@ -29,3 +29,15 @@ class AvaliadorConquistas(ObservadorSessao):
     def processar(self, evento):
         if isinstance(evento, SessaoConcluida):
             self.conquistas.avaliar(evento.usuario_id, evento.conclusao)
+
+
+class CreditadorATP(ObservadorSessao):
+    """Credita o ATP de cada sessão concluída na carteira do estudante (#34). Sessão
+    podada não rende ATP. A quantia vem de `atp_da_sessao`, no `LojaService`."""
+
+    def __init__(self, loja):
+        self.loja = loja
+
+    def processar(self, evento):
+        if isinstance(evento, SessaoConcluida):
+            self.loja.creditar_sessao(evento.usuario_id, evento.duracao_minutos)
