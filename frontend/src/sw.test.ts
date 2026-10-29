@@ -5,32 +5,78 @@ import CODIGO from '../public/sw.js?raw'
 // o executa. O teste carrega o arquivo de verdade com `self`, `caches` e `fetch`
 // falsos e dispara os eventos que o navegador dispararia.
 const ORIGEM = 'http://localhost:4173'
+const FOLHA_FONTES = 'https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap'
+const ARQUIVO_FONTE = 'https://fonts.gstatic.com/s/inter/v1/inter.woff2'
 
-/** CacheStorage em memória, com a mesma interface usada pelo sw.js. */
-function criarCaches(iniciais: string[] = []) {
-  const caches = new Map<string, Map<string, Response>>(iniciais.map((nome) => [nome, new Map()]))
+/** O index.html do build, como o Vite gera (com o `&amp;` na URL das fontes). */
+function indexHtml(hash = 'abc123') {
+  return `<!doctype html><html><head>
+    <link href="${FOLHA_FONTES.replace('&', '&amp;')}" rel="stylesheet" />
+    <script type="module" crossorigin src="/assets/index-${hash}.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-${hash}.css">
+  </head><body><div id="root"></div></body></html>`
+}
+
+/** A rede: o index.html, a folha de fontes (que cita um arquivo) e o resto. Como o
+ * `vite preview`, responde tudo com `Vary: Origin`. */
+function respostaDaRede(url: string, hash: string) {
+  const { pathname, origin } = new URL(url)
+  const vary = { headers: { Vary: 'Origin' } }
+  if (origin === ORIGEM && !pathname.includes('.')) return new Response(indexHtml(hash), vary)
+  if (url === FOLHA_FONTES) {
+    return new Response(`@font-face { src: url(${ARQUIVO_FONTE}); }`, vary)
+  }
+  return new Response(`conteúdo de ${url}`, vary)
+}
+
+/** Pedido feito pela página com `crossorigin` (o JS e o CSS do Vite): leva o Origin. */
+function daPagina(url: string) {
+  const pedido = new Request(url)
+  Object.defineProperty(pedido, 'origem', { value: ORIGEM })
+  return pedido
+}
+
+const origemDo = (pedido: Request | string) =>
+  typeof pedido === 'string' ? null : ((pedido as Request & { origem?: string }).origem ?? null)
+
+/**
+ * CacheStorage em memória, com a mesma interface usada pelo sw.js. Como no navegador,
+ * uma resposta com `Vary: Origin` só serve para um pedido com o mesmo Origin, a não
+ * ser com `ignoreVary`.
+ */
+function criarCaches(rede: (pedido: Request) => Promise<Response>, iniciais: string[]) {
+  type Entrada = { resposta: Response; origem: string | null }
+  const caches = new Map<string, Map<string, Entrada>>(iniciais.map((nome) => [nome, new Map()]))
   const chave = (pedido: Request | string) =>
     typeof pedido === 'string' ? new URL(pedido, ORIGEM).href : pedido.url
-  return {
-    caches,
-    api: {
-      open: async (nome: string) => {
-        if (!caches.has(nome)) caches.set(nome, new Map())
-        const cache = caches.get(nome)!
-        return {
-          match: async (pedido: Request | string) => cache.get(chave(pedido))?.clone(),
-          put: async (pedido: Request | string, resposta: Response) => {
-            cache.set(chave(pedido), resposta)
-          },
-          addAll: async (urls: string[]) => {
-            for (const url of urls) cache.set(chave(url), new Response(`conteúdo de ${url}`))
-          },
-        }
-      },
-      keys: async () => [...caches.keys()],
-      delete: async (nome: string) => caches.delete(nome),
+  const api = {
+    open: async (nome: string) => {
+      if (!caches.has(nome)) caches.set(nome, new Map())
+      const cache = caches.get(nome)!
+      return {
+        match: async (pedido: Request | string, opcoes?: { ignoreVary?: boolean }) => {
+          const entrada = cache.get(chave(pedido))
+          if (!entrada) return undefined
+          const variaPelaOrigem = entrada.resposta.headers.get('Vary')?.includes('Origin')
+          if (variaPelaOrigem && !opcoes?.ignoreVary && entrada.origem !== origemDo(pedido)) {
+            return undefined
+          }
+          return entrada.resposta.clone()
+        },
+        put: async (pedido: Request | string, resposta: Response) => {
+          cache.set(chave(pedido), { resposta, origem: origemDo(pedido) })
+        },
+        addAll: async (urls: string[]) => {
+          for (const url of urls) {
+            cache.set(chave(url), { resposta: await rede(new Request(chave(url))), origem: null })
+          }
+        },
+      }
     },
+    keys: async () => [...caches.keys()],
+    delete: async (nome: string) => caches.delete(nome),
   }
+  return { caches, api }
 }
 
 function carregarServiceWorker({ cachesIniciais = [] as string[] } = {}) {
@@ -43,26 +89,39 @@ function carregarServiceWorker({ cachesIniciais = [] as string[] } = {}) {
     skipWaiting: vi.fn(async () => {}),
     clients: { claim: vi.fn(async () => {}) },
   }
-  const { caches, api } = criarCaches(cachesIniciais)
-  const rede = vi.fn(async (pedido: Request) => new Response(`da rede: ${pedido.url}`))
+  let hash = 'abc123'
+  // Como no navegador, um caminho relativo vale a partir da origem do service worker.
+  const rede = vi.fn(async (pedido: Request | string) =>
+    respostaDaRede(typeof pedido === 'string' ? new URL(pedido, ORIGEM).href : pedido.url, hash),
+  )
+  const { caches, api } = criarCaches(rede, cachesIniciais)
   new Function('self', 'caches', 'fetch', CODIGO)(self, api, rede)
 
-  /** Dispara um evento com waitUntil/respondWith e espera o que ele prometeu. */
+  /** Dispara um evento e espera a resposta e o trabalho em segundo plano. */
   async function disparar(tipo: string, pedido?: Request) {
-    let promessa: Promise<unknown> | undefined
-    let respondeu = false
+    const pendentes: Promise<unknown>[] = []
+    let resposta: Promise<unknown> | undefined
     ouvintes[tipo]({
       request: pedido,
-      waitUntil: (p: Promise<unknown>) => (promessa = p),
-      respondWith: (p: Promise<unknown>) => {
-        respondeu = true
-        promessa = p
-      },
+      waitUntil: (p: Promise<unknown>) => pendentes.push(p),
+      respondWith: (p: Promise<unknown>) => (resposta = p),
     })
-    return { resposta: (await promessa) as Response | undefined, respondeu }
+    const valor = (await resposta) as Response | undefined
+    // O que for agendado durante a resposta também entra na espera.
+    for (let i = 0; i < pendentes.length; i++) await pendentes[i]
+    return { resposta: valor, respondeu: resposta !== undefined }
   }
 
-  return { self, caches, rede, disparar }
+  const guardados = (nome: string) => [...(caches.get(nome)?.keys() ?? [])]
+
+  return {
+    self,
+    caches,
+    rede,
+    disparar,
+    guardados,
+    novaVersao: (novo: string) => (hash = novo),
+  }
 }
 
 function navegacao(caminho: string) {
@@ -76,18 +135,24 @@ describe('service worker', () => {
   let sw: ReturnType<typeof carregarServiceWorker>
 
   beforeEach(() => {
-    sw = carregarServiceWorker({ cachesIniciais: ['synapse-v0-app', 'outra-coisa'] })
+    sw = carregarServiceWorker({ cachesIniciais: ['synapse-v2-app', 'outra-coisa'] })
   })
 
-  it('na instalação, guarda a casca do app e assume sem esperar', async () => {
+  it('critério: na instalação, guarda a casca e os arquivos que o index.html usa', async () => {
     await sw.disparar('install')
 
-    expect([...sw.caches.get('synapse-v1-app')!.keys()]).toEqual([
-      `${ORIGEM}/`,
-      `${ORIGEM}/manifest.webmanifest`,
-      `${ORIGEM}/favicon.svg`,
-      `${ORIGEM}/icones/icone-192.png`,
-    ])
+    expect(sw.guardados('synapse-v3-app').sort()).toEqual(
+      [
+        `${ORIGEM}/`,
+        `${ORIGEM}/manifest.webmanifest`,
+        `${ORIGEM}/favicon.svg`,
+        `${ORIGEM}/icones/icone-192.png`,
+        `${ORIGEM}/assets/index-abc123.js`,
+        `${ORIGEM}/assets/index-abc123.css`,
+      ].sort(),
+    )
+    // As fontes: a folha de estilo e o arquivo que ela cita.
+    expect(sw.guardados('synapse-v3-fontes').sort()).toEqual([FOLHA_FONTES, ARQUIVO_FONTE].sort())
     expect(sw.self.skipWaiting).toHaveBeenCalled()
   })
 
@@ -95,43 +160,58 @@ describe('service worker', () => {
     await sw.disparar('install')
     await sw.disparar('activate')
 
-    expect([...sw.caches.keys()]).toEqual(['synapse-v1-app'])
+    expect([...sw.caches.keys()].sort()).toEqual(['synapse-v3-app', 'synapse-v3-fontes'])
     expect(sw.self.clients.claim).toHaveBeenCalled()
   })
 
-  it('páginas: busca na rede e guarda a última versão do app', async () => {
-    const { resposta } = await sw.disparar('fetch', navegacao('/rede'))
-
-    expect(await resposta!.text()).toBe(`da rede: ${ORIGEM}/rede`)
-    expect(sw.caches.get('synapse-v1-app')!.has(`${ORIGEM}/`)).toBe(true)
-  })
-
-  it('critério: sem rede, qualquer página abre a última versão guardada do app', async () => {
+  it('critério: sem rede, a página abre com o JS, o CSS e as fontes guardados', async () => {
     await sw.disparar('install')
     sw.rede.mockRejectedValue(new TypeError('Failed to fetch'))
 
-    const { resposta } = await sw.disparar('fetch', navegacao('/historico'))
+    const pagina = await sw.disparar('fetch', navegacao('/historico'))
+    // A página pede o JS e o CSS com o Origin; o service worker os guardou sem ele.
+    const css = await sw.disparar('fetch', daPagina(`${ORIGEM}/assets/index-abc123.css`))
+    const js = await sw.disparar('fetch', daPagina(`${ORIGEM}/assets/index-abc123.js`))
+    const fonte = await sw.disparar('fetch', new Request(ARQUIVO_FONTE))
 
-    expect(await resposta!.text()).toBe('conteúdo de /')
+    expect(await pagina.resposta!.text()).toContain('/assets/index-abc123.css')
+    expect(await css.resposta!.text()).toBe(`conteúdo de ${ORIGEM}/assets/index-abc123.css`)
+    expect(await js.resposta!.text()).toBe(`conteúdo de ${ORIGEM}/assets/index-abc123.js`)
+    expect(await fonte.resposta!.text()).toBe(`conteúdo de ${ARQUIVO_FONTE}`)
   })
 
-  it('arquivos do build: usa o guardado e atualiza em segundo plano', async () => {
-    const pedido = new Request(`${ORIGEM}/assets/index-abc123.js`)
+  it('arquivos do build guardados não vão à rede (o hash no nome garante a versão)', async () => {
+    await sw.disparar('install')
+    sw.rede.mockClear()
 
-    const primeira = await sw.disparar('fetch', pedido)
-    expect(await primeira.resposta!.text()).toBe(`da rede: ${ORIGEM}/assets/index-abc123.js`)
+    await sw.disparar('fetch', daPagina(`${ORIGEM}/assets/index-abc123.js`))
 
-    sw.rede.mockRejectedValue(new TypeError('Failed to fetch'))
-    const segunda = await sw.disparar('fetch', pedido)
-    expect(await segunda.resposta!.text()).toBe(`da rede: ${ORIGEM}/assets/index-abc123.js`)
+    expect(sw.rede).not.toHaveBeenCalled()
   })
 
-  it('guarda as fontes do Google para abrir sem rede', async () => {
-    const pedido = new Request('https://fonts.gstatic.com/s/inter/v1/inter.woff2')
+  it('páginas vêm da rede, e uma versão nova do app tem os arquivos guardados', async () => {
+    await sw.disparar('install')
+    sw.novaVersao('def456')
 
-    await sw.disparar('fetch', pedido)
+    const { resposta } = await sw.disparar('fetch', navegacao('/rede'))
 
-    expect(sw.caches.get('synapse-v1-fontes')!.has(pedido.url)).toBe(true)
+    expect(await resposta!.text()).toContain('/assets/index-def456.js')
+    expect(sw.guardados('synapse-v3-app')).toEqual(
+      expect.arrayContaining([
+        `${ORIGEM}/assets/index-def456.js`,
+        `${ORIGEM}/assets/index-def456.css`,
+      ]),
+    )
+  })
+
+  it('outros arquivos da casca são atualizados em segundo plano', async () => {
+    await sw.disparar('install')
+    sw.rede.mockClear()
+
+    const { resposta } = await sw.disparar('fetch', new Request(`${ORIGEM}/favicon.svg`))
+
+    expect(await resposta!.text()).toBe(`conteúdo de ${ORIGEM}/favicon.svg`)
+    expect(sw.rede).toHaveBeenCalledOnce()
   })
 
   it('a API e os envios nunca passam pelo cache', async () => {
