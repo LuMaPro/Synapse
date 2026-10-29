@@ -6,6 +6,7 @@ const LINKS_AUTENTICADOS = [
   { para: '/rede', rotulo: 'Rede' },
   { para: '/historico', rotulo: 'Histórico' },
   { para: '/materias', rotulo: 'Matérias' },
+  { para: '/conquistas', rotulo: 'Conquistas' },
   { para: '/loja', rotulo: 'Loja' },
   { para: '/estatisticas', rotulo: 'Estatísticas' },
 ]
