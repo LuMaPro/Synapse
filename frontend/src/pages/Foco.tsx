@@ -8,7 +8,11 @@ import { SeletorMateria } from '../components/SeletorMateria'
 import { SeletorModo } from '../components/SeletorModo'
 import { useDeteccaoSaida } from '../hooks/useDeteccaoSaida'
 import { useMaterias } from '../hooks/useMaterias'
-import { PROPORCAO_TOLERANCIA, useSessaoFoco } from '../hooks/useSessaoFoco'
+import {
+  MINIMO_PARA_REGISTRO_MS,
+  PROPORCAO_TOLERANCIA,
+  useSessaoFoco,
+} from '../hooks/useSessaoFoco'
 import { telaLigadaSuportada, useTelaLigada } from '../hooks/useTelaLigada'
 import '../styles/foco.css'
 import { tipoNeuronio } from '../utils/neuronio'
@@ -119,6 +123,7 @@ export function Foco() {
         )}
         {!concluindo && confirmandoDesistencia && (
           <DialogoDesistir
+            curta={sessao.decorridoMs < MINIMO_PARA_REGISTRO_MS}
             onContinuar={() => setConfirmandoDesistencia(false)}
             onDesistir={() => {
               setConfirmandoDesistencia(false)

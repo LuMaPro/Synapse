@@ -138,6 +138,10 @@ class RepositorioSessaoMemoria(RepositorioSessao):
         """Lista as sessões em andamento de todos os usuários em memória."""
         return [s for s in self._sessoes.values() if s.codigo_estado == "em_andamento"]
 
+    def remover(self, id: UUID) -> None:
+        """Apaga a sessão da memória, se existir."""
+        self._sessoes.pop(id, None)
+
     def limpar(self) -> None:
         """Esvazia o repositório em memória."""
         self._sessoes.clear()

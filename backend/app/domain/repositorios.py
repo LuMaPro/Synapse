@@ -109,6 +109,14 @@ class RepositorioSessao(ABC):
         """
         ...
 
+    @abstractmethod
+    def remover(self, id: UUID) -> None:
+        """Apaga a sessão e as saídas dela; não faz nada se ela não existir.
+
+        Usado para a sessão podada antes de 5 min, que não fica registrada.
+        """
+        ...
+
 
 class RepositorioNeuronio(ABC):
     """Interface abstrata para persistência dos neurônios (Padrão Repository)."""

@@ -115,6 +115,10 @@ class RepositorioSessaoDjango(RepositorioSessao):
         qs = SessaoFocoModel.objects.filter(estado=SessaoFocoModel.Estado.EM_ANDAMENTO)
         return [s.para_entidade() for s in qs]
 
+    def remover(self, id: UUID) -> None:
+        """Apaga a sessão; as interrupções vão junto (CASCADE)."""
+        SessaoFocoModel.objects.filter(id=id).delete()
+
 
 # Alias de conveniência
 RepositorioSessaoFocoDjango = RepositorioSessaoDjango

@@ -1,6 +1,8 @@
 import type { KeyboardEvent } from 'react'
 
 interface DialogoDesistirProps {
+  /** Ainda não passou de 5 minutos: a sessão desistida não fica no histórico. */
+  curta: boolean
   onContinuar: () => void
   onDesistir: () => void
 }
@@ -9,7 +11,7 @@ interface DialogoDesistirProps {
  * Confirmação antes de desistir. A ação recomendada (continuar) é o botão de
  * destaque e já vem com o foco; Esc também continua a sessão.
  */
-export function DialogoDesistir({ onContinuar, onDesistir }: DialogoDesistirProps) {
+export function DialogoDesistir({ curta, onContinuar, onDesistir }: DialogoDesistirProps) {
   function aoTeclar(evento: KeyboardEvent) {
     if (evento.key === 'Escape') onContinuar()
   }
@@ -26,7 +28,10 @@ export function DialogoDesistir({ onContinuar, onDesistir }: DialogoDesistirProp
       >
         <h2 id="dialogo-desistir-titulo">Desistir agora?</h2>
         <p id="dialogo-desistir-texto" className="texto-suave">
-          Seu neurônio vai morrer. A sessão conta como podada e não entra na sua rede.
+          Seu neurônio vai morrer.{' '}
+          {curta
+            ? 'Com menos de 5 minutos, a sessão não fica no histórico.'
+            : 'A sessão conta como podada e não entra na sua rede.'}
         </p>
         <button type="button" className="botao primario" onClick={onContinuar} autoFocus>
           Continuar focando
