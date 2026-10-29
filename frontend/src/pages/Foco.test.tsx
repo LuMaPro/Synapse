@@ -153,6 +153,41 @@ describe('tela de foco', () => {
     expect(screen.getByRole('button', { name: 'Começar a focar' })).toBeInTheDocument()
   })
 
+  describe('tela ligada no celular (issue #35)', () => {
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'wakeLock')
+    })
+
+    it('mantém a tela ligada durante a sessão e solta ao terminar', async () => {
+      const release = vi.fn(async () => {})
+      const request = vi.fn(async () => ({ release, addEventListener: vi.fn() }))
+      Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request } })
+      const usuario = renderizar()
+      await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))
+
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+      await waitFor(() => expect(request).toHaveBeenCalledWith('screen'))
+      expect(screen.queryByText(/não mantém a tela acesa/)).not.toBeInTheDocument()
+
+      act(() => vi.advanceTimersByTime(20 * MINUTO))
+      await screen.findByRole('heading', { name: 'Neurônio formado!' })
+      expect(release).toHaveBeenCalled()
+    })
+
+    it('sem como manter a tela ligada, avisa que ela apagar conta como saída', async () => {
+      const usuario = renderizar()
+
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+
+      expect(screen.getByText(/não mantém a tela acesa/)).toHaveTextContent(
+        'Se ela apagar sozinha, conta como sair',
+      )
+      expect(screen.getByText(/poda este neurônio/)).toHaveTextContent(
+        'Trocar de aba ou de app, bloquear a tela ou sair da tela cheia poda este neurônio.',
+      )
+    })
+  })
+
   it('mostra a tela de sucesso quando o tempo acaba', async () => {
     const usuario = renderizar()
     await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))

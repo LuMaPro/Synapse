@@ -8,6 +8,8 @@ interface AvisoSaidaProps {
   /** O estudante saiu da tela cheia e o saldo está sendo descontado. */
   foraDaTelaCheia: boolean
   onVoltarParaTelaCheia: () => void
+  /** O navegador mantém a tela ligada durante a sessão (issue #35). */
+  telaSempreLigada?: boolean
 }
 
 /** Lembrete, durante a sessão, do que acontece ao sair da tela em cada modo. */
@@ -16,6 +18,7 @@ export function AvisoSaida({
   toleranciaRestanteMs,
   foraDaTelaCheia,
   onVoltarParaTelaCheia,
+  telaSempreLigada = true,
 }: AvisoSaidaProps) {
   const saldo = <b className="numero texto-forte">{formatarTempo(toleranciaRestanteMs)}</b>
 
@@ -30,7 +33,7 @@ export function AvisoSaida({
           </g>
         </svg>
         {modo === 'estrito' ? (
-          <p>Trocar de aba, de app ou sair da tela cheia poda este neurônio.</p>
+          <p>Trocar de aba ou de app, bloquear a tela ou sair da tela cheia poda este neurônio.</p>
         ) : foraDaTelaCheia ? (
           <p>
             Você saiu da tela cheia e o tempo fora está contando: restam {saldo}. Volte para não
@@ -40,6 +43,12 @@ export function AvisoSaida({
           <p>Você ainda pode ficar {saldo} fora da tela. Passou disso, o neurônio é podado.</p>
         )}
       </div>
+      {!telaSempreLigada && (
+        <p className="texto-fraco aviso-tela">
+          Este navegador não mantém a tela acesa. Se ela apagar sozinha, conta como sair: toque nela
+          de vez em quando ou aumente o tempo de bloqueio automático.
+        </p>
+      )}
       {foraDaTelaCheia && (
         <button type="button" className="botao secundario" onClick={onVoltarParaTelaCheia}>
           Voltar para a tela cheia

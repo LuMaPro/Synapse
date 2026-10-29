@@ -22,6 +22,14 @@ interface CallbacksSaida {
  * Vários sinais costumam chegar juntos (trocar de aba dispara `blur` e
  * `visibilitychange`), então eles viram motivos de um mesmo "estar fora": `onSaida`
  * dispara no primeiro motivo, e `onRetorno` só quando todos acabaram.
+ *
+ * No celular (issue #35), trocar de app, abrir o seletor de apps, atender uma ligação
+ * e bloquear a tela escondem a página, e o `visibilitychange` cobre todos esses casos
+ * no Android e no iPhone. Para a página, bloquear a tela de propósito é igual a trocar
+ * de app, então conta como saída (o aviso da sessão diz isso). O que não pode contar é
+ * a tela apagar sozinha por falta de toque: por isso a sessão mantém a tela ligada
+ * (`useTelaLigada`). O iPhone não tem tela cheia para páginas, então lá só valem a
+ * visibilidade e o foco.
  */
 export function useDeteccaoSaida(ativo: boolean, { onSaida, onRetorno }: CallbacksSaida) {
   const [foraDaTelaCheia, setForaDaTelaCheia] = useState(false)

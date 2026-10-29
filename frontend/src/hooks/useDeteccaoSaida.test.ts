@@ -62,6 +62,20 @@ describe('useDeteccaoSaida', () => {
     expect(onRetorno).toHaveBeenCalledExactlyOnceWith(Date.now())
   })
 
+  it('no celular, trocar de app ou bloquear a tela é uma saída (issue #35)', () => {
+    const { onSaida, onRetorno } = renderizar()
+
+    // Os dois casos chegam igual à página: ela fica escondida e, na volta, visível.
+    // O navegador também tira o foco da janela, mas é a mesma saída.
+    dispararNaJanela('blur')
+    definirAba('hidden')
+    expect(onSaida).toHaveBeenCalledOnce()
+
+    vi.setSystemTime(Date.now() + 30_000)
+    definirAba('visible')
+    expect(onRetorno).toHaveBeenCalledExactlyOnceWith(Date.now())
+  })
+
   it('outra janela ou app recebendo o foco também é uma saída', () => {
     const { onSaida, onRetorno } = renderizar()
 

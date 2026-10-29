@@ -9,6 +9,7 @@ import { SeletorModo } from '../components/SeletorModo'
 import { useDeteccaoSaida } from '../hooks/useDeteccaoSaida'
 import { useMaterias } from '../hooks/useMaterias'
 import { PROPORCAO_TOLERANCIA, useSessaoFoco } from '../hooks/useSessaoFoco'
+import { telaLigadaSuportada, useTelaLigada } from '../hooks/useTelaLigada'
 import '../styles/foco.css'
 import { tipoNeuronio } from '../utils/neuronio'
 import { amostraDaCor } from '../utils/efeitos'
@@ -24,6 +25,8 @@ export function Foco() {
     onSaida: sessao.sairDaTela,
     onRetorno: sessao.voltarParaTela,
   })
+  // No celular, a tela apagar sozinha contaria como saída (issue #35).
+  useTelaLigada(sessao.fase === 'em_andamento')
 
   const materiaAtual = materias.find((m) => m.id === sessao.materiaId)
 
@@ -103,6 +106,7 @@ export function Foco() {
               toleranciaRestanteMs={sessao.toleranciaRestanteMs}
               foraDaTelaCheia={foraDaTelaCheia}
               onVoltarParaTelaCheia={sessao.voltarParaTelaCheia}
+              telaSempreLigada={telaLigadaSuportada()}
             />
             <button
               type="button"

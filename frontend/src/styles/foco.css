@@ -260,7 +260,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 40px 22px 18px;
+  /* No celular com entalhe e barra de gestos, o conteúdo fica fora deles (#35). */
+  padding: calc(40px + env(safe-area-inset-top)) calc(22px + env(safe-area-inset-right))
+    calc(18px + env(safe-area-inset-bottom)) calc(22px + env(safe-area-inset-left));
   overflow-y: auto;
   background: var(--cor-fundo);
 }
@@ -307,6 +309,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.aviso-tela {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
 }
 
 .aviso {
@@ -369,7 +377,8 @@
   gap: 14px;
   width: 100%;
   max-width: 480px;
-  padding: 24px 22px 28px;
+  /* Acima da barra de gestos do celular (#35). */
+  padding: 24px 22px calc(28px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--cor-borda);
   border-radius: 28px 28px 0 0;
   background: var(--cor-superficie);

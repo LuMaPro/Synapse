@@ -176,3 +176,138 @@ h3 {
   max-width: 100%;
   padding: 0;
 }
+
+/* Celular (issue #35): a navegação vira a barra de abas embaixo, como no design
+   (docs/design), e o conteúdo respeita o entalhe e a barra de gestos. */
+
+:root {
+  --altura-abas: 64px;
+}
+
+.abas {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  height: calc(var(--altura-abas) + env(safe-area-inset-bottom));
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border-top: 1px solid var(--cor-borda);
+  background: var(--cor-superficie);
+}
+
+.aba {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cor-texto-fraco);
+  font: 500 11px var(--fonte-texto);
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aba svg {
+  width: 22px;
+  height: 22px;
+}
+
+.aba.active {
+  color: var(--cor-destaque);
+}
+
+.aba:focus-visible {
+  outline: 2px solid var(--cor-impulso);
+  outline-offset: -4px;
+  border-radius: 10px;
+}
+
+.mais-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: rgb(0 0 0 / 40%);
+}
+
+.mais-menu {
+  position: fixed;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(var(--altura-abas) + env(safe-area-inset-bottom) + 8px);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie-2);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.mais-menu a,
+.mais-menu button {
+  display: block;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--cor-texto);
+  font: 500 15px var(--fonte-texto);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mais-menu a.active {
+  color: var(--cor-destaque);
+}
+
+.mais-menu button.texto-perigo {
+  color: var(--cor-perigo);
+}
+
+.mais-menu a:hover,
+.mais-menu button:hover,
+.mais-menu a:focus-visible,
+.mais-menu button:focus-visible {
+  background: var(--cor-superficie);
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .cabecalho {
+    padding: calc(0.75rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right))
+      0.75rem calc(1rem + env(safe-area-inset-left));
+  }
+
+  .cabecalho nav {
+    gap: 0.9rem;
+  }
+
+  .conteudo {
+    padding: 1.25rem calc(1rem + env(safe-area-inset-right)) 1.5rem
+      calc(1rem + env(safe-area-inset-left));
+  }
+
+  /* A barra de abas não cobre o fim da página. */
+  .com-abas .conteudo {
+    padding-bottom: calc(var(--altura-abas) + env(safe-area-inset-bottom) + 1.5rem);
+  }
+
+  /* No celular, o cabeçalho mostra só a inicial do estudante. */
+  .com-abas .nome-usuario {
+    display: none;
+  }
+
+  .com-abas .badge-usuario {
+    padding: 0.25rem;
+  }
+}

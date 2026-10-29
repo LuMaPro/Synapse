@@ -23,6 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
+    # O frontend em desenvolvimento (5173) e o build de produção no `vite preview`
+    # (4173), onde o service worker e a instalação do app funcionam (#35).
+    CORS_ALLOWED_ORIGINS=(list, ["http://localhost:5173", "http://localhost:4173"]),
 )
 if (BASE_DIR / ".env").exists():
     environ.Env.read_env(BASE_DIR / ".env")
@@ -150,7 +153,7 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

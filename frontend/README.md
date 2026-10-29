@@ -66,3 +66,35 @@ src/
 Os testes ficam ao lado do código, com o sufixo `.test.ts` ou `.test.tsx`, e usam
 Vitest + Testing Library. Para testar componentes com rotas, renderize dentro de um
 `MemoryRouter` (veja `src/App.test.tsx`).
+
+## Celular e instalação como app (PWA)
+
+O app pode ser instalado na tela inicial do celular (issue #35). Abaixo de 640 px de
+largura, a navegação vira a barra de abas embaixo, como no design.
+
+- `public/manifest.webmanifest` e `public/icones/`: nome, cores e ícones do app.
+- `public/sw.js`: service worker básico. Deixa o app instalável e abre a casca sem
+  rede; a API nunca passa por cache. Só é registrado no build de produção.
+- Durante a sessão, a tela fica ligada (Wake Lock API, `src/hooks/useTelaLigada.ts`).
+
+O service worker e a trava de tela só funcionam em contexto seguro (HTTPS ou
+`localhost`). Para testar a instalação:
+
+```bash
+npm run build
+npm run preview
+```
+
+- **Computador (Chrome ou Edge):** abra http://localhost:4173. O ícone de instalar
+  aparece na barra de endereço; em DevTools > Application, veja o Manifest e o
+  Service Worker.
+- **Android:** ligue o celular no USB com a depuração ativada, abra
+  `chrome://inspect/#devices` no computador e, em "Port forwarding", encaminhe as
+  portas 4173 e 8000. No Chrome do celular, abra http://localhost:4173 e use
+  "Instalar app".
+- **iPhone:** o Safari não tem encaminhamento de porta. Pela rede local, rode
+  `npm run preview -- --host` e acesse pelo IP do computador; o app funciona, mas sem
+  HTTPS não instala o service worker. Para usar o backend, rode-o com
+  `uv run python manage.py runserver 0.0.0.0:8000` e ponha o IP em `VITE_API_URL`
+  (antes do build), em `ALLOWED_HOSTS` e em `CORS_ALLOWED_ORIGINS` (ver
+  `backend/.env.example`).
