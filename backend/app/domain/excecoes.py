@@ -84,3 +84,7 @@ class CorJaDesbloqueada(ErroDominio):
 
 class CorBloqueada(ErroDominio):
     """Matéria com uma cor da loja que o estudante ainda não comprou."""
+
+
+class PeriodoInvalido(ErroDominio):
+    """Período de estatísticas desconhecido (os válidos são dia, semana e mes)."""

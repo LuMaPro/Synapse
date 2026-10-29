@@ -35,6 +35,7 @@ STATUS_POR_ERRO_DOMINIO = {
     dominio.HorarioInvalido: status.HTTP_422_UNPROCESSABLE_ENTITY,
     dominio.SenhaInvalida: status.HTTP_422_UNPROCESSABLE_ENTITY,
     dominio.PoliticaInvalida: status.HTTP_422_UNPROCESSABLE_ENTITY,
+    dominio.PeriodoInvalido: status.HTTP_422_UNPROCESSABLE_ENTITY,
 }
 
 
