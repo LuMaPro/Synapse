@@ -66,6 +66,18 @@ class RepositorioSessao(ABC):
         ...
 
     @abstractmethod
+    def listar_por_periodo(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime,
+        ate: datetime,
+    ) -> list[SessaoFoco]:
+        """Lista as sessões iniciadas entre `de` e `ate` (inclusive), sem paginar
+        (#30)."""
+        ...
+
+    @abstractmethod
     def listar_historico(
         self,
         usuario_id: UUID,

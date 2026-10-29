@@ -86,6 +86,22 @@ class RepositorioSessaoMemoria(RepositorioSessao):
         sessoes = [s for s in self._sessoes.values() if s.usuario_id == usuario_id]
         return sorted(sessoes, key=lambda s: s.inicio, reverse=True)
 
+    def listar_por_periodo(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime,
+        ate: datetime,
+    ) -> list[SessaoFoco]:
+        """Lista as sessões iniciadas entre `de` e `ate` (inclusive) em ordem
+        crescente de início."""
+        sessoes = [
+            s
+            for s in self._sessoes.values()
+            if s.usuario_id == usuario_id and de <= s.inicio <= ate
+        ]
+        return sorted(sessoes, key=lambda s: s.inicio)
+
     def listar_historico(
         self,
         usuario_id: UUID,
