@@ -178,7 +178,7 @@ describe('rotas e proteção de acesso', () => {
         expect(screen.getByRole('heading', { name: 'Histórico' })).toBeInTheDocument()
       })
 
-      it('"Mais" abre Matérias, Loja e Sair', async () => {
+      it('"Mais" abre Matérias, Conquistas, Loja e Sair', async () => {
         const usuario = userEvent.setup()
         renderizarEm('/foco')
         const mais = screen.getByRole('button', { name: 'Mais' })
@@ -188,8 +188,13 @@ describe('rotas e proteção de acesso', () => {
         const menu = screen.getByRole('menu', { name: 'Mais' })
         expect(
           [...menu.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
-        ).toEqual(['Matérias', 'Loja', 'Sair'])
+        ).toEqual(['Matérias', 'Conquistas', 'Loja', 'Sair'])
 
+        await usuario.click(screen.getByRole('menuitem', { name: 'Conquistas' }))
+        expect(screen.getByRole('heading', { name: 'Conquistas' })).toBeInTheDocument()
+        expect(mais).toHaveClass('active')
+
+        await usuario.click(mais)
         await usuario.click(screen.getByRole('menuitem', { name: 'Loja' }))
         expect(screen.getByRole('heading', { name: 'Loja' })).toBeInTheDocument()
         expect(screen.queryByRole('menu')).not.toBeInTheDocument()
