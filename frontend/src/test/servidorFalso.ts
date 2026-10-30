@@ -125,6 +125,22 @@ export function criarServidorFalso() {
     if (metodo === 'GET' && caminho === '/conquistas') {
       return json(200, conquistas)
     }
+    if (metodo === 'GET' && caminho === '/estatisticas') {
+      // Um período sem sessões (#31): a tela só precisa abrir.
+      return json(200, {
+        periodo: 'semana',
+        inicio: '2026-10-24',
+        fim: '2026-10-30',
+        tempo_total_minutos: 0,
+        sessoes_concluidas: 0,
+        sessoes_podadas: 0,
+        total_sessoes: 0,
+        taxa_sucesso: 0,
+        melhor_horario: null,
+        por_dia: [],
+        por_materia: [],
+      })
+    }
 
     const [, , id, acao] = caminho.split('/')
     const sessao = sessoes.find((s) => s.id === id)

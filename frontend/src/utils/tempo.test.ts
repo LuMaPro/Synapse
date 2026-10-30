@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatarTempo } from './tempo'
+import { formatarHoras, formatarTempo } from './tempo'
 
 describe('formatarTempo', () => {
   it.each([
@@ -19,5 +19,16 @@ describe('formatarTempo', () => {
 
   it('nunca mostra tempo negativo', () => {
     expect(formatarTempo(-5_000)).toBe('00:00')
+  })
+})
+
+describe('formatarHoras', () => {
+  it.each([
+    [45, '45 min'],
+    [60, '1 h'],
+    [115, '1,9 h'],
+    [0, '0 min'],
+  ])('formata %i minutos como %s', (minutos, esperado) => {
+    expect(formatarHoras(minutos)).toBe(esperado)
   })
 })
