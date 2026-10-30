@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { ConquistasRespostaApi } from '../services/conquistas'
 import type { Materia } from '../services/materias'
 import type { SessaoApi } from '../services/sessoes'
 
@@ -40,6 +41,12 @@ export function criarServidorFalso() {
   const chamadas: Chamada[] = []
   let sessoes: SessaoFalsa[] = []
   let materias: Materia[] = []
+  let conquistas: ConquistasRespostaApi = {
+    sequencia: { atual: 0, recorde: 0 },
+    desbloqueadas: 0,
+    total: 5,
+    conquistas: [],
+  }
   let proximoId = 1
   let semRede = false
   /** Rotas que respondem 500 (terminadas neste trecho). */
@@ -114,6 +121,9 @@ export function criarServidorFalso() {
     }
     if (metodo === 'GET' && caminho === '/materias') {
       return json(200, materias)
+    }
+    if (metodo === 'GET' && caminho === '/conquistas') {
+      return json(200, conquistas)
     }
 
     const [, , id, acao] = caminho.split('/')
@@ -193,9 +203,22 @@ export function criarServidorFalso() {
     definirMaterias: (novas: Materia[]) => {
       materias = [...novas]
     },
+    definirConquistas: (dados: Partial<ConquistasRespostaApi>) => {
+      conquistas = {
+        ...conquistas,
+        ...dados,
+        sequencia: { ...conquistas.sequencia, ...dados.sequencia },
+      }
+    },
     limpar: () => {
       sessoes = []
       materias = []
+      conquistas = {
+        sequencia: { atual: 0, recorde: 0 },
+        desbloqueadas: 0,
+        total: 5,
+        conquistas: [],
+      }
       chamadas.length = 0
     },
   }

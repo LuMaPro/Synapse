@@ -25,9 +25,15 @@ describe('rotas e proteção de acesso', () => {
       expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
     })
 
-    it.each(['/foco', '/rede', '/historico', '/estatisticas', '/materias', '/loja'])(
-      'redireciona rota protegida %s para /login',
-      (rota) => {
+    it.each([
+      '/foco',
+      '/rede',
+      '/historico',
+      '/estatisticas',
+      '/materias',
+      '/conquistas',
+      '/loja',
+    ])('redireciona rota protegida %s para /login', (rota) => {
         renderizarEm(rota)
         expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
       },
@@ -63,6 +69,7 @@ describe('rotas e proteção de acesso', () => {
           const corpo = {
             '/rede': { neuronios: [], sinapses: [] },
             '/materias': [],
+            '/conquistas': { sequencia: { atual: 0, recorde: 0 }, desbloqueadas: 0, total: 5, conquistas: [] },
             '/sessoes': { total: 0, pagina: 1, tamanho: 20, paginas: 1, resultados: [] },
             '/loja': { saldo: 0, cores: [] },
           }[pathname]
@@ -90,6 +97,7 @@ describe('rotas e proteção de acesso', () => {
       ['/historico', 'Histórico'],
       ['/estatisticas', 'Estatísticas'],
       ['/materias', 'Matérias'],
+      ['/conquistas', 'Conquistas'],
       ['/loja', 'Loja'],
     ])('abre rota protegida %s diretamente', (rota, titulo) => {
       renderizarEm(rota)
@@ -125,6 +133,9 @@ describe('rotas e proteção de acesso', () => {
 
       await usuario.click(screen.getByRole('link', { name: 'Matérias' }))
       expect(screen.getByRole('heading', { name: 'Matérias' })).toBeInTheDocument()
+
+      await usuario.click(screen.getByRole('link', { name: 'Conquistas' }))
+      expect(screen.getByRole('heading', { name: 'Conquistas' })).toBeInTheDocument()
 
       await usuario.click(screen.getByRole('link', { name: 'Loja' }))
       expect(screen.getByRole('heading', { name: 'Loja' })).toBeInTheDocument()
@@ -167,7 +178,7 @@ describe('rotas e proteção de acesso', () => {
         expect(screen.getByRole('heading', { name: 'Histórico' })).toBeInTheDocument()
       })
 
-      it('"Mais" abre Matérias, Loja e Sair', async () => {
+      it('"Mais" abre Matérias, Conquistas, Loja e Sair', async () => {
         const usuario = userEvent.setup()
         renderizarEm('/foco')
         const mais = screen.getByRole('button', { name: 'Mais' })
@@ -177,8 +188,13 @@ describe('rotas e proteção de acesso', () => {
         const menu = screen.getByRole('menu', { name: 'Mais' })
         expect(
           [...menu.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
-        ).toEqual(['Matérias', 'Loja', 'Sair'])
+        ).toEqual(['Matérias', 'Conquistas', 'Loja', 'Sair'])
 
+        await usuario.click(screen.getByRole('menuitem', { name: 'Conquistas' }))
+        expect(screen.getByRole('heading', { name: 'Conquistas' })).toBeInTheDocument()
+        expect(mais).toHaveClass('active')
+
+        await usuario.click(mais)
         await usuario.click(screen.getByRole('menuitem', { name: 'Loja' }))
         expect(screen.getByRole('heading', { name: 'Loja' })).toBeInTheDocument()
         expect(screen.queryByRole('menu')).not.toBeInTheDocument()

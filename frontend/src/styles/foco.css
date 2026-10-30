@@ -8,9 +8,16 @@
   margin: 0 auto;
 }
 
-.foco h1 {
+.foco h1,
+.cabecalho-foco h1 {
   margin: 0;
   font-size: 22px;
+}
+
+.cabecalho-foco {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .foco p,
@@ -294,6 +301,11 @@
   color: var(--cor-atp);
 }
 
+/* Sequência de dias seguidos (issue #33) */
+.selo.sequencia {
+  color: var(--cor-atp);
+}
+
 .timer {
   font-size: 64px;
   font-weight: 700;
@@ -463,4 +475,64 @@
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
+}
+
+/* Toast animado de conquista desbloqueada (issue #33) */
+
+.toasts-conquistas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--raio);
+  background: linear-gradient(90deg, rgb(255 200 87 / 16%), rgb(255 200 87 / 4%));
+  border: 1px solid rgb(255 200 87 / 40%);
+  animation: surgirToast 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.toast .icone {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgb(255 200 87 / 20%);
+  color: var(--cor-atp);
+}
+
+.toast b {
+  display: block;
+  font-size: 14px;
+  color: var(--cor-texto);
+}
+
+.toast span {
+  font-size: 12px;
+  color: var(--cor-texto-suave);
+}
+
+@keyframes surgirToast {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
 }

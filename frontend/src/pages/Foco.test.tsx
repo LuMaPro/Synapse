@@ -442,5 +442,72 @@ describe('tela de foco', () => {
       expect(screen.getByRole('timer')).toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
+
+    it('mostra a sequência de dias seguidos no cabeçalho quando atual > 0 (issue #33)', async () => {
+      servidor.definirConquistas({
+        sequencia: { atual: 5, recorde: 10 },
+      })
+      renderizar()
+
+      expect(await screen.findByText('5 dias seguidos')).toBeInTheDocument()
+      expect(screen.getByTitle('Recorde: 10 dias')).toBeInTheDocument()
+    })
+
+    it('não mostra o selo de sequência quando atual é 0 (issue #33)', async () => {
+      servidor.definirConquistas({
+        sequencia: { atual: 0, recorde: 3 },
+      })
+      renderizar()
+
+      await waitFor(() => expect(screen.getByRole('heading', { name: 'Focar' })).toBeInTheDocument())
+      expect(screen.queryByText(/dias? seguidos?/)).not.toBeInTheDocument()
+    })
+
+    it('exibe aviso animado (toast) quando uma conquista é desbloqueada ao concluir a sessão (issue #33)', async () => {
+      servidor.definirConquistas({
+        conquistas: [
+          {
+            codigo: 'primeira_sessao',
+            nome: 'Primeiro neurônio',
+            descricao: 'Conclua sua primeira sessão de foco',
+            desbloqueada: false,
+            desbloqueada_em: null,
+            progresso: 0,
+            meta: 1,
+            unidade: 'sessões',
+          },
+        ],
+      })
+
+      const usuario = renderizar()
+      await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+
+      // Durante a sessão, o servidor atualiza o status da conquista para desbloqueada
+      servidor.definirConquistas({
+        conquistas: [
+          {
+            codigo: 'primeira_sessao',
+            nome: 'Primeiro neurônio',
+            descricao: 'Conclua sua primeira sessão de foco',
+            desbloqueada: true,
+            desbloqueada_em: new Date().toISOString(),
+            progresso: 1,
+            meta: 1,
+            unidade: 'sessões',
+          },
+        ],
+      })
+
+      act(() => vi.advanceTimersByTime(20 * MINUTO))
+
+      expect(await screen.findByRole('heading', { name: 'Neurônio formado!' })).toBeInTheDocument()
+      const toast = await screen.findByRole('status', {
+        name: 'Conquista desbloqueada: Primeiro neurônio',
+      })
+      expect(toast).toBeInTheDocument()
+      expect(toast).toHaveTextContent('Conquista desbloqueada')
+      expect(toast).toHaveTextContent('Primeiro neurônio')
+    })
   })
 })

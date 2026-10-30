@@ -160,6 +160,17 @@ def test_concluir_3_segundos_antes_ainda_e_cedo(servico, usuario_id, relogio):
         servico.concluir(usuario_id, sessao.id)
 
 
+def test_concluir_forcar_conclusao_permite_encerrar_na_hora(
+    servico, usuario_id, relogio
+):
+    sessao = servico.iniciar(usuario_id, 25, "estrito")
+    relogio.avancar(minutes=1)
+
+    concluida, _ = servico.concluir(usuario_id, sessao.id, forcar_conclusao=True)
+    assert concluida.codigo_estado == "concluida"
+    assert concluida.encerrada_em == sessao.fim_previsto
+
+
 def test_concluir_publica_evento_sessao_concluida(
     servico, publicador, usuario_id, relogio
 ):

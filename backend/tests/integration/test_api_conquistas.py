@@ -16,6 +16,11 @@ INICIO = datetime(2026, 10, 20, 17, 0, tzinfo=UTC)
 
 CODIGOS = [
     "primeiro_neuronio",
+    "neuronios_5",
+    "sessao_sem_poda_30",
+    "horas_focadas_1",
+    "dias_seguidos_3",
+    "sinapses_5",
     "horas_focadas_10",
     "dias_seguidos_7",
     "sinapses_100",
@@ -88,9 +93,9 @@ def test_criterio_estudante_novo_ve_todas_as_conquistas_bloqueadas(cliente):
     corpo = resposta.json()
     assert corpo["sequencia"] == {"atual": 0, "recorde": 0}
     assert corpo["desbloqueadas"] == 0
-    assert corpo["total"] == 5
+    assert corpo["total"] == 10
     assert [c["codigo"] for c in corpo["conquistas"]] == CODIGOS
-    assert corpo["conquistas"][2] == {
+    assert corpo["conquistas"][7] == {
         "codigo": "dias_seguidos_7",
         "nome": "7 dias seguidos",
         "descricao": "Conclua pelo menos uma sessão por dia, 7 dias seguidos.",
@@ -244,7 +249,7 @@ def test_consulta_em_poucas_consultas_ao_banco(
     with django_assert_max_num_queries(5):
         resposta = cliente.get("/conquistas")
 
-    assert resposta.json()["desbloqueadas"] == 1
+    assert resposta.json()["desbloqueadas"] == 4
 
 
 def test_swagger_documenta_as_conquistas(cliente):

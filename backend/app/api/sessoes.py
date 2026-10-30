@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
+from django.conf import settings
 from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
@@ -428,7 +429,10 @@ def interrupcoes(request, sessao_id):
 @permission_classes([IsAuthenticated])
 def concluir(request, sessao_id):
     def executar():
-        sessao, neuronio = _servico().concluir(request.user.id, sessao_id)
+        forcar = settings.DEBUG and request.query_params.get("debug") == "true"
+        sessao, neuronio = _servico().concluir(
+            request.user.id, sessao_id, forcar_conclusao=forcar
+        )
         return {
             "sessao": _sessao_json(sessao),
             "neuronio": _neuronio_json(neuronio),

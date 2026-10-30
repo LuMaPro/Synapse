@@ -77,7 +77,7 @@ class ConquistasRespostaSerializer(serializers.Serializer):
 _EXEMPLO_CONQUISTAS = {
     "sequencia": {"atual": 3, "recorde": 5},
     "desbloqueadas": 1,
-    "total": 5,
+    "total": 10,
     "conquistas": [
         {
             "codigo": "primeiro_neuronio",

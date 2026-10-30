@@ -3,6 +3,7 @@ import { Layout } from './components/Layout'
 import { RotaProtegida } from './components/RotaProtegida'
 import { AuthProvider } from './contexts/AuthContext'
 import { Cadastro } from './pages/Cadastro'
+import { Conquistas } from './pages/Conquistas'
 import { Estatisticas } from './pages/Estatisticas'
 import { Foco } from './pages/Foco'
 import { Historico } from './pages/Historico'
@@ -26,6 +27,7 @@ export function AppRoutes() {
             <Route path="rede" element={<Rede />} />
             <Route path="historico" element={<Historico />} />
             <Route path="materias" element={<Materias />} />
+            <Route path="conquistas" element={<Conquistas />} />
             <Route path="loja" element={<Loja />} />
             <Route path="estatisticas" element={<Estatisticas />} />
           </Route>

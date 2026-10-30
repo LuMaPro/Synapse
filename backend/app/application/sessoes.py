@@ -150,13 +150,16 @@ class SessaoService:
         return sessao
 
     def concluir(
-        self, usuario_id: UUID, sessao_id: UUID
+        self, usuario_id: UUID, sessao_id: UUID, *, forcar_conclusao: bool = False
     ) -> tuple[SessaoFoco, Neuronio]:
         sessao = self._carregar(usuario_id, sessao_id)
         instante = self._relogio()
+        # No modo de desenvolvimento ou debug, permite forçar a conclusão imediatamente.
+        if forcar_conclusao and instante < sessao.fim_previsto:
+            instante = sessao.fim_previsto
         # Até 2 s antes do fim previsto conta como no tempo (diferença de relógio e
         # rede); a sessão termina no fim previsto, não antes dele.
-        if sessao.fim_previsto - TOLERANCIA_RELOGIO <= instante < sessao.fim_previsto:
+        elif sessao.fim_previsto - TOLERANCIA_RELOGIO <= instante < sessao.fim_previsto:
             instante = sessao.fim_previsto
         sessao.concluir(relogio=lambda: instante)
 

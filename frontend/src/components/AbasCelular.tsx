@@ -59,6 +59,7 @@ const ABAS = [
 /** O que fica em "Mais", como no design: as telas usadas com menos frequência. */
 const MAIS = [
   { para: '/materias', rotulo: 'Matérias' },
+  { para: '/conquistas', rotulo: 'Conquistas' },
   { para: '/loja', rotulo: 'Loja' },
 ]
 
@@ -69,7 +70,7 @@ interface AbasCelularProps {
 /**
  * Navegação do celular (issue #35): a barra de abas embaixo do protótipo (docs/design),
  * ao alcance do polegar. Foco, Rede, Histórico e Estatísticas ficam sempre à mostra;
- * Matérias, Loja e Sair ficam em "Mais".
+ * Matérias, Conquistas, Loja e Sair ficam em "Mais".
  */
 export function AbasCelular({ onSair }: AbasCelularProps) {
   const [aberto, setAberto] = useState(false)
