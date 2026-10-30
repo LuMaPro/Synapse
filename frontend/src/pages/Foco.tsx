@@ -9,7 +9,12 @@ import { SeletorModo } from '../components/SeletorModo'
 import { useConquistas } from '../hooks/useConquistas'
 import { useDeteccaoSaida } from '../hooks/useDeteccaoSaida'
 import { useMaterias } from '../hooks/useMaterias'
-import { PROPORCAO_TOLERANCIA, useSessaoFoco } from '../hooks/useSessaoFoco'
+import {
+  MINIMO_PARA_REGISTRO_MS,
+  PROPORCAO_TOLERANCIA,
+  useSessaoFoco,
+} from '../hooks/useSessaoFoco'
+import { telaLigadaSuportada, useTelaLigada } from '../hooks/useTelaLigada'
 import { conquistasApi, type ConquistaApi } from '../services/conquistas'
 import '../styles/foco.css'
 import { amostraDaCor } from '../utils/efeitos'
@@ -29,6 +34,8 @@ export function Foco() {
     onSaida: sessao.sairDaTela,
     onRetorno: sessao.voltarParaTela,
   })
+  // No celular, a tela apagar sozinha contaria como saída (issue #35).
+  useTelaLigada(sessao.fase === 'em_andamento')
 
   // Registra as conquistas já desbloqueadas antes do término da sessão
   useEffect(() => {
@@ -164,6 +171,7 @@ export function Foco() {
               toleranciaRestanteMs={sessao.toleranciaRestanteMs}
               foraDaTelaCheia={foraDaTelaCheia}
               onVoltarParaTelaCheia={sessao.voltarParaTelaCheia}
+              telaSempreLigada={telaLigadaSuportada()}
             />
             <button
               type="button"
@@ -190,6 +198,7 @@ export function Foco() {
         )}
         {!concluindo && confirmandoDesistencia && (
           <DialogoDesistir
+            curta={sessao.decorridoMs < MINIMO_PARA_REGISTRO_MS}
             onContinuar={() => setConfirmandoDesistencia(false)}
             onDesistir={() => {
               setConfirmandoDesistencia(false)

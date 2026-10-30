@@ -214,6 +214,27 @@ class TestPersistenciaDaIssue16:
 
         assert [s.id for s in repo.listar_em_andamento()] == [ativa.id]
 
+    def test_listar_por_periodo_filtra_pelas_pontas_e_ordena_crescente(self, usuario):
+        repo = RepositorioSessaoDjango()
+        antes = SessaoFoco(
+            usuario.id, 20, inicio=INICIO - timedelta(days=2), estado=Concluida()
+        )
+        primeira = SessaoFoco(
+            usuario.id, 25, inicio=INICIO - timedelta(days=1), estado=Concluida()
+        )
+        segunda = SessaoFoco(usuario.id, 30, inicio=INICIO, estado=Podada())
+        depois = SessaoFoco(
+            usuario.id, 15, inicio=INICIO + timedelta(days=1), estado=Concluida()
+        )
+        for sessao in (segunda, antes, depois, primeira):
+            repo.salvar(sessao)
+
+        resultado = repo.listar_por_periodo(
+            usuario.id, de=INICIO - timedelta(days=1), ate=INICIO
+        )
+
+        assert [s.id for s in resultado] == [primeira.id, segunda.id]
+
     def test_neuronio_ida_e_volta(self, usuario):
         sessao = SessaoFoco(usuario.id, 25, inicio=INICIO, estado=Concluida())
         RepositorioSessaoDjango().salvar(sessao)

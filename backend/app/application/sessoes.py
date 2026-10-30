@@ -45,7 +45,9 @@ class SessaoService:
     duração + 5 min vale mesmo sem a varredura periódica.
 
     Toda sessão que termina vira um neurônio (#23), criado pela `FabricaNeuronio`
-    (#22): vivo, se foi concluída; morto, se foi podada. O serviço só publica o evento
+    (#22): vivo, se foi concluída; morto, se foi podada. A exceção é a sessão podada
+    antes de 5 min de foco: ela é apagada, sem neurônio e sem evento, para não encher
+    o histórico e o banco de começos desistidos. O serviço só publica o evento
     (`SessaoConcluida` ou `SessaoPodada`, #24); quem coloca o neurônio na rede,
     desbloqueia as conquistas (#32) e credita o ATP (#34), e no futuro atualiza as
     estatísticas, são os observadores inscritos.
@@ -141,9 +143,10 @@ class SessaoService:
         if saida < sessao.inicio:
             raise HorarioInvalido("A saída não pode ser anterior ao início da sessão.")
         sessao.registrar_interrupcao(Interrupcao(saida=saida, retorno=retorno))
-        self._sessoes.salvar(sessao)
         if sessao.codigo_estado == "podada":
-            self._publicar_poda(sessao)
+            self._registrar_poda(sessao)
+        else:
+            self._sessoes.salvar(sessao)
         return sessao
 
     def concluir(
@@ -177,8 +180,7 @@ class SessaoService:
     def desistir(self, usuario_id: UUID, sessao_id: UUID) -> SessaoFoco:
         sessao = self._carregar(usuario_id, sessao_id)
         sessao.desistir(relogio=self._relogio)
-        self._sessoes.salvar(sessao)
-        self._publicar_poda(sessao)
+        self._registrar_poda(sessao)
         return sessao
 
     def podar_orfas(self) -> int:
@@ -196,9 +198,16 @@ class SessaoService:
     def _expirar(self, sessao: SessaoFoco) -> bool:
         expirou = sessao.expirar_se_abandonada(self._relogio())
         if expirou:
-            self._sessoes.salvar(sessao)
-            self._publicar_poda(sessao)
+            self._registrar_poda(sessao)
         return expirou
+
+    def _registrar_poda(self, sessao: SessaoFoco) -> None:
+        """Grava a poda e publica o neurônio morto, ou apaga a sessão curta demais."""
+        if sessao.curta_demais:
+            self._sessoes.remover(sessao.id)
+            return
+        self._sessoes.salvar(sessao)
+        self._publicar_poda(sessao)
 
     def _publicar_poda(self, sessao: SessaoFoco) -> None:
         """Poda sináptica (#23): a sessão podada deixa um neurônio morto na rede."""

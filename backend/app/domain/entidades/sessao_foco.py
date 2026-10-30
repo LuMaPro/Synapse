@@ -15,6 +15,9 @@ from app.domain.tempo import agora, exigir_fuso
 
 # Sessão em andamento há mais que duração + este limite foi abandonada (#16).
 LIMITE_ABANDONO = timedelta(minutes=5)
+# Sessão podada antes deste tempo de foco não fica registrada: nem no histórico, nem
+# na rede. Evita encher o banco com começos desistidos (até 4:59).
+MINIMO_PARA_REGISTRO = timedelta(minutes=5)
 
 
 class EstadoSessao(ABC):
@@ -249,6 +252,19 @@ class SessaoFoco(Entidade):
         """Soma das saídas da tela que não podaram a sessão."""
         segundos = sum(i.segundos_fora for i in self._historico_interrupcoes)
         return timedelta(seconds=segundos)
+
+    @property
+    def curta_demais(self) -> bool:
+        """Podada com menos de 5 min de foco: não entra no histórico nem na rede.
+
+        A concluída sempre fica (a duração mínima é de 10 min), e a abandonada também
+        (só expira depois do fim previsto).
+        """
+        return (
+            self.codigo_estado == "podada"
+            and self._encerrada_em is not None
+            and self._encerrada_em - self._inicio < MINIMO_PARA_REGISTRO
+        )
 
     def restante_em(self, instante: datetime) -> timedelta:
         """Quanto falta para o fim previsto, calculado no servidor."""

@@ -138,13 +138,14 @@ def test_concluir_sessao_cria_neuronio_com_materia(cliente, materia, relogio):
     assert neuronio.materia_id == materia.id
 
 
-def test_desistir_sessao_cria_neuronio_podado_com_materia(cliente, materia):
+def test_desistir_sessao_cria_neuronio_podado_com_materia(cliente, materia, relogio):
     inicio_resp = cliente.post(
         "/sessoes",
         {"duracao_minutos": 25, "materia_id": str(materia.id)},
         format="json",
     )
     sessao_id = inicio_resp.json()["id"]
+    relogio.avancar(minutes=5)
 
     resposta = cliente.post(f"/sessoes/{sessao_id}/desistir")
 

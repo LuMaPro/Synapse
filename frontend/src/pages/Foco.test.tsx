@@ -136,13 +136,15 @@ describe('tela de foco', () => {
   it('desistir mostra a tela de poda e permite tentar de novo', async () => {
     const usuario = renderizar()
     await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
-    act(() => vi.advanceTimersByTime(3 * MINUTO))
+    act(() => vi.advanceTimersByTime(5 * MINUTO))
 
     await usuario.click(screen.getByRole('button', { name: 'Desistir' }))
+    expect(screen.getByRole('alertdialog')).not.toHaveTextContent('não fica no histórico')
     await usuario.click(screen.getByRole('button', { name: 'Desistir e podar' }))
 
     expect(screen.getByRole('heading', { name: 'A conexão se perdeu' })).toBeInTheDocument()
-    expect(screen.getByText(/Você desistiu aos/)).toHaveTextContent('Você desistiu aos 03:00.')
+    expect(screen.getByText(/Você desistiu aos/)).toHaveTextContent('Você desistiu aos 05:00.')
+    expect(screen.queryByText(/não fica no histórico/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver histórico' })).toHaveAttribute(
       'href',
       '/historico',
@@ -151,6 +153,60 @@ describe('tela de foco', () => {
 
     await usuario.click(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(screen.getByRole('button', { name: 'Começar a focar' })).toBeInTheDocument()
+  })
+
+  it('desistir antes de 5 minutos avisa que a sessão não fica no histórico', async () => {
+    const usuario = renderizar()
+    await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+    act(() => vi.advanceTimersByTime(5 * MINUTO - 1_000))
+
+    await usuario.click(screen.getByRole('button', { name: 'Desistir' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Com menos de 5 minutos, a sessão não fica no histórico.',
+    )
+    await usuario.click(screen.getByRole('button', { name: 'Desistir e podar' }))
+
+    expect(screen.getByText(/Você desistiu aos/)).toHaveTextContent('Você desistiu aos 04:59.')
+    expect(
+      screen.getByText('Com menos de 5 minutos, a sessão não fica no histórico.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Ver histórico' })).not.toBeInTheDocument()
+    await waitFor(() => expect(servidor.chamadasPara('/desistir')).toHaveLength(1))
+  })
+
+  describe('tela ligada no celular (issue #35)', () => {
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'wakeLock')
+    })
+
+    it('mantém a tela ligada durante a sessão e solta ao terminar', async () => {
+      const release = vi.fn(async () => {})
+      const request = vi.fn(async () => ({ release, addEventListener: vi.fn() }))
+      Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request } })
+      const usuario = renderizar()
+      await usuario.click(screen.getByRole('button', { name: 'Diminuir 5 minutos' }))
+
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+      await waitFor(() => expect(request).toHaveBeenCalledWith('screen'))
+      expect(screen.queryByText(/não mantém a tela acesa/)).not.toBeInTheDocument()
+
+      act(() => vi.advanceTimersByTime(20 * MINUTO))
+      await screen.findByRole('heading', { name: 'Neurônio formado!' })
+      expect(release).toHaveBeenCalled()
+    })
+
+    it('sem como manter a tela ligada, avisa que ela apagar conta como saída', async () => {
+      const usuario = renderizar()
+
+      await usuario.click(screen.getByRole('button', { name: 'Começar a focar' }))
+
+      expect(screen.getByText(/não mantém a tela acesa/)).toHaveTextContent(
+        'Se ela apagar sozinha, conta como sair',
+      )
+      expect(screen.getByText(/poda este neurônio/)).toHaveTextContent(
+        'Trocar de aba ou de app, bloquear a tela ou sair da tela cheia poda este neurônio.',
+      )
+    })
   })
 
   it('mostra a tela de sucesso quando o tempo acaba', async () => {

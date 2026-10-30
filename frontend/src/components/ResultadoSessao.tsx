@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import type { MotivoPoda } from '../hooks/useSessaoFoco'
+import { MINIMO_PARA_REGISTRO_MS, type MotivoPoda } from '../hooks/useSessaoFoco'
 import type { ConquistaApi } from '../services/conquistas'
 import type { Efeito } from '../utils/efeitos'
 import { NOME_TIPO_NEURONIO, tipoNeuronio } from '../utils/neuronio'
@@ -108,6 +108,7 @@ export function ResultadoSessao({
   }
 
   const acao = motivoPoda === 'saiu' ? 'saiu da tela' : 'desistiu'
+  const registrada = decorridoMs >= MINIMO_PARA_REGISTRO_MS
 
   return (
     <section className="tela-sessao" aria-labelledby="resultado-titulo">
@@ -122,15 +123,20 @@ export function ResultadoSessao({
         <p className="texto-suave">
           Você {acao} aos <b className="numero texto-forte">{formatarTempo(decorridoMs)}</b>.
         </p>
+        {!registrada && (
+          <p className="texto-fraco">Com menos de 5 minutos, a sessão não fica no histórico.</p>
+        )}
         <p className="texto-fraco">Acontece, o importante é voltar.</p>
       </div>
       <div className="acoes">
         <button type="button" className="botao primario" onClick={onFocarDeNovo}>
           Tentar de novo
         </button>
-        <Link className="botao fantasma" to="/historico">
-          Ver histórico
-        </Link>
+        {registrada && (
+          <Link className="botao fantasma" to="/historico">
+            Ver histórico
+          </Link>
+        )}
       </div>
     </section>
   )

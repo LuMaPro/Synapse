@@ -247,7 +247,7 @@ def test_interrupcoes_no_tolerante_somam_ate_o_saldo(
 ):
     # 10 min: saldo de 60 s.
     sessao = servico.iniciar(usuario_id, 10, "tolerante")
-    relogio.avancar(minutes=5)
+    relogio.avancar(minutes=8)
     saida = INICIO + timedelta(minutes=1)
 
     servico.registrar_interrupcao(
@@ -256,7 +256,7 @@ def test_interrupcoes_no_tolerante_somam_ate_o_saldo(
     assert sessao.codigo_estado == "em_andamento"
     publicador.publicar.assert_not_called()
 
-    saida = INICIO + timedelta(minutes=3)
+    saida = INICIO + timedelta(minutes=6)
     servico.registrar_interrupcao(
         usuario_id, sessao.id, saida, saida + timedelta(seconds=30)
     )
@@ -292,12 +292,13 @@ def test_desistir_conta_como_poda_e_publica_evento(
     servico, publicador, usuario_id, relogio
 ):
     sessao = servico.iniciar(usuario_id, 25, "estrito")
-    relogio.avancar(minutes=3)
+    # Com 5 min de foco, a sessão já fica registrada.
+    relogio.avancar(minutes=5)
 
     podada = servico.desistir(usuario_id, sessao.id)
 
     assert podada.codigo_estado == "podada"
-    assert podada.encerrada_em == INICIO + timedelta(minutes=3)
+    assert podada.encerrada_em == INICIO + timedelta(minutes=5)
 
     evento = publicador.publicar.call_args[0][0]
     assert isinstance(evento, SessaoPodada)
@@ -311,15 +312,15 @@ def _podar_por_saida_no_estrito(servico, usuario_id, sessao, relogio):
 
 
 def _podar_por_saldo_no_tolerante(servico, usuario_id, sessao, relogio):
-    relogio.avancar(minutes=6)
-    saida = sessao.inicio + timedelta(minutes=1)
+    relogio.avancar(minutes=10)
+    saida = sessao.inicio + timedelta(minutes=5)
     servico.registrar_interrupcao(
         usuario_id, sessao.id, saida, saida + timedelta(minutes=4)
     )
 
 
 def _podar_por_desistencia(servico, usuario_id, sessao, relogio):
-    relogio.avancar(minutes=3)
+    relogio.avancar(minutes=6)
     servico.desistir(usuario_id, sessao.id)
 
 
@@ -385,12 +386,12 @@ def test_criterio_poda_sinaptica_sessao_podada_gera_neuronio_morto_sem_sinapses(
     assert rede.sinapses_de(morto.id) == []
 
 
-def test_poda_logo_apos_conclusao_na_tolerancia_entra_na_rede(
-    servico, redes, usuario_id, relogio
+def test_poda_logo_apos_conclusao_na_tolerancia_nao_entra_na_rede(
+    servico, sessoes, redes, usuario_id, relogio
 ):
     # Concluída 1 s antes do fim, a sessão termina no fim previsto: o neurônio fica
-    # datado 1 s no futuro. Uma sessão nova podada nesse segundo deixa um neurônio
-    # morto com data anterior à dele, e a rede precisa aceitar.
+    # datado 1 s no futuro. Uma sessão nova podada nesse segundo é curta demais e
+    # não deixa neurônio morto; a rede fica só com o vivo.
     primeira = servico.iniciar(usuario_id, 10, "estrito")
     relogio.avancar(minutes=9, seconds=59)
     _, vivo = servico.concluir(usuario_id, primeira.id)
@@ -398,9 +399,8 @@ def test_poda_logo_apos_conclusao_na_tolerancia_entra_na_rede(
 
     servico.registrar_interrupcao(usuario_id, segunda.id, relogio.instante, None)
 
-    morto, rede = _neuronio_da_sessao(redes, usuario_id, segunda.id)
-    assert morto.criado_em < vivo.criado_em
-    assert rede.neuronios == [morto, vivo]
+    assert sessoes.buscar_por_id(segunda.id) is None
+    assert redes.carregar(usuario_id).neuronios == [vivo]
 
 
 def test_criterio_regra_trocada_sem_mexer_no_servico_de_sessao(
@@ -420,6 +420,83 @@ def test_criterio_regra_trocada_sem_mexer_no_servico_de_sessao(
     rede = redes.carregar(usuario_id)
     assert len(rede) == 3
     assert rede.sinapses == []
+
+
+# ------------------------------------------------- poda antes de 5 min não fica
+
+
+def _desistir_aos(servico, usuario_id, sessao, relogio, foco):
+    relogio.avancar(seconds=foco.total_seconds())
+    servico.desistir(usuario_id, sessao.id)
+
+
+def _sair_no_estrito_aos(servico, usuario_id, sessao, relogio, foco):
+    relogio.avancar(minutes=6)
+    servico.registrar_interrupcao(usuario_id, sessao.id, sessao.inicio + foco, None)
+
+
+def _estourar_saldo_aos(servico, usuario_id, sessao, relogio, foco):
+    # 25 min: saldo de 150 s. A saída começa 150 s antes de `foco` e dura 3 min.
+    relogio.avancar(minutes=10)
+    saida = sessao.inicio + foco - timedelta(seconds=150)
+    servico.registrar_interrupcao(
+        usuario_id, sessao.id, saida, saida + timedelta(minutes=3)
+    )
+
+
+@pytest.mark.parametrize(
+    ("modo", "podar"),
+    [
+        ("estrito", _desistir_aos),
+        ("estrito", _sair_no_estrito_aos),
+        ("tolerante", _estourar_saldo_aos),
+        ("tolerante", _desistir_aos),
+    ],
+)
+def test_criterio_poda_antes_de_5_min_nao_fica_no_historico_nem_na_rede(
+    servico, sessoes, redes, publicador, usuario_id, relogio, modo, podar
+):
+    sessao = servico.iniciar(usuario_id, 25, modo)
+
+    podar(servico, usuario_id, sessao, relogio, timedelta(minutes=4, seconds=59))
+
+    assert sessao.codigo_estado == "podada"
+    assert sessoes.buscar_por_id(sessao.id) is None
+    assert servico.historico(usuario_id).total == 0
+    assert len(redes.carregar(usuario_id)) == 0
+    publicador.publicar.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "podar", [_desistir_aos, _sair_no_estrito_aos, _estourar_saldo_aos]
+)
+def test_criterio_poda_com_5_min_ou_mais_fica_no_historico_e_na_rede(
+    servico, sessoes, redes, usuario_id, relogio, podar
+):
+    modo = "tolerante" if podar is _estourar_saldo_aos else "estrito"
+    sessao = servico.iniciar(usuario_id, 25, modo)
+
+    podar(servico, usuario_id, sessao, relogio, timedelta(minutes=5))
+
+    assert sessoes.buscar_por_id(sessao.id).codigo_estado == "podada"
+    assert servico.historico(usuario_id).total == 1
+    morto, _ = _neuronio_da_sessao(redes, usuario_id, sessao.id)
+    assert not morto.vivo
+
+
+def test_depois_da_poda_curta_pode_comecar_outra_sessao(
+    servico, sessoes, usuario_id, relogio
+):
+    curta = servico.iniciar(usuario_id, 25, "estrito")
+    relogio.avancar(minutes=1)
+    servico.desistir(usuario_id, curta.id)
+
+    nova = servico.iniciar(usuario_id, 25, "estrito")
+
+    assert servico.buscar_ativa(usuario_id).id == nova.id
+    # A sessão apagada responde como inexistente.
+    with pytest.raises(SessaoNaoEncontrada):
+        servico.desistir(usuario_id, curta.id)
 
 
 @pytest.mark.parametrize("acao", ["concluir", "desistir"])
@@ -575,7 +652,7 @@ def _sessao_terminada(servico, usuario_id, relogio, *, duracao=10, concluir=True
         relogio.avancar(minutes=duracao)
         servico.concluir(usuario_id, sessao.id)
     else:
-        relogio.avancar(minutes=1)
+        relogio.avancar(minutes=5)
         servico.desistir(usuario_id, sessao.id)
     relogio.avancar(hours=1)
     return sessao

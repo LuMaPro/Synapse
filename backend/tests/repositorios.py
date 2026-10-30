@@ -86,6 +86,22 @@ class RepositorioSessaoMemoria(RepositorioSessao):
         sessoes = [s for s in self._sessoes.values() if s.usuario_id == usuario_id]
         return sorted(sessoes, key=lambda s: s.inicio, reverse=True)
 
+    def listar_por_periodo(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime,
+        ate: datetime,
+    ) -> list[SessaoFoco]:
+        """Lista as sessões iniciadas entre `de` e `ate` (inclusive) em ordem
+        crescente de início."""
+        sessoes = [
+            s
+            for s in self._sessoes.values()
+            if s.usuario_id == usuario_id and de <= s.inicio <= ate
+        ]
+        return sorted(sessoes, key=lambda s: s.inicio)
+
     def listar_historico(
         self,
         usuario_id: UUID,
@@ -121,6 +137,10 @@ class RepositorioSessaoMemoria(RepositorioSessao):
     def listar_em_andamento(self) -> list[SessaoFoco]:
         """Lista as sessões em andamento de todos os usuários em memória."""
         return [s for s in self._sessoes.values() if s.codigo_estado == "em_andamento"]
+
+    def remover(self, id: UUID) -> None:
+        """Apaga a sessão da memória, se existir."""
+        self._sessoes.pop(id, None)
 
     def limpar(self) -> None:
         """Esvazia o repositório em memória."""

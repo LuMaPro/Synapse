@@ -258,6 +258,14 @@
   color: var(--cor-texto-suave);
 }
 
+/* Celular (issue #35): a rede e a legenda cabem entre o cabeçalho e a barra de abas. */
+@media (max-width: 640px) {
+  .rede-area {
+    height: calc(100dvh - 360px);
+    min-height: 300px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rede-grafo,
   .rede-sinapse,

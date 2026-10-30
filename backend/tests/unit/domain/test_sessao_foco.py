@@ -372,3 +372,43 @@ def test_restante_em_calcula_ate_o_fim_previsto_e_nao_fica_negativo():
 
     assert sessao.restante_em(INICIO + timedelta(minutes=10)) == timedelta(minutes=15)
     assert sessao.restante_em(INICIO + timedelta(hours=1)) == timedelta(0)
+
+
+# ==============================================================================
+# Sessão podada antes de 5 min não fica registrada
+# ==============================================================================
+
+
+@pytest.mark.parametrize(
+    ("foco", "curta"),
+    [
+        (timedelta(0), True),
+        (timedelta(minutes=4, seconds=59), True),
+        (timedelta(minutes=5), False),
+        (timedelta(minutes=20), False),
+    ],
+)
+def test_podada_com_menos_de_5_min_de_foco_e_curta_demais(foco, curta):
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO)
+
+    sessao.desistir(relogio=lambda: INICIO + foco)
+
+    assert sessao.curta_demais is curta
+
+
+def test_poda_no_tolerante_conta_ate_o_instante_em_que_o_saldo_acabou():
+    # 25 min: saldo de 150 s. Saiu aos 2 min e voltou 4 min depois: morreu às 4:30.
+    sessao = SessaoFoco(uuid4(), 25, inicio=INICIO, politica=ModoTolerante())
+
+    sessao.registrar_interrupcao(_saida(minuto=2, segundos_fora=240))
+
+    assert sessao.encerrada_em == INICIO + timedelta(minutes=4, seconds=30)
+    assert sessao.curta_demais is True
+
+
+def test_sessao_em_andamento_ou_concluida_nunca_e_curta_demais(relogio_futuro):
+    sessao = SessaoFoco(uuid4(), 10, inicio=INICIO)
+    assert sessao.curta_demais is False
+
+    sessao.concluir(relogio=relogio_futuro)
+    assert sessao.curta_demais is False

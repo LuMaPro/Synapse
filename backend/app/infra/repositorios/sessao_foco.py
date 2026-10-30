@@ -48,7 +48,30 @@ class RepositorioSessaoDjango(RepositorioSessao):
 
     def listar_por_usuario(self, usuario_id: UUID) -> list[SessaoFoco]:
         """Lista todas as sessões de foco pertencentes a um determinado usuário."""
-        qs = SessaoFocoModel.objects.filter(usuario_id=usuario_id).order_by("-inicio")
+        qs = (
+            SessaoFocoModel.objects.filter(usuario_id=usuario_id)
+            .order_by("-inicio")
+            .prefetch_related("interrupcoes")
+        )
+        return [s.para_entidade() for s in qs]
+
+    def listar_por_periodo(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime,
+        ate: datetime,
+    ) -> list[SessaoFoco]:
+        """Lista as sessões iniciadas entre `de` e `ate` (inclusive) numa consulta."""
+        qs = (
+            SessaoFocoModel.objects.filter(
+                usuario_id=usuario_id,
+                inicio__gte=de,
+                inicio__lte=ate,
+            )
+            .order_by("inicio")
+            .prefetch_related("interrupcoes")
+        )
         return [s.para_entidade() for s in qs]
 
     def listar_historico(
@@ -91,6 +114,10 @@ class RepositorioSessaoDjango(RepositorioSessao):
         """Lista as sessões em andamento de todos os usuários."""
         qs = SessaoFocoModel.objects.filter(estado=SessaoFocoModel.Estado.EM_ANDAMENTO)
         return [s.para_entidade() for s in qs]
+
+    def remover(self, id: UUID) -> None:
+        """Apaga a sessão; as interrupções vão junto (CASCADE)."""
+        SessaoFocoModel.objects.filter(id=id).delete()
 
 
 # Alias de conveniência

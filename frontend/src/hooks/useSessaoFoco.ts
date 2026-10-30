@@ -31,6 +31,9 @@ const CHAVE_MODO = 'synapse:modo'
 
 const MS_POR_MINUTO = 60_000
 
+/** Podada antes disto, a sessão não fica no histórico nem na rede (o servidor a apaga). */
+export const MINIMO_PARA_REGISTRO_MS = 5 * MS_POR_MINUTO
+
 /** Esperas entre as tentativas de concluir quando a rede falha; a última se repete. */
 export const ESPERAS_NOVA_TENTATIVA_MS = [2_000, 5_000, 10_000, 30_000]
 

@@ -86,6 +86,20 @@ def test_repositorio_sessao_memoria_operacoes_basicas():
     sessoes_usuario = repo.listar_por_usuario(usuario_id)
     assert sessoes_usuario == [sessao2, sessao1]
 
+    # Listar por período deve filtrar pelas pontas e ordenar por início crescente
+    no_periodo = repo.listar_por_periodo(
+        usuario_id,
+        de=agora - timedelta(hours=2),
+        ate=agora - timedelta(hours=1),
+    )
+    assert no_periodo == [sessao1, sessao2]
+    apenas_recente = repo.listar_por_periodo(
+        usuario_id,
+        de=agora - timedelta(minutes=90),
+        ate=agora,
+    )
+    assert apenas_recente == [sessao2]
+
     # Sessão ativa
     assert repo.buscar_ativa_por_usuario(usuario_id) in (sessao1, sessao2)
 
@@ -145,4 +159,3 @@ def test_repositorio_materia_memoria_operacoes_basicas():
 
     repo.limpar()
     assert len(repo) == 0
-

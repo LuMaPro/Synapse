@@ -60,7 +60,7 @@ def _concluida(cliente, relogio, duracao=10) -> str:
 
 def _desistida(cliente, relogio) -> str:
     sessao = _iniciar(cliente)
-    relogio.avancar(minutes=3)
+    relogio.avancar(minutes=5)
     assert cliente.post(f"/sessoes/{sessao['id']}/desistir").status_code == 200
     relogio.avancar(hours=1)
     return sessao["id"]

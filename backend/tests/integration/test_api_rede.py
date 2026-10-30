@@ -170,6 +170,7 @@ def test_sessoes_feitas_pela_api_aparecem_na_rede(cliente, monkeypatch):
         agora["instante"] += timedelta(minutes=10)
         assert cliente.post(f"/sessoes/{sessao['id']}/concluir").status_code == 200
     sessao = cliente.post("/sessoes", {"duracao_minutos": 10}, format="json").json()
+    agora["instante"] += timedelta(minutes=5)
     cliente.post(f"/sessoes/{sessao['id']}/desistir")
 
     corpo = cliente.get("/rede").json()

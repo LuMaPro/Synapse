@@ -234,7 +234,7 @@ def test_interrupcao_sem_inicio_e_recusada(cliente):
 
 def test_desistir_conta_como_poda(cliente, relogio):
     sessao = _iniciar(cliente)
-    relogio.avancar(minutes=3)
+    relogio.avancar(minutes=5)
 
     resposta = cliente.post(f"/sessoes/{sessao['id']}/desistir")
 
@@ -243,6 +243,43 @@ def test_desistir_conta_como_poda(cliente, relogio):
     # Poda sináptica (#23): fica um neurônio morto, sem sinapses.
     morto = NeuronioModel.objects.get(sessao_id=sessao["id"])
     assert not morto.vivo
+
+
+def test_criterio_desistir_antes_de_5_min_nao_fica_registrada(cliente, relogio):
+    sessao = _iniciar(cliente)
+    relogio.avancar(minutes=4, seconds=59)
+
+    resposta = cliente.post(f"/sessoes/{sessao['id']}/desistir")
+
+    # A tela mostra a poda normalmente, mas nada fica no banco.
+    assert resposta.status_code == 200
+    assert resposta.json()["estado"] == "podada"
+    assert not SessaoFocoModel.objects.filter(id=sessao["id"]).exists()
+    assert not NeuronioModel.objects.filter(sessao_id=sessao["id"]).exists()
+    assert cliente.get("/sessoes").json()["total"] == 0
+    # Um aviso repetido (ex.: reenviado pela fila do app) responde como inexistente.
+    assert cliente.post(f"/sessoes/{sessao['id']}/desistir").status_code == 404
+
+
+@pytest.mark.parametrize("modo", ["estrito", "tolerante"])
+def test_criterio_saida_que_poda_antes_de_5_min_nao_fica_registrada(
+    cliente, relogio, modo
+):
+    sessao = _iniciar(cliente, duracao=10, modo=modo)
+    relogio.avancar(minutes=5)
+    # No tolerante (saldo de 60 s), a saída do minuto 1 poda aos 2 min.
+    saida = INICIO + timedelta(minutes=1)
+
+    resposta = cliente.post(
+        f"/sessoes/{sessao['id']}/interrupcoes",
+        {"inicio": _iso(saida), "fim": _iso(saida + timedelta(minutes=3))},
+        format="json",
+    )
+
+    assert resposta.json()["estado"] == "podada"
+    assert not SessaoFocoModel.objects.filter(id=sessao["id"]).exists()
+    assert not InterrupcaoModel.objects.exists()
+    assert not NeuronioModel.objects.exists()
 
 
 # ------------------------------------------------------------------ outro usuário
@@ -332,7 +369,7 @@ def test_criterio_sessao_podada_gera_neuronio_morto_sem_sinapses(
 ):
     vivo = _concluir(cliente, relogio)
     sessao = _iniciar(cliente, duracao=10, modo=modo)
-    relogio.avancar(minutes=5)
+    relogio.avancar(minutes=9)
     saida = relogio.instante - timedelta(minutes=4)
 
     resposta = cliente.post(

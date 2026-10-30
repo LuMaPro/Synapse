@@ -143,5 +143,70 @@ describe('rotas e proteção de acesso', () => {
       await usuario.click(screen.getByRole('link', { name: 'Estatísticas' }))
       expect(screen.getByRole('heading', { name: 'Estatísticas' })).toBeInTheDocument()
     })
+
+    describe('no celular (issue #35)', () => {
+      beforeEach(() => {
+        // Tela estreita: a media query do celular vale.
+        vi.stubGlobal(
+          'matchMedia',
+          vi.fn((consulta: string) => ({
+            matches: consulta === '(max-width: 640px)',
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+          })),
+        )
+      })
+
+      it('navega pela barra de abas embaixo, como no design', async () => {
+        const usuario = userEvent.setup()
+        renderizarEm('/foco')
+
+        const abas = screen.getByRole('navigation', { name: 'Navegação principal' })
+        expect(abas).toHaveClass('abas')
+        expect([...abas.querySelectorAll('a, button')].map((item) => item.textContent)).toEqual([
+          'Foco',
+          'Rede',
+          'Histórico',
+          'Estatísticas',
+          'Mais',
+        ])
+        expect(screen.getByRole('link', { name: 'Foco' })).toHaveClass('active')
+        // O cabeçalho fica só com a marca e a inicial do estudante.
+        expect(screen.queryByRole('button', { name: /sair/i })).not.toBeInTheDocument()
+
+        await usuario.click(screen.getByRole('link', { name: 'Histórico' }))
+        expect(screen.getByRole('heading', { name: 'Histórico' })).toBeInTheDocument()
+      })
+
+      it('"Mais" abre Matérias, Loja e Sair', async () => {
+        const usuario = userEvent.setup()
+        renderizarEm('/foco')
+        const mais = screen.getByRole('button', { name: 'Mais' })
+
+        await usuario.click(mais)
+        expect(mais).toHaveAttribute('aria-expanded', 'true')
+        const menu = screen.getByRole('menu', { name: 'Mais' })
+        expect(
+          [...menu.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
+        ).toEqual(['Matérias', 'Loja', 'Sair'])
+
+        await usuario.click(screen.getByRole('menuitem', { name: 'Loja' }))
+        expect(screen.getByRole('heading', { name: 'Loja' })).toBeInTheDocument()
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+        // Estando numa tela de "Mais", a aba Mais fica acesa.
+        expect(mais).toHaveClass('active')
+
+        await usuario.click(mais)
+        await usuario.keyboard('{Escape}')
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+        await usuario.click(mais)
+        await usuario.click(screen.getByRole('menuitem', { name: 'Sair' }))
+        expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+        expect(screen.queryByRole('navigation', { name: 'Navegação principal' })).not.toHaveClass(
+          'abas',
+        )
+      })
+    })
   })
 })

@@ -274,3 +274,14 @@
 .materias-vazia p {
   margin: 0;
 }
+
+/* Celular (issue #35): a página já tem margem; o formulário usa a largura toda. */
+@media (max-width: 640px) {
+  .materias-container {
+    padding: 0;
+  }
+
+  .materia-form {
+    padding: 16px;
+  }
+}

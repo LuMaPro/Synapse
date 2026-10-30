@@ -66,6 +66,18 @@ class RepositorioSessao(ABC):
         ...
 
     @abstractmethod
+    def listar_por_periodo(
+        self,
+        usuario_id: UUID,
+        *,
+        de: datetime,
+        ate: datetime,
+    ) -> list[SessaoFoco]:
+        """Lista as sessões iniciadas entre `de` e `ate` (inclusive), sem paginar
+        (#30)."""
+        ...
+
+    @abstractmethod
     def listar_historico(
         self,
         usuario_id: UUID,
@@ -94,6 +106,14 @@ class RepositorioSessao(ABC):
         """Lista as sessões em andamento de todos os usuários.
 
         Usado pela varredura de sessões abandonadas (comando podar_sessoes_orfas).
+        """
+        ...
+
+    @abstractmethod
+    def remover(self, id: UUID) -> None:
+        """Apaga a sessão e as saídas dela; não faz nada se ela não existir.
+
+        Usado para a sessão podada antes de 5 min, que não fica registrada.
         """
         ...
 
