@@ -147,10 +147,16 @@ class HorasFocadas(RegraConquista):
     """Horas somadas de todas as sessões concluídas."""
 
     def __init__(self, horas: int = 10):
+        nome = "1 hora focada" if horas == 1 else f"{horas} horas focadas"
+        descricao = (
+            "Some 1 hora em sessões de foco concluídas."
+            if horas == 1
+            else f"Some {horas} horas em sessões de foco concluídas."
+        )
         super().__init__(
             f"horas_focadas_{horas}",
-            f"{horas} horas focadas",
-            f"Some {horas} horas em sessões de foco concluídas.",
+            nome,
+            descricao,
             meta=horas * 60,
             unidade="minutos",
         )
@@ -181,16 +187,39 @@ class SinapsesFormadas(RegraConquista):
     """Sinapses na rede do estudante."""
 
     def __init__(self, quantidade: int = 100):
+        nome = "1 sinapse" if quantidade == 1 else f"{quantidade} sinapses"
+        descricao = (
+            "Forme 1 sinapse na sua rede neural."
+            if quantidade == 1
+            else f"Forme {quantidade} sinapses na sua rede neural."
+        )
         super().__init__(
             f"sinapses_{quantidade}",
-            f"{quantidade} sinapses",
-            f"Forme {quantidade} sinapses na sua rede neural.",
+            nome,
+            descricao,
             meta=quantidade,
             unidade="sinapses",
         )
 
     def medir(self, resumo: ResumoFoco) -> int:
         return resumo.sinapses
+
+
+class NeuroniosFormados(RegraConquista):
+    """Quantidade de neurônios vivos formados na rede."""
+
+    def __init__(self, quantidade: int = 5):
+        termo = "neurônio" if quantidade == 1 else "neurônios"
+        super().__init__(
+            f"neuronios_{quantidade}",
+            f"{quantidade} {termo}",
+            f"Forme {quantidade} {termo} na sua rede neural.",
+            meta=quantidade,
+            unidade="neurônios",
+        )
+
+    def medir(self, resumo: ResumoFoco) -> int:
+        return resumo.neuronios_vivos
 
 
 class SessaoLongaSemPoda(RegraConquista):
@@ -213,6 +242,11 @@ class SessaoLongaSemPoda(RegraConquista):
 # As conquistas do Synapse, na ordem em que aparecem para o estudante.
 CATALOGO_CONQUISTAS: tuple[RegraConquista, ...] = (
     PrimeiroNeuronio(),
+    NeuroniosFormados(5),
+    SessaoLongaSemPoda(30),
+    HorasFocadas(1),
+    DiasSeguidos(3),
+    SinapsesFormadas(5),
     HorasFocadas(10),
     DiasSeguidos(7),
     SinapsesFormadas(100),

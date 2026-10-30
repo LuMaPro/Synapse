@@ -7,6 +7,7 @@ from app.domain.conquistas import (
     CATALOGO_CONQUISTAS,
     DiasSeguidos,
     HorasFocadas,
+    NeuroniosFormados,
     PrimeiroNeuronio,
     RegraConquista,
     ResumoFoco,
@@ -111,6 +112,27 @@ class TestResumoDaRede:
     [
         (PrimeiroNeuronio(), ResumoFoco(), ResumoFoco(neuronios_vivos=1)),
         (
+            NeuroniosFormados(5),
+            ResumoFoco(neuronios_vivos=4),
+            ResumoFoco(neuronios_vivos=5),
+        ),
+        (
+            SessaoLongaSemPoda(30),
+            ResumoFoco(maior_sessao_minutos=29),
+            ResumoFoco(maior_sessao_minutos=30),
+        ),
+        (
+            HorasFocadas(1),
+            ResumoFoco(minutos_focados=59),
+            ResumoFoco(minutos_focados=60),
+        ),
+        (
+            DiasSeguidos(3),
+            ResumoFoco(sequencia=Sequencia(atual=2, recorde=2)),
+            ResumoFoco(sequencia=Sequencia(atual=3, recorde=3)),
+        ),
+        (SinapsesFormadas(5), ResumoFoco(sinapses=4), ResumoFoco(sinapses=5)),
+        (
             HorasFocadas(10),
             ResumoFoco(minutos_focados=599),
             ResumoFoco(minutos_focados=600),
@@ -150,14 +172,20 @@ def test_dias_seguidos_vale_mesmo_depois_de_quebrar_a_sequencia():
 
 
 def test_regras_com_meta_configuravel_tem_codigo_nome_e_dica_proprios():
+    assert HorasFocadas(1).nome == "1 hora focada"
+    assert HorasFocadas(1).descricao == "Some 1 hora em sessões de foco concluídas."
     assert HorasFocadas(50).codigo == "horas_focadas_50"
     assert HorasFocadas(50).nome == "50 horas focadas"
     assert HorasFocadas(50).meta == 3000
     assert DiasSeguidos(30).descricao == (
         "Conclua pelo menos uma sessão por dia, 30 dias seguidos."
     )
+    assert SinapsesFormadas(1).nome == "1 sinapse"
+    assert NeuroniosFormados(1).nome == "1 neurônio"
+    assert NeuroniosFormados(5).nome == "5 neurônios"
     assert SessaoLongaSemPoda(120).nome == "2 h sem poda"
     assert SessaoLongaSemPoda(90).nome == "90 min sem poda"
+    assert SessaoLongaSemPoda(30).nome == "30 min sem poda"
 
 
 def test_meta_precisa_ser_positiva():
@@ -192,11 +220,17 @@ def test_catalogo_tem_as_conquistas_da_issue_com_codigos_unicos():
 
     assert codigos == [
         "primeiro_neuronio",
+        "neuronios_5",
+        "sessao_sem_poda_30",
+        "horas_focadas_1",
+        "dias_seguidos_3",
+        "sinapses_5",
         "horas_focadas_10",
         "dias_seguidos_7",
         "sinapses_100",
         "sessao_sem_poda_120",
     ]
+    assert len(set(codigos)) == len(codigos)
     assert all(r.nome and r.descricao and r.unidade for r in CATALOGO_CONQUISTAS)
 
 

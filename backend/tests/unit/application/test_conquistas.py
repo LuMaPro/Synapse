@@ -119,6 +119,11 @@ def test_desbloqueia_varias_de_uma_vez(servico, redes):
     # 14 h focadas, 7 dias e sessões de 2 h; as 11 sinapses não chegam a 100.
     assert _codigos(novas) == [
         "primeiro_neuronio",
+        "neuronios_5",
+        "sessao_sem_poda_30",
+        "horas_focadas_1",
+        "dias_seguidos_3",
+        "sinapses_5",
         "horas_focadas_10",
         "dias_seguidos_7",
         "sessao_sem_poda_120",
