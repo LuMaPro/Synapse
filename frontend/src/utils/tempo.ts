@@ -10,3 +10,9 @@ export function formatarTempo(ms: number): string {
   const segundos = totalSegundos % 60
   return `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
 }
+
+/** Minutos em horas, com uma casa (ex.: 115 → "1,9 h"); abaixo de 1 h, em minutos. */
+export function formatarHoras(minutos: number): string {
+  if (minutos < 60) return `${minutos} min`
+  return `${(minutos / 60).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h`
+}

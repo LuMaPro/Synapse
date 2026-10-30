@@ -1,156 +1,265 @@
-import { useEffect, useState } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell 
-} from 'recharts';
-import { buscarEstatisticas, type EstatisticasApi } from '../services/estatisticas'; 
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { conquistasApi } from '../services/conquistas'
+import {
+  buscarEstatisticas,
+  type EstatisticasApi,
+  type PeriodoEstatisticas,
+} from '../services/estatisticas'
+import '../styles/rede.css'
+import '../styles/estatisticas.css'
+import { amostraDaCor } from '../utils/efeitos'
+import { formatarHoras } from '../utils/tempo'
 
+const PERIODOS: { valor: PeriodoEstatisticas; rotulo: string }[] = [
+  { valor: 'dia', rotulo: 'Hoje' },
+  { valor: 'semana', rotulo: '7 dias' },
+  { valor: 'mes', rotulo: '30 dias' },
+]
+
+// O SVG do gráfico recebe as cores como atributo: os mesmos valores dos tokens do CSS.
+const COR_BARRA = '#8b7bff' // --cor-destaque
+const COR_SEM_MATERIA = '#6b7097' // --cor-texto-fraco
+const COR_EIXO = '#6b7097'
+const COR_GRADE = '#2a2f55' // --cor-borda
+
+const ESTILO_TOOLTIP = {
+  contentStyle: {
+    background: '#1c2042',
+    border: '1px solid #2a2f55',
+    borderRadius: 10,
+    color: '#ecedf7',
+  },
+  itemStyle: { color: '#ecedf7' },
+  labelStyle: { color: '#9ca1c6' },
+}
+
+interface Resultado {
+  /** O período pedido: se mudar, o resultado fica velho até a nova resposta. */
+  chave: string
+  dados?: EstatisticasApi
+  erro?: boolean
+}
+
+/** Rótulo de um dia do gráfico: o dia da semana, ou a data no período de 30 dias. */
+function rotuloDoDia(data: string, periodo: PeriodoEstatisticas): string {
+  const [ano, mes, dia] = data.split('-').map(Number)
+  const dataLocal = new Date(ano, mes - 1, dia)
+  if (periodo === 'mes') {
+    return dataLocal.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+  }
+  const semana = dataLocal.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
+  return semana.charAt(0).toUpperCase() + semana.slice(1)
+}
+
+function Destaque({ rotulo, valor, classe }: { rotulo: string; valor: string; classe?: string }) {
+  return (
+    <div className="estatistica-destaque">
+      <dt>{rotulo}</dt>
+      <dd className={classe}>{valor}</dd>
+    </div>
+  )
+}
+
+/** Dashboard de estatísticas (issue #31): o tempo focado no período, por dia e por matéria. */
 export function Estatisticas() {
-  const [periodo, setPeriodo] = useState<'dia' | 'semana' | 'mes'>('semana');
-  const [dados, setDados] = useState<EstatisticasApi | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const [periodo, setPeriodo] = useState<PeriodoEstatisticas>('semana')
+  const [tentativa, setTentativa] = useState(0)
+  const [resultado, setResultado] = useState<Resultado | null>(null)
+  const [sequencia, setSequencia] = useState<number | null>(null)
+  const chave = `${periodo}|${tentativa}`
 
   useEffect(() => {
-    async function carregar() {
-      setCarregando(true);
-      try {
-        const resultado = await buscarEstatisticas(periodo);
-        setDados(resultado);
-      } catch (error) {
-        console.error("Erro ao buscar estatísticas:", error);
-      } finally {
-        setCarregando(false);
-      }
-    }
-    carregar();
-  }, [periodo]);
+    // A sequência vem das conquistas (#32); sem ela, o resto da tela aparece mesmo assim.
+    conquistasApi
+      .consultar()
+      .then((resposta) => setSequencia(resposta.sequencia.atual))
+      .catch(() => {})
+  }, [])
 
-  if (carregando && !dados) {
-    return <div style={{ padding: '24px', color: '#fff' }}>Carregando estatísticas...</div>;
+  useEffect(() => {
+    let ativo = true
+    buscarEstatisticas(periodo)
+      .then((dados) => {
+        if (ativo) setResultado({ chave, dados })
+      })
+      .catch(() => {
+        if (ativo) setResultado({ chave, erro: true })
+      })
+    return () => {
+      ativo = false
+    }
+  }, [chave, periodo])
+
+  const carregando = resultado?.chave !== chave
+  const dados = resultado?.dados
+
+  let conteudo
+  if (resultado?.erro && !carregando) {
+    conteudo = (
+      <div className="rede-mensagem" role="alert">
+        <p>Não foi possível carregar suas estatísticas. Verifique sua conexão.</p>
+        <button
+          type="button"
+          className="botao secundario"
+          onClick={() => setTentativa((t) => t + 1)}
+        >
+          Tentar de novo
+        </button>
+      </div>
+    )
+  } else if (!dados) {
+    conteudo = (
+      <p className="rede-mensagem" role="status">
+        Carregando suas estatísticas…
+      </p>
+    )
+  } else {
+    const barras = dados.por_dia.map((dia) => ({
+      dia: rotuloDoDia(dia.data, dados.periodo),
+      horas: Number((dia.minutos / 60).toFixed(1)),
+    }))
+    const fatias = dados.por_materia.map((materia) => ({
+      chave: materia.materia_id ?? 'sem-materia',
+      nome: materia.nome ?? 'Sem matéria',
+      cor: materia.cor ?? COR_SEM_MATERIA,
+      efeito: materia.efeito,
+      minutos: materia.minutos,
+      percentual: Math.round(materia.percentual * 100),
+    }))
+
+    conteudo = (
+      <div className={carregando ? 'estatisticas-painel atualizando' : 'estatisticas-painel'}>
+        <dl className="estatisticas-destaques">
+          <Destaque rotulo="Tempo focado" valor={formatarHoras(dados.tempo_total_minutos)} />
+          <Destaque
+            rotulo="Taxa de sucesso"
+            valor={`${Math.round(dados.taxa_sucesso * 100)}%`}
+            classe="sucesso"
+          />
+          <Destaque
+            rotulo="Sequência atual"
+            valor={sequencia === null ? '—' : `${sequencia} ${sequencia === 1 ? 'dia' : 'dias'}`}
+            classe="atp"
+          />
+          <Destaque
+            rotulo="Melhor horário"
+            valor={dados.melhor_horario === null ? '—' : `${dados.melhor_horario}h`}
+          />
+        </dl>
+
+        <div className="estatisticas-graficos">
+          <section className="estatisticas-cartao" aria-labelledby="titulo-por-dia">
+            <h2 id="titulo-por-dia">Tempo focado por dia</h2>
+            <div className="grafico-barras">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barras} margin={{ top: 8, right: 4, bottom: 0, left: -24 }}>
+                  <CartesianGrid stroke={COR_GRADE} strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="dia"
+                    stroke={COR_EIXO}
+                    tickLine={false}
+                    fontSize={12}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis stroke={COR_EIXO} tickLine={false} fontSize={12} allowDecimals />
+                  <Tooltip
+                    {...ESTILO_TOOLTIP}
+                    cursor={{ fill: 'rgb(139 123 255 / 8%)' }}
+                    formatter={(valor) => [`${String(valor).replace('.', ',')} h`, 'Focado']}
+                  />
+                  <Bar dataKey="horas" fill={COR_BARRA} radius={[4, 4, 0, 0]} maxBarSize={48} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          <section className="estatisticas-cartao" aria-labelledby="titulo-por-materia">
+            <h2 id="titulo-por-materia">Foco por matéria</h2>
+            {fatias.length === 0 ? (
+              <div className="rede-mensagem">
+                <p>Nenhuma sessão concluída neste período.</p>
+                <Link className="botao primario" to="/foco">
+                  Começar a focar
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="grafico-rosca">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={fatias}
+                        dataKey="minutos"
+                        nameKey="nome"
+                        innerRadius="60%"
+                        outerRadius="95%"
+                        paddingAngle={fatias.length > 1 ? 3 : 0}
+                        stroke="none"
+                      >
+                        {fatias.map((fatia) => (
+                          <Cell key={fatia.chave} fill={fatia.cor} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        {...ESTILO_TOOLTIP}
+                        formatter={(valor) => formatarHoras(Number(valor))}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="estatisticas-legenda">
+                  {fatias.map((fatia) => (
+                    <li key={fatia.chave}>
+                      <i {...amostraDaCor(fatia.cor, fatia.efeito)} aria-hidden="true" />
+                      <span className="legenda-nome">{fatia.nome}</span>
+                      <span className="legenda-valor">
+                        {formatarHoras(fatia.minutos)} · {fatia.percentual}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        </div>
+      </div>
+    )
   }
 
-  // Fallback de segurança 
-  const stats = dados || {
-    tempo_total_minutos: 0,
-    taxa_sucesso: 0,
-    melhor_horario: null,
-    por_dia: [],
-    por_materia: []
-  };
-
-  // Prepara dados pro gráfico de barras (converte data para dia da semana)
-  const dadosBarras = stats.por_dia.map(dia => {
-    const dataObj = new Date(dia.data);
-    // Para resolver fuso, adiciona o offset
-    dataObj.setMinutes(dataObj.getMinutes() + dataObj.getTimezoneOffset());
-    const nomeDia = dataObj.toLocaleDateString('pt-BR', { weekday: 'short' });
-    return {
-      diaStr: nomeDia.charAt(0).toUpperCase() + nomeDia.slice(1).replace('.', ''),
-      horas: Number((dia.minutos / 60).toFixed(1))
-    };
-  });
-
-  // Prepara dados pro gráfico de rosca (converte minutos pra horas e cuida do fallback de nome/cor)
-  const dadosRosca = stats.por_materia.map(m => ({
-    nome: m.nome || 'Sem Matéria',
-    cor: m.cor || '#8B7BFF', // fallback caso venha null
-    horas: Number((m.minutos / 60).toFixed(1))
-  }));
-
-  // Converte a taxa_sucesso (ex: 0.6667) para porcentagem (67%)
-  const taxaPorcentagem = Math.round(stats.taxa_sucesso * 100);
-  
-  // Converte minutos totais para horas formatadas (ex: 35.5)
-  const horasTotais = (stats.tempo_total_minutos / 60).toFixed(1).replace('.0', '');
-
   return (
-    <div style={{ padding: '24px', fontFamily: 'sans-serif', color: '#fff', backgroundColor: '#121212', minHeight: '100vh', paddingBottom: '100px' }}>
-      
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2>Dashboard de Estatísticas</h2>
-        <select 
-          value={periodo} 
-          onChange={(e) => setPeriodo(e.target.value as 'dia' | 'semana' | 'mes')}
-          style={{ padding: '8px', borderRadius: '4px', backgroundColor: '#2c2c2c', color: '#fff', border: '1px solid #444' }}
-        >
-          <option value="dia">Hoje</option>
-          <option value="semana">Última Semana</option>
-          <option value="mes">Último Mês</option>
-        </select>
+    <section className="rede estatisticas" aria-busy={carregando}>
+      <div className="rede-cabecalho">
+        <h1>Estatísticas</h1>
       </div>
 
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
-        <div style={{ flex: 1, padding: '16px', backgroundColor: '#1e1e1e', borderRadius: '8px' }}>
-          <p style={{ margin: 0, fontSize: '14px', color: '#aaa' }}>Total de Horas</p>
-          <h3 style={{ margin: '8px 0 0 0', fontSize: '24px' }}>{horasTotais}h</h3>
-        </div>
-        <div style={{ flex: 1, padding: '16px', backgroundColor: '#1e1e1e', borderRadius: '8px' }}>
-          <p style={{ margin: 0, fontSize: '14px', color: '#aaa' }}>Taxa de Sucesso</p>
-          <h3 style={{ margin: '8px 0 0 0', fontSize: '24px', color: '#7BFF8B' }}>{taxaPorcentagem}%</h3>
-        </div>
-        <div style={{ flex: 1, padding: '16px', backgroundColor: '#1e1e1e', borderRadius: '8px' }}>
-          <p style={{ margin: 0, fontSize: '14px', color: '#aaa' }}>Melhor Horário</p>
-          <h3 style={{ margin: '8px 0 0 0', fontSize: '24px', color: '#FFB87B' }}>
-            {stats.melhor_horario !== null && stats.melhor_horario !== undefined ? `${stats.melhor_horario}h` : '--'}
-          </h3>
-        </div>
+      <div className="filtros" role="group" aria-label="Período">
+        {PERIODOS.map(({ valor, rotulo }) => (
+          <button
+            key={valor}
+            type="button"
+            className="chip"
+            aria-pressed={periodo === valor}
+            onClick={() => setPeriodo(valor)}
+          >
+            {rotulo}
+          </button>
+        ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        
-        <div style={{ flex: 2, minWidth: '400px', backgroundColor: '#1e1e1e', padding: '16px', borderRadius: '8px' }}>
-          <h4 style={{ marginTop: 0, marginBottom: '16px' }}>Tempo focado por dia (Horas)</h4>
-          <div style={{ height: '300px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosBarras}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                <XAxis dataKey="diaStr" stroke="#888" />
-                <YAxis stroke="#888" />
-                <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', borderRadius: '4px', color: '#fff' }} itemStyle={{color: '#fff'}} />
-                <Bar dataKey="horas" fill="#8B7BFF" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div style={{ flex: 1, minWidth: '300px', backgroundColor: '#1e1e1e', padding: '16px', borderRadius: '8px' }}>
-          <h4 style={{ marginTop: 0, marginBottom: '16px' }}>Foco por matéria</h4>
-          <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {dadosRosca.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={dadosRosca}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="horas"
-                  >
-                    {dadosRosca.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.cor} stroke="none" />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', borderRadius: '4px', color: '#fff' }} itemStyle={{color: '#fff'}} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <span style={{ color: '#888' }}>Sem dados</span>
-            )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
-            {dadosRosca.map(item => (
-              <div key={item.nome} style={{ display: 'flex', alignItems: 'center', fontSize: '14px' }}>
-                <span style={{ width: '12px', height: '12px', backgroundColor: item.cor, borderRadius: '50%', marginRight: '8px' }}></span>
-                <span style={{ flex: 1 }}>{item.nome}</span>
-                <span>{item.horas}h</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
+      {conteudo}
+    </section>
+  )
 }

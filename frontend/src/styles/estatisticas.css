@@ -1,0 +1,138 @@
+/* Dashboard de estatísticas (issue #31). Segue o cabeçalho e os filtros da rede e os
+   cartões do histórico; os gráficos são do Recharts. */
+
+.estatisticas-painel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 0.2s;
+}
+
+.estatisticas-painel.atualizando {
+  opacity: 0.5;
+}
+
+.estatisticas-destaques {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.estatistica-destaque {
+  padding: 14px 16px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.estatistica-destaque dt {
+  color: var(--cor-texto-suave);
+  font-size: 13px;
+}
+
+.estatistica-destaque dd {
+  margin: 6px 0 0;
+  color: var(--cor-texto);
+  font: 600 24px var(--fonte-numero);
+}
+
+.estatistica-destaque dd.sucesso {
+  color: var(--cor-sucesso);
+}
+
+.estatistica-destaque dd.atp {
+  color: var(--cor-atp);
+}
+
+.estatisticas-graficos {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 12px;
+}
+
+.estatisticas-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.estatisticas-cartao h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.estatisticas-cartao .rede-mensagem {
+  padding: 32px 8px;
+}
+
+.grafico-barras {
+  height: 260px;
+}
+
+.grafico-rosca {
+  height: 200px;
+}
+
+/* Sem o contorno de foco preto que o navegador põe no SVG do Recharts ao clicar. */
+.estatisticas-cartao svg:focus,
+.estatisticas-cartao .recharts-wrapper:focus,
+.estatisticas-cartao .recharts-sector:focus {
+  outline: none;
+}
+
+.estatisticas-legenda {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.estatisticas-legenda li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.estatisticas-legenda .amostra {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legenda-nome {
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legenda-valor {
+  flex: none;
+  color: var(--cor-texto-suave);
+  font-family: var(--fonte-numero);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .estatisticas-destaques {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .estatisticas-graficos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .estatistica-destaque dd {
+    font-size: 20px;
+  }
+}
