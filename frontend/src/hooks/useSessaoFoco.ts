@@ -97,6 +97,7 @@ export function useSessaoFoco() {
   const concluindoRef = useRef(false)
   const iniciandoRef = useRef(false)
   const sessaoIdRef = useRef<string | null>(null)
+  const forcarConclusaoRef = useRef(false)
   /**
    * Diferença entre o relógio do servidor e o do navegador (ms). Os horários avisados
    * são convertidos para o relógio do servidor, que recusa uma saída "no futuro" ou
@@ -121,6 +122,12 @@ export function useSessaoFoco() {
     setFase('concluindo')
     sairDaTelaCheia()
   }, [])
+
+  /** Conclui a sessão na hora em modo de desenvolvimento/debug. */
+  const concluirDebug = useCallback(() => {
+    forcarConclusaoRef.current = true
+    concluir()
+  }, [concluir])
 
   const podar = useCallback((instante: number, motivo: MotivoPoda) => {
     emAndamentoRef.current = false
@@ -234,7 +241,7 @@ export function useSessaoFoco() {
         // Os avisos pendentes vão antes: o servidor precisa deles para decidir a conclusão.
         if (!(await enviarAvisosPendentes(tratarResposta))) throw new Error('Sem conexão')
         if (!ativo || !concluindoRef.current) return
-        const resposta = await sessoesApi.concluir(sessaoId)
+        const resposta = await sessoesApi.concluir(sessaoId, forcarConclusaoRef.current)
         if (!ativo) return
         concluindoRef.current = false
         setConclusao(resposta)
@@ -415,6 +422,7 @@ export function useSessaoFoco() {
   const focarDeNovo = useCallback(() => {
     emAndamentoRef.current = false
     concluindoRef.current = false
+    forcarConclusaoRef.current = false
     sessaoIdRef.current = null
     setFimEm(null)
     setSaidaEm(null)
@@ -447,6 +455,7 @@ export function useSessaoFoco() {
     escolherMateria,
     iniciar,
     desistir,
+    concluirDebug,
     sairDaTela,
     voltarParaTela,
     voltarParaTelaCheia,

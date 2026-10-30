@@ -49,7 +49,8 @@ export const sessoesApi = {
     }),
   /** A sessão em andamento do estudante, ou `undefined` se não houver (204). */
   buscarAtiva: () => api.get<SessaoApi | undefined>('/sessoes/ativa'),
-  concluir: (sessaoId: string) => api.post<ConclusaoApi>(`/sessoes/${sessaoId}/concluir`),
+  concluir: (sessaoId: string, debug = false) =>
+    api.post<ConclusaoApi>(`/sessoes/${sessaoId}/concluir${debug ? '?debug=true' : ''}`),
 }
 
 /** Uma página do histórico, como vem do `GET /sessoes` (issue #29). */

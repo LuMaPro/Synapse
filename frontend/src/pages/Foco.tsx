@@ -172,6 +172,20 @@ export function Foco() {
             >
               Desistir
             </button>
+            {import.meta.env.DEV && window.location.search.includes('debug') && (
+              <button
+                type="button"
+                className="botao fantasma"
+                style={{
+                  borderColor: 'var(--cor-atp)',
+                  color: 'var(--cor-atp)',
+                  marginTop: 6,
+                }}
+                onClick={sessao.concluirDebug}
+              >
+                ⚡ Concluir agora (Debug)
+              </button>
+            )}
           </>
         )}
         {!concluindo && confirmandoDesistencia && (
