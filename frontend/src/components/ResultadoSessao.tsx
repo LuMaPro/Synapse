@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import type { MotivoPoda } from '../hooks/useSessaoFoco'
+import type { ConquistaApi } from '../services/conquistas'
 import type { Efeito } from '../utils/efeitos'
 import { NOME_TIPO_NEURONIO, tipoNeuronio } from '../utils/neuronio'
 import { formatarTempo } from '../utils/tempo'
@@ -20,6 +21,8 @@ interface ResultadoSessaoProps {
   nomeMateria?: string | null
   /** ATP ganho com a sessão concluída (#34). */
   atp?: number | null
+  /** Conquistas desbloqueadas nesta sessão (#33). */
+  conquistasNovas?: Array<Pick<ConquistaApi, 'codigo' | 'nome'>>
   onFocarDeNovo: () => void
 }
 
@@ -34,6 +37,7 @@ export function ResultadoSessao({
   efeito,
   nomeMateria,
   atp,
+  conquistasNovas,
   onFocarDeNovo,
 }: ResultadoSessaoProps) {
   const tipo = tipoNeuronio(duracaoMin)
@@ -60,6 +64,37 @@ export function ResultadoSessao({
           {nomeMateria ? ` · ${nomeMateria}` : ''}
         </p>
         {atp ? <span className="selo atp">+{atp} ATP</span> : null}
+        {conquistasNovas && conquistasNovas.length > 0 && (
+          <div className="toasts-conquistas" aria-label="Conquistas desbloqueadas">
+            {conquistasNovas.map((c) => (
+              <div
+                key={c.codigo}
+                className="toast"
+                role="status"
+                aria-label={`Conquista desbloqueada: ${c.nome}`}
+              >
+                <span className="icone" aria-hidden="true">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H4.5a3.5 3.5 0 0 0 3.8 4M16 6h3.5a3.5 3.5 0 0 1-3.8 4M12 13v4M8.5 20h7" />
+                  </svg>
+                </span>
+                <div>
+                  <b>Conquista desbloqueada</b>
+                  <span>{c.nome}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="acoes">
           <Link className="botao primario" to="/rede">
             Ver na minha rede
