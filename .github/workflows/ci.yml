@@ -69,6 +69,26 @@ jobs:
           name: coverage-html
           path: backend/htmlcov/
 
+  imagem-producao:
+    # A imagem que o Render usa no deploy (issue #38): precisa montar e passar nas
+    # checagens de segurança do Django com DEBUG=False.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build da imagem de produção
+        run: docker build -f backend/Dockerfile.prod -t synapse-api backend
+
+      - name: Checagens de deploy do Django
+        run: |
+          docker run --rm \
+            -e SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')" \
+            -e DATABASE_URL=sqlite:///check.db \
+            -e RENDER_EXTERNAL_HOSTNAME=synapse-api.onrender.com \
+            synapse-api python manage.py check --deploy --fail-level WARNING
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

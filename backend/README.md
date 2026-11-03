@@ -141,3 +141,12 @@ backend/
 | `DEBUG` | `True` em desenvolvimento |
 | `ALLOWED_HOSTS` | hosts permitidos, separados por vírgula |
 | `DATABASE_URL` | conexão com o PostgreSQL: `postgres://usuario:senha@host:porta/banco` |
+| `CORS_ALLOWED_ORIGINS` | endereços do frontend que podem chamar a API, separados por vírgula |
+| `JWT_SIGNING_KEY` | chave dos tokens JWT (opcional; o padrão é a `SECRET_KEY`) |
+| `CONN_MAX_AGE` | segundos para reaproveitar a conexão com o banco (padrão `0`) |
+| `SECURE_SSL_REDIRECT` | com `DEBUG=False`, redireciona HTTP para HTTPS (padrão `True`) |
+| `RENDER_EXTERNAL_HOSTNAME` | definida pelo Render; entra sozinha no `ALLOWED_HOSTS` |
+
+## Produção
+
+A API em produção roda com a imagem `Dockerfile.prod` (gunicorn, WhiteNoise e migrações a cada deploy). O deploy no Render e no Neon está em [docs/deploy.md](../docs/deploy.md).

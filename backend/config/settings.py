@@ -41,6 +41,10 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+# No Render (issue #38), o endereço público do serviço vem nesta variável.
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default=None)
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 
 # Application definition
@@ -99,6 +103,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": env.db("DATABASE_URL"),
 }
+# Reaproveita a conexão entre requisições em produção (#38). O banco gratuito (Neon)
+# desliga quando fica ocioso, então a conexão é testada antes de ser reusada.
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=0)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 # Modelo de usuário próprio (login por e-mail). Precisa existir antes da primeira
 # migração: trocar o modelo de usuário depois que o banco existe é muito trabalhoso.
@@ -148,6 +156,37 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+# O `collectstatic` junta os arquivos aqui, e o WhiteNoise os serve (#38).
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+# Em produção, o WhiteNoise serve os arquivos do Admin e da API navegável, comprimidos
+# e com o hash no nome (cache longo). Em desenvolvimento, o runserver serve direto.
+if not DEBUG:
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    )
+    STORAGES["staticfiles"]["BACKEND"] = (
+        "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    )
+
+# HTTPS em produção (#38). O Render termina o HTTPS na frente da aplicação e avisa
+# pelo cabeçalho X-Forwarded-Proto que a requisição original era segura.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    # O health check do Render chega por dentro, sem HTTPS.
+    SECURE_REDIRECT_EXEMPT = [r"^health$"]
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # A lista de preload dos navegadores é para domínios próprios, não para um
+    # subdomínio do onrender.com.
+    SILENCED_SYSTEM_CHECKS = ["security.W021"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
