@@ -7,6 +7,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
+    // Com a cobertura ligada, o código fica mais lento, e no CI (2 núcleos rodando
+    // vários arquivos de teste ao mesmo tempo) o primeiro teste de uma tela chegou a
+    // levar 8 s. Os 5 s padrão do Vitest derrubavam o teste sem ele ter falhado.
+    testTimeout: 20_000,
     // Cobertura (issue #43): `npm run test:coverage`. O relatório HTML fica em coverage/.
     coverage: {
       provider: 'v8',
