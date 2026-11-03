@@ -5,6 +5,8 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from app.api import auth
+
 UsuarioModel = get_user_model()
 pytestmark = pytest.mark.django_db
 
@@ -122,3 +124,19 @@ def test_renovar_sem_token_no_payload(payload):
     assert resposta.status_code == 400
     dados = resposta.json()
     assert dados["erro"] == "refresh_invalido"
+
+
+def test_renovar_com_rotacao_devolve_um_novo_refresh(refresh_token, monkeypatch):
+    # A rotação vem desligada nas configurações; aqui ela é ligada só neste teste.
+    monkeypatch.setattr(auth.api_settings, "ROTATE_REFRESH_TOKENS", True)
+    monkeypatch.setattr(auth.api_settings, "BLACKLIST_AFTER_ROTATION", True)
+
+    resposta = APIClient().post(
+        "/auth/renovar", {"refresh": str(refresh_token)}, format="json"
+    )
+
+    assert resposta.status_code == 200
+    dados = resposta.json()
+    assert "access" in dados
+    novo_refresh = RefreshToken(dados["refresh"])
+    assert novo_refresh["jti"] != refresh_token["jti"]

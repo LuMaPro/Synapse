@@ -91,6 +91,15 @@ Com o PostgreSQL rodando:
 uv run pytest
 ```
 
+Para ver a cobertura (issue #43), com o relatório HTML em `htmlcov/index.html`:
+
+```bash
+uv run pytest --cov=app --cov-report=html
+uv run coverage report --include="app/domain/*,app/application/*" --fail-under=80
+```
+
+O segundo comando confere a meta de 80% no domínio e na aplicação, como o CI faz. Os números e os prints estão em `docs/relatorios/evidencias/`.
+
 O `pytest-django` cria um banco separado para os testes (`test_synapse`) e o apaga no fim, então os testes nunca mexem nos dados de desenvolvimento. Testes que acessam o banco precisam da marcação `@pytest.mark.django_db`.
 
 ## Sessões abandonadas

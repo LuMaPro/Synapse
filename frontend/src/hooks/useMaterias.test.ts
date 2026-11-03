@@ -127,4 +127,112 @@ describe('useMaterias', () => {
     expect(materiasApi.remover).toHaveBeenCalledWith('mat-1')
     expect(result.current.materias).toEqual([listaExemplo[1]])
   })
+
+  it('carregar() busca a lista de novo e limpa o erro anterior', async () => {
+    vi.spyOn(materiasApi, 'listar')
+      .mockRejectedValueOnce(new Error('Falha de rede'))
+      .mockResolvedValueOnce([...listaExemplo])
+
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.erro).not.toBeNull())
+
+    await act(async () => {
+      await result.current.carregar()
+    })
+
+    expect(result.current.erro).toBeNull()
+    expect(result.current.carregando).toBe(false)
+    expect(result.current.materias).toEqual(listaExemplo)
+  })
+
+  it('carregar() avisa quando a nova busca também falha', async () => {
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.carregando).toBe(false))
+    vi.spyOn(materiasApi, 'listar').mockRejectedValueOnce(new Error('Falha de rede'))
+
+    await act(async () => {
+      await result.current.carregar()
+    })
+
+    expect(result.current.erro).toBe('Não foi possível carregar as matérias.')
+    expect(result.current.carregando).toBe(false)
+  })
+
+  // Cada erro do servidor vira uma mensagem que o estudante entende.
+  const errosDaApi: [string, unknown, string][] = [
+    [
+      'cor da loja ainda não comprada',
+      new ApiError(409, 'cor_bloqueada', 'Compre a cor Aurora na loja.'),
+      'Compre a cor Aurora na loja.',
+    ],
+    [
+      'nome duplicado',
+      new ApiError(409, 'materia_ja_existe', 'Conflito'),
+      'Você já tem uma matéria com este nome.',
+    ],
+    ['dados inválidos (400)', new ApiError(400, 'nome_invalido', 'x'), 'Nome ou cor inválidos.'],
+    ['dados inválidos (422)', new ApiError(422, 'cor_invalida', 'x'), 'Nome ou cor inválidos.'],
+  ]
+
+  it.each(errosDaApi)('criar: %s', async (_caso, erro, mensagem) => {
+    vi.spyOn(materiasApi, 'criar').mockRejectedValueOnce(erro)
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.carregando).toBe(false))
+
+    await expect(result.current.criar('Química', '#8B7BFF')).rejects.toThrow(mensagem)
+  })
+
+  it('criar: sem conexão, pede para tentar de novo', async () => {
+    vi.spyOn(materiasApi, 'criar').mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.carregando).toBe(false))
+
+    await expect(result.current.criar('Química', '#8B7BFF')).rejects.toThrow(
+      'Não foi possível criar a matéria. Tente novamente.',
+    )
+  })
+
+  it.each(errosDaApi)('atualizar: %s', async (_caso, erro, mensagem) => {
+    vi.spyOn(materiasApi, 'atualizar').mockRejectedValueOnce(erro)
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.carregando).toBe(false))
+
+    await expect(result.current.atualizar('mat-1', { nome: 'Química' })).rejects.toThrow(mensagem)
+    expect(result.current.materias).toEqual(listaExemplo)
+  })
+
+  it('atualizar: sem conexão, pede para tentar de novo', async () => {
+    vi.spyOn(materiasApi, 'atualizar').mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.carregando).toBe(false))
+
+    await expect(result.current.atualizar('mat-1', { cor: '#5BE49B' })).rejects.toThrow(
+      'Não foi possível atualizar a matéria. Tente novamente.',
+    )
+  })
+
+  it('atualizar só a cor não manda o nome', async () => {
+    const atualizada: Materia = { ...listaExemplo[1], cor: '#5BE49B' }
+    vi.spyOn(materiasApi, 'atualizar').mockResolvedValueOnce(atualizada)
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.carregando).toBe(false))
+
+    await act(async () => {
+      await result.current.atualizar('mat-2', { cor: '#5BE49B' })
+    })
+
+    expect(materiasApi.atualizar).toHaveBeenCalledWith('mat-2', { cor: '#5BE49B' })
+    expect(result.current.materias[1]).toEqual(atualizada)
+  })
+
+  it('remover: na falha, a matéria continua na lista', async () => {
+    vi.spyOn(materiasApi, 'remover').mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const { result } = renderHook(() => useMaterias())
+    await waitFor(() => expect(result.current.carregando).toBe(false))
+
+    await expect(result.current.remover('mat-1')).rejects.toThrow(
+      'Não foi possível excluir a matéria. Tente novamente.',
+    )
+    expect(result.current.materias).toEqual(listaExemplo)
+  })
 })

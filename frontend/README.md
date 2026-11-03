@@ -35,6 +35,7 @@ Abre em http://localhost:5173.
 | `npm run format:check` | Só confere a formatação (usado no CI) |
 | `npm test` | Roda os testes uma vez (Vitest) |
 | `npm run test:watch` | Roda os testes de novo a cada alteração |
+| `npm run test:coverage` | Roda os testes com cobertura; falha abaixo de 80% (relatório em `coverage/`) |
 
 ## Estrutura
 
