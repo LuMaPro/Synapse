@@ -1,0 +1,58 @@
+# Blueprint do Render (issue #38): a API e o frontend, os dois no plano gratuito.
+# O banco é um PostgreSQL gratuito do Neon, fora do Render (veja docs/deploy.md).
+# As variáveis com `sync: false` são pedidas pelo painel ao criar o Blueprint.
+services:
+  - type: web
+    name: synapse-api
+    runtime: docker
+    plan: free
+    # A região mais próxima do Brasil; o banco do Neon fica na mesma (AWS us-east-1).
+    region: virginia
+    dockerfilePath: ./backend/Dockerfile.prod
+    dockerContext: ./backend
+    # Só faz um novo deploy quando o backend muda.
+    buildFilter:
+      paths:
+        - backend/**
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: CONN_MAX_AGE
+        value: "60"
+      - key: WEB_CONCURRENCY
+        value: "2"
+
+  - type: web
+    name: synapse-web
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    buildFilter:
+      paths:
+        - frontend/**
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: NODE_VERSION
+        value: "22"
+    headers:
+      # O service worker precisa ser conferido a cada visita, para as atualizações
+      # chegarem; os arquivos do build têm o hash no nome e nunca mudam.
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      # SPA: qualquer rota (/foco, /rede...) abre o index.html, e o React Router decide.
+      - type: rewrite
+        source: /*
+        destination: /index.html

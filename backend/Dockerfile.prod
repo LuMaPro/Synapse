@@ -1,0 +1,24 @@
+# Imagem de produção (issue #38), usada pelo Render. O Dockerfile ao lado continua
+# sendo o do desenvolvimento (docker compose, com hot reload).
+FROM python:3.12-slim
+
+COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
+
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+# Só as dependências de produção (sem pytest e ruff).
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+COPY . .
+
+# Junta os arquivos estáticos do Admin e da API navegável para o WhiteNoise servir.
+# O collectstatic não usa o banco nem a chave de verdade, só precisa que existam.
+RUN SECRET_KEY=build DATABASE_URL=sqlite:///build.db python manage.py collectstatic --noinput
+
+# O Render informa a porta em $PORT. As migrações rodam a cada deploy, antes de subir.
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --access-logfile -"]
