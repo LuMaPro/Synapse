@@ -5,8 +5,8 @@ Synapse
 
 | | Endereço |
 |---|---|
-| App | https://synapse-web.onrender.com |
-| API: documentação (Swagger) | https://synapse-api.onrender.com/docs/ |
+| App | https://synapse-web-ew1b.onrender.com |
+| API: documentação (Swagger) | https://synapse-api-mnlh.onrender.com/docs/ |
 
 Hospedado de graça no Render (frontend e API) com o banco no Neon. A API dorme depois de 15 minutos sem uso, e a primeira requisição depois disso pode levar cerca de 1 minuto. Como foi feito o deploy e por que essas escolhas: [docs/deploy.md](docs/deploy.md).
 
