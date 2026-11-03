@@ -27,6 +27,16 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 pythonpath = ["."]
 testpaths = ["tests"]
 
+# Cobertura (issue #43). A meta é 80% em app/domain e app/application; o CI confere.
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+# Métodos abstratos só definem o contrato: não têm corpo para testar.
+exclude_also = ['@(abc\.)?abstractmethod']
+
 [tool.ruff]
 line-length = 88
 target-version = "py312"

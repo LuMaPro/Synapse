@@ -216,6 +216,22 @@ def test_atualizar_materia_recusa_nome_duplicado(cliente):
     assert resposta.json()["erro"] == "materia_ja_existe"
 
 
+
+def test_atualizar_materia_recusa_nome_vazio(cliente):
+    materia = cliente.post(
+        "/materias", {"nome": "Cálculo I", "cor": "#8B7BFF"}, format="json"
+    ).json()
+
+    resposta = cliente.patch(f"/materias/{materia['id']}", {"nome": ""}, format="json")
+
+    assert resposta.status_code == 400
+    assert resposta.json() == {
+        "erro": "nome_invalido",
+        "mensagem": "O nome não pode ser vazio.",
+    }
+    assert cliente.get(f"/materias/{materia['id']}").json()["nome"] == "Cálculo I"
+
+
 def test_atualizar_materia_de_outro_estudante_retorna_404(cliente, outro_cliente):
     materia_outro = outro_cliente.post(
         "/materias", {"nome": "Algoritmos", "cor": "#FFC857"}, format="json"

@@ -33,6 +33,22 @@ def test_cadastro_sucesso():
     assert usuario.check_password("senha-segura-123")
 
 
+def test_cadastro_aceita_o_campo_e_mail_com_hifen():
+    resposta = APIClient().post(
+        "/auth/cadastro",
+        {
+            "nome": "Mariana Souza",
+            "e-mail": "mariana@synapse.com",
+            "senha": "senha-segura-123",
+        },
+        format="json",
+    )
+
+    assert resposta.status_code == 201
+    assert resposta.json()["email"] == "mariana@synapse.com"
+    assert UsuarioModel.objects.filter(email="mariana@synapse.com").exists()
+
+
 def test_cadastro_email_duplicado():
     cliente = APIClient()
     # Primeiro cadastro
