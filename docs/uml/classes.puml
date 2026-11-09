@@ -1,0 +1,971 @@
+' Diagramas de classes do Synapse (issue #40): as classes de backend/app/domain e
+' backend/app/application, e as implementações da infraestrutura para as interfaces do
+' domínio. O teste backend/tests/unit/test_diagrama_classes.py confere este arquivo
+' contra o código: classes, heranças, atributos e métodos.
+'
+' São várias vistas do mesmo modelo, para caber na página:
+'   classes-visao-geral   todas as classes e relações, sem atributos nem métodos
+'   classes-sessao        sessão de foco (State e Strategy)
+'   classes-rede          neurônio e rede neural (Factory Method, Strategy, Agregado)
+'   classes-eventos       eventos e conquistas (Observer e Template Method)
+'   classes-loja-estatisticas
+'   classes-aplicacao     serviços da camada de aplicação
+'   classes-repositorios  interfaces de repositório e implementações (Repository)
+'   classes-excecoes
+' Cada classe tem os atributos e os métodos em uma vista só; nas outras, aparece só o
+' nome, com fundo cinza e borda tracejada.
+'
+' O rascunho saiu do pyreverse (na pasta backend, sem instalar o pylint no projeto):
+'   uvx --from pylint pyreverse -o puml -p synapse app/domain app/application
+' e foi reorganizado à mão em pacotes por camada, com os padrões destacados.
+'
+' Para gerar os PNG e os SVG (na raiz do projeto, com o Docker aberto; no Git Bash,
+' comece a linha com MSYS_NO_PATHCONV=1 para o caminho /data não ser convertido):
+'   docker run --rm -e PLANTUML_LIMIT_SIZE=8192 -v "$PWD/docs/uml:/data" -w /data plantuml/plantuml:1.2025.4 -tpng classes.puml
+'   docker run --rm -e PLANTUML_LIMIT_SIZE=8192 -v "$PWD/docs/uml:/data" -w /data plantuml/plantuml:1.2025.4 -tsvg classes.puml
+'
+' Convenções:
+' - Atributos privados (`-`) são os `self._x` do código; os de fora leem pelas
+'   propriedades somente leitura de mesmo nome, que não são repetidas.
+' - `/x` é um atributo derivado: uma propriedade calculada.
+' - `~` é um método interno do pacote: o estado e a política chamam a sessão por ele.
+' - Relações por id (ex.: `materia_id`) aparecem como associação com o nome do campo.
+' - Toda entidade guarda o `usuario_id` do dono; essa ligação não é desenhada.
+
+' ============================================================================
+@startuml classes-visao-geral
+!include estilo-classes.iuml
+hide members
+left to right direction
+title Synapse: visão geral das classes (domínio, aplicação e infraestrutura)
+$legenda_padroes()
+
+package "application (casos de uso)" {
+  class CadastroUsuario
+  interface ServicoSenhas
+  class SessaoService
+  class PaginaHistorico <<objeto de valor>>
+  class RedeNeuralService
+  class MateriaService
+  class ConquistaService
+  class PainelConquistas <<objeto de valor>>
+  class SituacaoConquista <<objeto de valor>>
+  class LojaService
+  class VitrineLoja <<objeto de valor>>
+  class SituacaoCor <<objeto de valor>>
+  class EstatisticasService
+}
+
+package "domain (regras de negócio, sem Django)" {
+  package "entidades" {
+    class Entidade
+    class Usuario
+    class Materia
+    class ConquistaDesbloqueada
+    class Sinapse
+  }
+  package "sessão de foco" {
+    class SessaoFoco <<contexto>> $STATE
+    class Duracao <<objeto de valor>>
+    abstract class EstadoSessao <<State>> $STATE
+    class EmAndamento <<State>> $STATE
+    class Concluida <<State>> $STATE
+    class Podada <<State>> $STATE
+    abstract class PoliticaInterrupcao <<Strategy>> $STRATEGY
+    class ModoEstrito <<Strategy>> $STRATEGY
+    class ModoTolerante <<Strategy>> $STRATEGY
+    class Interrupcao <<objeto de valor>>
+  }
+  package "neurônio" {
+    class Neuronio
+    abstract class TipoNeuronio <<produto>> $FACTORY
+    class Granular <<produto>> $FACTORY
+    class Piramidal <<produto>> $FACTORY
+    class Purkinje <<produto>> $FACTORY
+    class FabricaNeuronio <<criador>> $FACTORY
+    class _MetodoFabrica <<descritor>> $FACTORY
+  }
+  package "rede neural" {
+    class RedeNeural <<Agregado>> $AGREGADO
+    class RecorteRede <<objeto de valor>>
+    interface RegraFormacaoSinapses <<Strategy>> $STRATEGY
+    class RegraRecentesEMesmaMateria <<Strategy>> $STRATEGY
+    class Conexao <<objeto de valor>>
+  }
+  package "eventos" {
+    class SessaoConcluida <<evento>> $OBSERVER
+    class SessaoPodada <<evento>> $OBSERVER
+    class PublicadorEventos <<sujeito>> $OBSERVER
+    interface ObservadorSessao <<Observer>> $OBSERVER
+    class AtualizadorRede <<Observer>> $OBSERVER
+    class AvaliadorConquistas <<Observer>> $OBSERVER
+    class CreditadorATP <<Observer>> $OBSERVER
+  }
+  package "conquistas" {
+    abstract class RegraConquista <<Template Method>> $TEMPLATE
+    class PrimeiroNeuronio $TEMPLATE
+    class NeuroniosFormados $TEMPLATE
+    class HorasFocadas $TEMPLATE
+    class DiasSeguidos $TEMPLATE
+    class SinapsesFormadas $TEMPLATE
+    class SessaoLongaSemPoda $TEMPLATE
+    class ResumoFoco <<objeto de valor>>
+    class Sequencia <<objeto de valor>>
+  }
+  package "loja e ATP" {
+    class Carteira <<Agregado>> $AGREGADO
+    class CorLoja <<objeto de valor>>
+    enum Efeito
+  }
+  package "estatísticas" {
+    enum PeriodoEstatisticas
+    class EstatisticasFoco <<objeto de valor>>
+    class TempoDia <<objeto de valor>>
+    class TempoMateriaDia <<objeto de valor>>
+    class TempoMateria <<objeto de valor>>
+  }
+  package "repositórios (interfaces)" {
+    interface RepositorioUsuario <<Repository>> $REPOSITORY
+    interface RepositorioSessao <<Repository>> $REPOSITORY
+    interface RepositorioNeuronio <<Repository>> $REPOSITORY
+    interface RepositorioRedeNeural <<Repository>> $REPOSITORY
+    interface RepositorioMateria <<Repository>> $REPOSITORY
+    interface RepositorioConquista <<Repository>> $REPOSITORY
+    interface RepositorioCarteira <<Repository>> $REPOSITORY
+  }
+  package "exceções" {
+    class ErroDominio
+    note bottom of ErroDominio : 21 subclasses (diagrama classes-excecoes)
+  }
+}
+
+package "infra (Django ORM)" {
+  class "7 repositórios *Django" as InfraRepositorios $REPOSITORY
+  class ServicoSenhasDjango
+}
+
+Entidade <|-- Usuario
+Entidade <|-- Materia
+Entidade <|-- SessaoFoco
+Entidade <|-- Neuronio
+Entidade <|-- Sinapse
+Entidade <|-- ConquistaDesbloqueada
+EstadoSessao <|-- EmAndamento
+EstadoSessao <|-- Concluida
+EstadoSessao <|-- Podada
+PoliticaInterrupcao <|-- ModoEstrito
+PoliticaInterrupcao <|-- ModoTolerante
+TipoNeuronio <|-- Granular
+TipoNeuronio <|-- Piramidal
+TipoNeuronio <|-- Purkinje
+RegraConquista <|-- PrimeiroNeuronio
+RegraConquista <|-- NeuroniosFormados
+RegraConquista <|-- HorasFocadas
+RegraConquista <|-- DiasSeguidos
+RegraConquista <|-- SinapsesFormadas
+RegraConquista <|-- SessaoLongaSemPoda
+RegraFormacaoSinapses <|.. RegraRecentesEMesmaMateria
+ObservadorSessao <|.. AtualizadorRede
+ObservadorSessao <|.. AvaliadorConquistas
+ObservadorSessao <|.. CreditadorATP
+ServicoSenhas <|.. ServicoSenhasDjango
+RepositorioUsuario <|.. InfraRepositorios
+RepositorioSessao <|.. InfraRepositorios
+RepositorioNeuronio <|.. InfraRepositorios
+RepositorioRedeNeural <|.. InfraRepositorios
+RepositorioMateria <|.. InfraRepositorios
+RepositorioConquista <|.. InfraRepositorios
+RepositorioCarteira <|.. InfraRepositorios
+
+SessaoFoco *-- Duracao
+SessaoFoco *-- EstadoSessao
+SessaoFoco o-- PoliticaInterrupcao
+SessaoFoco *-- Interrupcao
+Usuario o-- PoliticaInterrupcao
+Neuronio *-- Duracao
+Neuronio o-- TipoNeuronio
+FabricaNeuronio o-- TipoNeuronio
+FabricaNeuronio ..> _MetodoFabrica
+RedeNeural *-- Neuronio
+RedeNeural *-- Sinapse
+RedeNeural o-- RegraFormacaoSinapses
+RedeNeural ..> RecorteRede
+RegraFormacaoSinapses ..> Conexao
+SessaoConcluida o-- Neuronio
+SessaoPodada o-- Neuronio
+PublicadorEventos o-- ObservadorSessao
+RegraConquista ..> ResumoFoco
+ResumoFoco *-- Sequencia
+CorLoja --> Efeito
+Carteira ..> CorLoja
+EstatisticasFoco --> PeriodoEstatisticas
+EstatisticasFoco *-- TempoDia
+EstatisticasFoco *-- TempoMateria
+TempoDia *-- TempoMateriaDia
+
+AtualizadorRede --> RedeNeuralService
+AvaliadorConquistas --> ConquistaService
+CreditadorATP --> LojaService
+
+CadastroUsuario --> RepositorioUsuario
+CadastroUsuario --> ServicoSenhas
+SessaoService --> RepositorioSessao
+SessaoService --> PublicadorEventos
+SessaoService --> FabricaNeuronio
+SessaoService ..> PaginaHistorico
+RedeNeuralService --> RepositorioRedeNeural
+MateriaService --> RepositorioMateria
+MateriaService --> LojaService
+ConquistaService --> RepositorioConquista
+ConquistaService --> RepositorioRedeNeural
+ConquistaService o-- RegraConquista
+ConquistaService ..> PainelConquistas
+PainelConquistas *-- SituacaoConquista
+LojaService --> RepositorioCarteira
+LojaService o-- CorLoja
+LojaService ..> VitrineLoja
+VitrineLoja *-- SituacaoCor
+EstatisticasService --> RepositorioSessao
+EstatisticasService --> SessaoService
+EstatisticasService ..> EstatisticasFoco
+@enduml
+
+' ============================================================================
+@startuml classes-sessao
+!include estilo-classes.iuml
+title Sessão de foco: State (ciclo de vida) e Strategy (saída da tela)
+$legenda_padroes()
+
+class Entidade {
+  - id: UUID
+  + __eq__(outro): bool
+  + __hash__(): int
+}
+
+class Usuario {
+  + NOME_MAX: int = 150 {static}
+  + EMAIL_MAX: int = 254 {static}
+  - nome: str
+  - email: str
+  - criado_em: datetime
+  - _validar_nome(nome): str {static}
+  - _normalizar_email(email): str {static}
+}
+
+class Materia {
+  + NOME_MAX: int = 100 {static}
+  - nome: str
+  - cor: str
+  - criada_em: datetime
+  + atualizar(nome, cor)
+  - _validar_nome(nome): str {static}
+  - _normalizar_cor(cor): str {static}
+}
+
+class SessaoFoco <<contexto do State e do Strategy>> $STATE {
+  - inicio: datetime
+  - encerrada_em: datetime | None
+  + /fim_previsto: datetime
+  + /estado: str
+  + /codigo_estado: str
+  + /tempo_fora: timedelta
+  + /curta_demais: bool
+  + concluir(relogio)
+  + podar(relogio)
+  + desistir(relogio)
+  + registrar_interrupcao(interrupcao)
+  + expirar_se_abandonada(instante): bool
+  + restante_em(instante): timedelta
+  ~ _mudar_estado(novo_estado, instante)
+  ~ _aplicar_politica(interrupcao)
+  - _relogio_validado(relogio): Callable
+}
+
+class Duracao <<objeto de valor>> {
+  + MINIMA: int = 10 {static}
+  + MAXIMA: int = 120 {static}
+  + PASSO: int = 5 {static}
+  + minutos: int
+  + como_timedelta(): timedelta
+}
+
+abstract class EstadoSessao <<State>> $STATE {
+  + /nome: str {abstract}
+  + /codigo: str {abstract}
+  + concluir(sessao, relogio)
+  + podar(sessao, relogio)
+  + desistir(sessao, relogio)
+  + registrar_interrupcao(sessao, interrupcao)
+  + expirar(sessao, instante): bool
+}
+class EmAndamento <<State>> $STATE {
+  + concluir(sessao, relogio)
+  + podar(sessao, relogio)
+  + desistir(sessao, relogio)
+  + registrar_interrupcao(sessao, interrupcao)
+  + expirar(sessao, instante): bool
+}
+class Concluida <<State>> $STATE
+class Podada <<State>> $STATE
+note bottom of Concluida
+  Estados finais: herdam as transições
+  da base, que lançam TransicaoInvalida.
+end note
+
+abstract class PoliticaInterrupcao <<Strategy>> $STRATEGY {
+  + /codigo: str {abstract}
+  + deve_podar(sessao, nova_interrupcao, historico): bool {abstract}
+  + instante_da_poda(sessao, nova_interrupcao, historico): datetime
+}
+class ModoEstrito <<Strategy>> $STRATEGY {
+  + deve_podar(sessao, nova_interrupcao, historico): bool
+}
+class ModoTolerante <<Strategy>> $STRATEGY {
+  + proporcao: float = 0.10
+  + deve_podar(sessao, nova_interrupcao, historico): bool
+  + instante_da_poda(sessao, nova_interrupcao, historico): datetime
+  - _saldo_restante(sessao, historico): float
+}
+
+class Interrupcao <<objeto de valor>> {
+  + saida: datetime
+  + retorno: datetime | None
+  + /segundos_fora: float
+}
+
+Entidade <|-- Usuario
+Entidade <|-- Materia
+Entidade <|-- SessaoFoco
+EstadoSessao <|-- EmAndamento
+EstadoSessao <|-- Concluida
+EstadoSessao <|-- Podada
+PoliticaInterrupcao <|-- ModoEstrito
+PoliticaInterrupcao <|-- ModoTolerante
+
+SessaoFoco *-- "1" Duracao : duracao
+SessaoFoco *-- "1" EstadoSessao : estado
+SessaoFoco o-- "1" PoliticaInterrupcao : politica
+SessaoFoco *-- "0..*" Interrupcao : historico_interrupcoes
+SessaoFoco "0..*" --> "0..1" Materia : materia_id
+Usuario o-- "1" PoliticaInterrupcao : politica_padrao
+EmAndamento ..> Concluida : <<cria>>
+EmAndamento ..> Podada : <<cria>>
+PoliticaInterrupcao ..> Interrupcao : avalia
+@enduml
+
+' ============================================================================
+@startuml classes-rede
+!include estilo-classes.iuml
+title Neurônio e rede neural: Factory Method, Strategy e Agregado
+$legenda_padroes()
+
+class Entidade $REF
+class SessaoFoco $REF
+class Duracao $REF
+class Materia $REF
+
+class Neuronio {
+  - vivo: bool
+  - criado_em: datetime
+  + /cor: str
+  + /numero_dendritos: int
+  + /raio: float
+}
+
+class Sinapse {
+  - peso: int
+  - criada_em: datetime
+  + /par: frozenset[UUID]
+}
+
+abstract class TipoNeuronio <<Factory Method: produto>> $FACTORY {
+  + duracao_minima: int {static}
+  + duracao_maxima: int | None {static}
+  + /nome: str {abstract}
+  + /cor: str {abstract}
+  + /numero_dendritos: int {abstract}
+  + /raio: float {abstract}
+  + /codigo: str
+  + aceita(duracao_minutos): bool
+}
+class Granular <<Factory Method: produto>> $FACTORY {
+  10 a 24 min, 3 dendritos
+}
+class Piramidal <<Factory Method: produto>> $FACTORY {
+  25 a 59 min, 5 dendritos
+}
+class Purkinje <<Factory Method: produto>> $FACTORY {
+  60 min ou mais, 8 dendritos
+}
+
+class FabricaNeuronio <<Factory Method: criador>> $FACTORY {
+  + TIPOS_PADRAO: tuple[TipoNeuronio] {static}
+  + tipo_para(duracao_minutos): TipoNeuronio
+  + criar(sessao: SessaoFoco): Neuronio
+}
+class _MetodoFabrica <<descritor>> $FACTORY {
+  - func
+  + __get__(instancia, dono)
+}
+note right of _MetodoFabrica
+  Deixa chamar FabricaNeuronio.criar(sessao)
+  na classe (tipos padrão) ou numa fábrica
+  montada com outros tipos.
+end note
+
+class RedeNeural <<Agregado>> $AGREGADO {
+  - em_ordem: list[Neuronio]
+  - sessoes: set[UUID]
+  - pares: set[frozenset[UUID]]
+  - sinapses_por_neuronio: dict[UUID, list[Sinapse]]
+  + /vivos: list[Neuronio]
+  + /neuronios_novos: list[Neuronio]
+  + /sinapses_novas: list[Sinapse]
+  + adicionar(neuronio): list[Sinapse]
+  + neuronio(neuronio_id): Neuronio | None
+  + sinapses_de(neuronio_id): list[Sinapse]
+  + recortar(de, ate, materia_id): RecorteRede
+  + marcar_como_salva()
+  - _exigir_admissivel(neuronio)
+  - _exigir_ligavel(sinapse, novo, pares_novos)
+  - _incluir_neuronio(neuronio)
+  - _incluir_sinapse(sinapse)
+}
+note bottom of RedeNeural
+  Única porta para mudar a rede: sinapse só entre
+  neurônios vivos do mesmo estudante, sem repetir.
+end note
+
+class RecorteRede <<objeto de valor>>
+
+interface RegraFormacaoSinapses <<Strategy>> $STRATEGY {
+  + conexoes(novo, rede): list[Conexao] {abstract}
+}
+class RegraRecentesEMesmaMateria <<Strategy>> $STRATEGY {
+  - recentes: int = 2
+  - peso_maximo: int = 5
+  + conexoes(novo, rede): list[Conexao]
+  - _ultimo_da_materia(novo, anteriores): Neuronio | None {static}
+  - _peso_da_trilha(neuronio, rede): int {static}
+}
+class Conexao <<objeto de valor>> {
+  + peso: int
+}
+
+Entidade <|-- Neuronio
+Entidade <|-- Sinapse
+TipoNeuronio <|-- Granular
+TipoNeuronio <|-- Piramidal
+TipoNeuronio <|-- Purkinje
+RegraFormacaoSinapses <|.. RegraRecentesEMesmaMateria
+
+Neuronio *-- "1" Duracao : duracao
+Neuronio "0..*" o-- "1" TipoNeuronio : tipo
+Neuronio "0..1" --> "1" SessaoFoco : sessao_id
+Neuronio "0..*" --> "0..1" Materia : materia_id
+Sinapse "0..*" --> "1" Neuronio : origem_id
+Sinapse "0..*" --> "1" Neuronio : destino_id
+
+FabricaNeuronio o-- "1..*" TipoNeuronio : tipos
+FabricaNeuronio ..> SessaoFoco : lê
+FabricaNeuronio ..> Neuronio : <<cria>>
+FabricaNeuronio ..> _MetodoFabrica : tipo_para e criar
+
+RedeNeural *-- "0..*" Neuronio : neuronios
+RedeNeural *-- "0..*" Sinapse : sinapses
+RedeNeural o-- "1" RegraFormacaoSinapses : regra
+RedeNeural ..> RecorteRede : <<cria>>
+RecorteRede o-- "0..*" Neuronio : neuronios
+RecorteRede o-- "0..*" Sinapse : sinapses
+RegraFormacaoSinapses ..> Conexao : <<propõe>>
+Conexao "0..*" --> "1" Neuronio : alvo_id
+@enduml
+
+' ============================================================================
+@startuml classes-eventos
+!include estilo-classes.iuml
+title Eventos da sessão (Observer) e conquistas (Template Method)
+$legenda_padroes()
+
+class Entidade $REF
+class Neuronio $REF
+class RedeNeural $REF
+class RedeNeuralService $REF
+class ConquistaService $REF
+class LojaService $REF
+
+class SessaoConcluida <<Observer: evento>> $OBSERVER {
+  + sessao_id: UUID
+  + usuario_id: UUID
+  + duracao_minutos: int
+  + conclusao: datetime
+  + materia_id: UUID | None
+}
+class SessaoPodada <<Observer: evento>> $OBSERVER {
+  + sessao_id: UUID
+  + usuario_id: UUID
+  + duracao_minutos: int
+  + podada_em: datetime
+  + materia_id: UUID | None
+}
+class PublicadorEventos <<Observer: sujeito>> $OBSERVER {
+  + inscrever(tipo_evento, observador)
+  + publicar(evento)
+}
+interface ObservadorSessao <<Observer>> $OBSERVER {
+  + processar(evento) {abstract}
+}
+class AtualizadorRede <<Observer>> $OBSERVER {
+  + processar(evento)
+}
+class AvaliadorConquistas <<Observer>> $OBSERVER {
+  + processar(evento)
+}
+class CreditadorATP <<Observer>> $OBSERVER {
+  + processar(evento)
+}
+note bottom of AvaliadorConquistas
+  Inscrito depois do AtualizadorRede:
+  as conquistas olham a rede já atualizada.
+end note
+
+abstract class RegraConquista <<Template Method>> $TEMPLATE {
+  - codigo: str
+  - nome: str
+  - descricao: str
+  - meta: int
+  - unidade: str
+  + medir(resumo): int {abstract}
+  + progresso(resumo): int
+  + cumprida(resumo): bool
+}
+note right of RegraConquista
+  progresso() e cumprida() são o algoritmo fixo;
+  cada subclasse só implementa medir().
+end note
+class PrimeiroNeuronio <<Template Method>> $TEMPLATE {
+  + medir(resumo): int
+}
+class NeuroniosFormados <<Template Method>> $TEMPLATE {
+  + medir(resumo): int
+}
+class HorasFocadas <<Template Method>> $TEMPLATE {
+  + medir(resumo): int
+}
+class DiasSeguidos <<Template Method>> $TEMPLATE {
+  + medir(resumo): int
+}
+class SinapsesFormadas <<Template Method>> $TEMPLATE {
+  + medir(resumo): int
+}
+class SessaoLongaSemPoda <<Template Method>> $TEMPLATE {
+  + medir(resumo): int
+}
+
+class ResumoFoco <<objeto de valor>> {
+  + neuronios_vivos: int
+  + minutos_focados: int
+  + maior_sessao_minutos: int
+  + sinapses: int
+  + da_rede(rede, instante, fuso): ResumoFoco {static}
+}
+class Sequencia <<objeto de valor>> {
+  + atual: int
+  + recorde: int
+}
+
+class ConquistaDesbloqueada {
+  - codigo: str
+  - desbloqueada_em: datetime
+}
+
+ObservadorSessao <|.. AtualizadorRede
+ObservadorSessao <|.. AvaliadorConquistas
+ObservadorSessao <|.. CreditadorATP
+RegraConquista <|-- PrimeiroNeuronio
+RegraConquista <|-- NeuroniosFormados
+RegraConquista <|-- HorasFocadas
+RegraConquista <|-- DiasSeguidos
+RegraConquista <|-- SinapsesFormadas
+RegraConquista <|-- SessaoLongaSemPoda
+Entidade <|-- ConquistaDesbloqueada
+
+PublicadorEventos o-- "0..*" ObservadorSessao : observadores por tipo de evento
+PublicadorEventos ..> SessaoConcluida : publica
+PublicadorEventos ..> SessaoPodada : publica
+SessaoConcluida o-- "0..1" Neuronio : neuronio
+SessaoPodada o-- "0..1" Neuronio : neuronio
+
+AtualizadorRede --> "1" RedeNeuralService : rede
+AvaliadorConquistas --> "1" ConquistaService : conquistas
+CreditadorATP --> "1" LojaService : loja
+
+RegraConquista ..> ResumoFoco : mede
+ResumoFoco *-- "1" Sequencia : sequencia
+ResumoFoco ..> RedeNeural : da_rede
+ConquistaDesbloqueada "0..*" --> "1" RegraConquista : codigo
+@enduml
+
+' ============================================================================
+@startuml classes-loja-estatisticas
+!include estilo-classes.iuml
+title Loja de cores (carteira de ATP) e estatísticas
+$legenda_padroes()
+
+class Carteira <<Agregado>> $AGREGADO {
+  - saldo: int
+  - desbloqueadas: dict[str, datetime]
+  + creditar(quantidade)
+  + possui(cor): bool
+  + comprar(cor, instante)
+}
+note bottom of Carteira
+  Única porta para gastar ATP:
+  saldo nunca negativo, cor comprada uma vez só.
+end note
+class CorLoja <<objeto de valor>> {
+  + codigo: str
+  + nome: str
+  + hex: str
+  + preco: int = 0
+  + /gratuita: bool
+}
+enum Efeito {
+  PULSAR
+  AURORA
+  GALAXIA
+  TEMPESTADE
+  ARCO_IRIS
+}
+
+enum PeriodoEstatisticas {
+  DIA
+  SEMANA
+  MES
+}
+class EstatisticasFoco <<objeto de valor>> {
+  + inicio: date
+  + fim: date
+  + tempo_total_minutos: int
+  + sessoes_concluidas: int
+  + sessoes_podadas: int
+  + total_sessoes: int
+  + taxa_sucesso: float
+  + melhor_horario: int | None
+}
+note bottom of EstatisticasFoco
+  Montado pela função pura calcular_estatisticas(sessoes,
+  periodo, instante, materias), em domain/estatisticas.py.
+end note
+class TempoDia <<objeto de valor>> {
+  + data: date
+  + minutos: int
+}
+class TempoMateriaDia <<objeto de valor>> {
+  + materia_id: UUID | None
+  + minutos: int
+}
+class TempoMateria <<objeto de valor>> {
+  + materia_id: UUID | None
+  + nome: str | None
+  + cor: str | None
+  + minutos: int
+  + percentual: float
+}
+
+Carteira ..> CorLoja : compra
+CorLoja --> "0..1" Efeito : efeito
+EstatisticasFoco --> "1" PeriodoEstatisticas : periodo
+EstatisticasFoco *-- "0..*" TempoDia : por_dia
+EstatisticasFoco *-- "0..*" TempoMateria : por_materia
+TempoDia *-- "0..*" TempoMateriaDia : por_materia
+TempoMateria --> "0..1" Efeito : efeito
+@enduml
+
+' ============================================================================
+@startuml classes-aplicacao
+!include estilo-classes.iuml
+title Camada de aplicação: casos de uso e dependências injetadas no construtor
+$legenda_padroes()
+
+class Usuario $REF
+class Materia $REF
+class SessaoFoco $REF
+class FabricaNeuronio $REF
+class PublicadorEventos $REF
+class SessaoConcluida $REF
+class SessaoPodada $REF
+interface RegraFormacaoSinapses $REF
+abstract class RegraConquista $REF
+class ConquistaDesbloqueada $REF
+class Sequencia $REF
+class CorLoja $REF
+class EstatisticasFoco $REF
+interface RepositorioUsuario $REF
+interface RepositorioSessao $REF
+interface RepositorioMateria $REF
+interface RepositorioRedeNeural $REF
+interface RepositorioConquista $REF
+interface RepositorioCarteira $REF
+
+class CadastroUsuario {
+  + executar(nome, email, senha): Usuario
+}
+interface ServicoSenhas {
+  + validar(senha, usuario) {abstract}
+  + definir(usuario, senha) {abstract}
+}
+
+class SessaoService {
+  - relogio: Callable[[], datetime]
+  + iniciar(usuario_id, duracao_minutos, modo, materia_id): SessaoFoco
+  + buscar_ativa(usuario_id): SessaoFoco | None
+  + historico(usuario_id, de, ate, estado, pagina, tamanho): PaginaHistorico
+  + registrar_interrupcao(usuario_id, sessao_id, saida, retorno): SessaoFoco
+  + concluir(usuario_id, sessao_id, forcar_conclusao): tuple[SessaoFoco, Neuronio]
+  + desistir(usuario_id, sessao_id): SessaoFoco
+  + podar_orfas(): int
+  - _carregar(usuario_id, sessao_id): SessaoFoco
+  - _expirar(sessao): bool
+  - _registrar_poda(sessao)
+  - _publicar_poda(sessao)
+}
+class PaginaHistorico <<objeto de valor>> {
+  + total: int
+  + pagina: int
+  + tamanho: int
+  + /paginas: int
+}
+
+class RedeNeuralService {
+  + registrar(neuronio): list[Sinapse]
+  + consultar(usuario_id, de, ate, materia_id): RecorteRede
+}
+
+class MateriaService {
+  + criar(usuario_id, nome, cor): Materia
+  + listar(usuario_id): list[Materia]
+  + buscar(usuario_id, materia_id): Materia
+  + atualizar(usuario_id, materia_id, nome, cor): Materia
+  + remover(usuario_id, materia_id)
+  - _exigir_cor_disponivel(usuario_id, cor)
+}
+
+class ConquistaService {
+  - relogio: Callable[[], datetime]
+  - fuso: tzinfo
+  + avaliar(usuario_id, instante): list[ConquistaDesbloqueada]
+  + consultar(usuario_id): PainelConquistas
+  - _avaliar(usuario_id, instante)
+}
+class PainelConquistas <<objeto de valor>>
+class SituacaoConquista <<objeto de valor>> {
+  + progresso: int
+  + desbloqueada_em: datetime | None
+  + /desbloqueada: bool
+}
+
+class LojaService {
+  - relogio: Callable[[], datetime]
+  + consultar(usuario_id): VitrineLoja
+  + comprar(usuario_id, codigo): VitrineLoja
+  + creditar_sessao(usuario_id, duracao_minutos): int
+  + exigir_cor_disponivel(usuario_id, hex_): CorLoja
+  - _vitrine(carteira): VitrineLoja
+}
+class VitrineLoja <<objeto de valor>> {
+  + saldo: int
+}
+class SituacaoCor <<objeto de valor>> {
+  + desbloqueada: bool
+}
+
+class EstatisticasService {
+  - relogio: Callable[[], datetime]
+  - fuso: tzinfo
+  + consultar(usuario_id, periodo): EstatisticasFoco
+  - _expirar_abandonada(usuario_id, instante)
+}
+
+CadastroUsuario --> "1" RepositorioUsuario : repositorio
+CadastroUsuario --> "1" ServicoSenhas : senhas
+CadastroUsuario ..> Usuario : <<cria>>
+
+SessaoService --> "1" RepositorioSessao : sessoes
+SessaoService --> "1" PublicadorEventos : publicador
+SessaoService --> "0..1" RepositorioMateria : materias
+SessaoService --> "1" FabricaNeuronio : fabrica
+SessaoService ..> SessaoFoco : <<cria>>
+SessaoService ..> SessaoConcluida : <<cria>>
+SessaoService ..> SessaoPodada : <<cria>>
+SessaoService ..> PaginaHistorico : <<cria>>
+PaginaHistorico o-- "0..*" SessaoFoco : sessoes
+
+RedeNeuralService --> "1" RepositorioRedeNeural : redes
+RedeNeuralService o-- "0..1" RegraFormacaoSinapses : regra
+
+MateriaService --> "1" RepositorioMateria : materias
+MateriaService --> "0..1" LojaService : loja
+MateriaService ..> Materia : <<cria>>
+
+ConquistaService --> "1" RepositorioConquista : conquistas
+ConquistaService --> "1" RepositorioRedeNeural : redes
+ConquistaService o-- "1..*" RegraConquista : regras
+ConquistaService ..> ConquistaDesbloqueada : <<cria>>
+ConquistaService ..> PainelConquistas : <<cria>>
+PainelConquistas *-- "1" Sequencia : sequencia
+PainelConquistas *-- "0..*" SituacaoConquista : conquistas
+SituacaoConquista --> "1" RegraConquista : regra
+
+LojaService --> "1" RepositorioCarteira : carteiras
+LojaService o-- "1..*" CorLoja : catalogo
+LojaService ..> VitrineLoja : <<cria>>
+VitrineLoja *-- "0..*" SituacaoCor : cores
+SituacaoCor --> "1" CorLoja : cor
+
+EstatisticasService --> "1" RepositorioSessao : sessoes
+EstatisticasService --> "1" RepositorioMateria : materias
+EstatisticasService --> "0..1" SessaoService : sessao_service
+EstatisticasService ..> EstatisticasFoco : <<calcula>>
+@enduml
+
+' ============================================================================
+@startuml classes-repositorios
+!include estilo-classes.iuml
+left to right direction
+title Repository: interfaces no domínio, implementações na infraestrutura
+$legenda_padroes()
+
+package "domain" {
+  interface RepositorioUsuario <<Repository>> $REPOSITORY {
+    + salvar(usuario) {abstract}
+    + buscar_por_id(id): Usuario | None {abstract}
+    + buscar_por_email(email): Usuario | None {abstract}
+    + existe_com_email(email): bool {abstract}
+  }
+  interface RepositorioSessao <<Repository>> $REPOSITORY {
+    + salvar(sessao) {abstract}
+    + buscar_por_id(id): SessaoFoco | None {abstract}
+    + listar_por_usuario(usuario_id): list[SessaoFoco] {abstract}
+    + listar_por_periodo(usuario_id, de, ate): list[SessaoFoco] {abstract}
+    + listar_historico(usuario_id, de, ate, estado, deslocamento, limite) {abstract}
+    + buscar_ativa_por_usuario(usuario_id): SessaoFoco | None {abstract}
+    + listar_em_andamento(): list[SessaoFoco] {abstract}
+    + remover(id) {abstract}
+  }
+  interface RepositorioNeuronio <<Repository>> $REPOSITORY {
+    + salvar(neuronio) {abstract}
+    + buscar_por_sessao(sessao_id): Neuronio | None {abstract}
+    + listar_por_usuario(usuario_id): list[Neuronio] {abstract}
+  }
+  note bottom of RepositorioNeuronio
+    Os serviços não o usam: os neurônios
+    são gravados com a rede (RepositorioRedeNeural).
+  end note
+  interface RepositorioRedeNeural <<Repository>> $REPOSITORY {
+    + carregar(usuario_id, regra): RedeNeural {abstract}
+    + salvar(rede) {abstract}
+  }
+  interface RepositorioMateria <<Repository>> $REPOSITORY {
+    + salvar(materia) {abstract}
+    + buscar_por_id(id): Materia | None {abstract}
+    + buscar_por_usuario_e_id(usuario_id, id): Materia | None {abstract}
+    + listar_por_usuario(usuario_id): list[Materia] {abstract}
+    + existe_com_nome(usuario_id, nome, ignorar_id): bool {abstract}
+    + remover(id) {abstract}
+  }
+  interface RepositorioConquista <<Repository>> $REPOSITORY {
+    + listar_por_usuario(usuario_id): list[ConquistaDesbloqueada] {abstract}
+    + salvar(conquista) {abstract}
+  }
+  interface RepositorioCarteira <<Repository>> $REPOSITORY {
+    + carregar(usuario_id, para_alterar): Carteira {abstract}
+    + salvar(carteira) {abstract}
+  }
+}
+
+package "application" {
+  interface ServicoSenhas $REF
+}
+
+package "infra (Django ORM)" {
+  class RepositorioUsuarioDjango $REPOSITORY
+  class RepositorioSessaoDjango $REPOSITORY
+  class RepositorioNeuronioDjango $REPOSITORY
+  class RepositorioRedeNeuralDjango $REPOSITORY
+  class RepositorioMateriaDjango $REPOSITORY
+  class RepositorioConquistaDjango $REPOSITORY
+  class RepositorioCarteiraDjango $REPOSITORY
+  class ServicoSenhasDjango
+}
+note bottom of RepositorioUsuarioDjango
+  Nos testes unitários, os serviços recebem
+  repositórios em memória (backend/tests).
+end note
+
+RepositorioUsuario <|.. RepositorioUsuarioDjango
+RepositorioSessao <|.. RepositorioSessaoDjango
+RepositorioNeuronio <|.. RepositorioNeuronioDjango
+RepositorioRedeNeural <|.. RepositorioRedeNeuralDjango
+RepositorioMateria <|.. RepositorioMateriaDjango
+RepositorioConquista <|.. RepositorioConquistaDjango
+RepositorioCarteira <|.. RepositorioCarteiraDjango
+ServicoSenhas <|.. ServicoSenhasDjango
+@enduml
+
+' ============================================================================
+@startuml classes-excecoes
+!include estilo-classes.iuml
+left to right direction
+title Exceções do domínio
+class Exception <<Python>>
+class ErroDominio
+note top of ErroDominio
+  As regras de negócio lançam estas exceções;
+  a API (app/api/erros.py) traduz cada uma no código HTTP.
+end note
+class DuracaoInvalida
+class NomeInvalido
+class EmailInvalido
+class HorarioInvalido
+class TransicaoInvalida
+class EmailJaCadastrado
+class SenhaInvalida
+class PoliticaInvalida
+class SessaoAtivaExistente
+class SessaoNaoEncontrada
+class SinapseInvalida
+class RedeNeuralInvalida
+class NomeMateriaInvalido
+class CorInvalida
+class MateriaNaoEncontrada
+class MateriaJaExiste
+class CorNaoEncontrada
+class SaldoInsuficiente
+class CorJaDesbloqueada
+class CorBloqueada
+class PeriodoInvalido
+
+Exception <|-- ErroDominio
+ErroDominio <|-- DuracaoInvalida
+ErroDominio <|-- NomeInvalido
+ErroDominio <|-- EmailInvalido
+ErroDominio <|-- HorarioInvalido
+ErroDominio <|-- TransicaoInvalida
+ErroDominio <|-- EmailJaCadastrado
+ErroDominio <|-- SenhaInvalida
+ErroDominio <|-- PoliticaInvalida
+ErroDominio <|-- SessaoAtivaExistente
+ErroDominio <|-- SessaoNaoEncontrada
+ErroDominio <|-- SinapseInvalida
+ErroDominio <|-- RedeNeuralInvalida
+ErroDominio <|-- NomeMateriaInvalido
+ErroDominio <|-- CorInvalida
+ErroDominio <|-- MateriaNaoEncontrada
+ErroDominio <|-- MateriaJaExiste
+ErroDominio <|-- CorNaoEncontrada
+ErroDominio <|-- SaldoInsuficiente
+ErroDominio <|-- CorJaDesbloqueada
+ErroDominio <|-- CorBloqueada
+ErroDominio <|-- PeriodoInvalido
+@enduml

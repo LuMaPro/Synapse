@@ -1,0 +1,48 @@
+' Estilo comum aos diagramas de classes (classes.puml).
+skinparam dpi 110
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam packageStyle rectangle
+skinparam package {
+  BackgroundColor #FCFCFE
+  BorderColor #9AA0C3
+  FontSize 14
+}
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #4A4F6E
+  ArrowColor #4A4F6E
+  StereotypeFontSize 10
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #C9B458
+}
+hide empty members
+hide circle
+
+' Cores dos padrões de projeto
+!$STATE = "#E3DEFF"
+!$STRATEGY = "#D2F4F2"
+!$FACTORY = "#FFF0C7"
+!$OBSERVER = "#D9F5E4"
+!$REPOSITORY = "#FFE1D2"
+!$TEMPLATE = "#FFDDEE"
+!$AGREGADO = "#DCE8FF"
+' Classe detalhada em outro diagrama: só o nome, com borda tracejada
+!$REF = "#F4F4F8;line.dashed"
+
+!procedure $legenda_padroes()
+legend top right
+  |= Cor |= Padrão |
+  |<#E3DEFF>| State |
+  |<#D2F4F2>| Strategy |
+  |<#FFF0C7>| Factory Method |
+  |<#D9F5E4>| Observer |
+  |<#FFE1D2>| Repository |
+  |<#FFDDEE>| Template Method |
+  |<#DCE8FF>| Agregado (DDD) |
+  |<#F4F4F8>| detalhada em outro diagrama |
+endlegend
+!endprocedure
