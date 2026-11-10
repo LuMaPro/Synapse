@@ -52,7 +52,7 @@ Se você alterar um model, gere a migração e faça commit dela junto:
 uv run python manage.py makemigrations
 ```
 
-> O Docker Compose com banco, backend e frontend juntos vem na issue #4.
+> Para subir banco, backend e frontend juntos com um comando, use o Docker Compose (veja o [README principal](../README.md#como-executar)).
 
 ## Rodar
 

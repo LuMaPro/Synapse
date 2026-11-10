@@ -41,8 +41,9 @@ Abre em http://localhost:5173.
 
 ```
 src/
-├── pages/        # uma tela por rota (Login, Cadastro, Foco, Rede, Estatisticas)
-├── components/   # componentes reutilizáveis (Layout, ...)
+├── pages/        # uma tela por rota (Login, Cadastro, Foco, Rede, Historico, ...)
+├── components/   # componentes reutilizáveis (Layout, GrafoRede, ...)
+├── contexts/     # AuthContext: usuário logado e tokens
 ├── hooks/        # hooks próprios (useAuth, useSessaoFoco, ...)
 ├── services/     # comunicação com a API (api.ts)
 ├── utils/        # funções puras de apoio (formatarTempo, ...)
@@ -60,6 +61,10 @@ src/
 | `/cadastro` | Criar conta |
 | `/foco` | Sessão de foco |
 | `/rede` | Rede neural |
+| `/historico` | Histórico de sessões |
+| `/materias` | Matérias |
+| `/conquistas` | Conquistas e sequência de dias |
+| `/loja` | Loja de cores (ATP) |
 | `/estatisticas` | Estatísticas |
 
 ## Testes
