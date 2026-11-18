@@ -178,7 +178,7 @@ export async function cadastroMock(dados: DadosCadastro): Promise<RespostaAuth> 
 
   // Simulação de erro de e-mail duplicado
   if (emailLimpo === 'existe@email.com') {
-    throw new AuthError('email_duplicado', 'E-mail já cadastrado. Tente fazer login ou use outro e-mail.')
+    throw new AuthError('email_ja_cadastrado', 'E-mail já cadastrado. Tente fazer login ou use outro e-mail.')
   }
 
   const resposta: RespostaAuth = {

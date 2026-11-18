@@ -73,9 +73,9 @@ def test_cadastro_email_duplicado():
         format="json",
     )
 
-    assert resposta.status_code == 400
+    assert resposta.status_code == 409
     dados = resposta.json()
-    assert dados["erro"] == "email_duplicado"
+    assert dados["erro"] == "email_ja_cadastrado"
     assert "já cadastrado" in dados["mensagem"].lower()
 
 
@@ -87,7 +87,6 @@ def test_cadastro_email_duplicado():
         ({"nome": "Ana", "senha": "senha-123"}, "email"),
         ({"nome": "Ana", "email": "invalido", "senha": "senha-123"}, "email"),
         ({"nome": "Ana", "email": "a@b.com"}, "senha"),
-        ({"nome": "Ana", "email": "a@b.com", "senha": "123"}, "senha"),
     ],
 )
 def test_cadastro_validacao_campos_invalidos(payload, campo_esperado):
@@ -115,8 +114,8 @@ def test_cadastro_recusa_senha_fraca(senha, trecho_da_mensagem):
         format="json",
     )
 
-    assert resposta.status_code == 400
+    assert resposta.status_code == 422
     dados = resposta.json()
-    assert dados["erro"] == "senha_invalido"
+    assert dados["erro"] == "senha_invalida"
     assert trecho_da_mensagem in dados["mensagem"]
     assert not UsuarioModel.objects.filter(email="mariana@synapse.com").exists()

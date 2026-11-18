@@ -10,24 +10,10 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.application.cadastro import CadastroUsuario
-from app.domain.excecoes import (
-    EmailInvalido,
-    EmailJaCadastrado,
-    ErroDominio,
-    NomeInvalido,
-    SenhaInvalida,
-)
 from app.infra.repositorios import RepositorioUsuarioDjango
 from app.infra.senhas import ServicoSenhasDjango
 
 UsuarioModel = get_user_model()
-
-CODIGOS_ERRO_CADASTRO = {
-    EmailJaCadastrado: "email_duplicado",
-    SenhaInvalida: "senha_invalido",
-    EmailInvalido: "email_invalido",
-    NomeInvalido: "nome_invalido",
-}
 
 
 class CadastroSerializer(serializers.Serializer):
@@ -74,9 +60,9 @@ class UsuarioRespostaSerializer(serializers.Serializer):
     request=CadastroSerializer,
     responses={
         201: UsuarioRespostaSerializer,
-        400: OpenApiResponse(
-            description="Dados inválidos, senha fraca ou e-mail já cadastrado."
-        ),
+        400: OpenApiResponse(description="Campos ausentes ou em formato inválido."),
+        409: OpenApiResponse(description="E-mail já cadastrado."),
+        422: OpenApiResponse(description="Senha fraca ou nome inválido."),
     },
     tags=["Autenticação"],
 )
@@ -101,20 +87,14 @@ def cadastro(request):
     cadastro_usuario = CadastroUsuario(
         RepositorioUsuarioDjango(), ServicoSenhasDjango()
     )
-    try:
-        # Salvar o usuário e definir a senha são duas escritas: ou as duas, ou nenhuma.
-        with transaction.atomic():
-            usuario = cadastro_usuario.executar(
-                nome=serializer.validated_data["nome"],
-                email=serializer.validated_data["email"],
-                senha=serializer.validated_data["senha"],
-            )
-    except ErroDominio as erro:
-        # Provisório até o tratamento de erros nas bordas da API (#12).
-        codigo = CODIGOS_ERRO_CADASTRO.get(type(erro), "dados_invalidos")
-        return Response(
-            {"erro": codigo, "mensagem": str(erro)},
-            status=status.HTTP_400_BAD_REQUEST,
+    # Salvar o usuário e definir a senha são duas escritas: ou as duas, ou nenhuma.
+    # Um erro de domínio (e-mail repetido, senha fraca...) desfaz a transação e é
+    # traduzido pelo tratamento central de erros (`app/api/erros.py`).
+    with transaction.atomic():
+        usuario = cadastro_usuario.executar(
+            nome=serializer.validated_data["nome"],
+            email=serializer.validated_data["email"],
+            senha=serializer.validated_data["senha"],
         )
 
     return Response(

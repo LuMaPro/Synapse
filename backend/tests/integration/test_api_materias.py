@@ -108,8 +108,8 @@ def test_criar_materia_recusa_nome_invalido(cliente, nome):
     assert resposta.json()["erro"] == "nome_invalido"
 
 
-@pytest.mark.parametrize("cor", ["", "   ", None, "#123", "azul", "#GGGGGG", "8B7BFF"])
-def test_criar_materia_recusa_cor_invalida(cliente, cor):
+@pytest.mark.parametrize("cor", ["", "   ", None, "#1234567"])
+def test_criar_materia_recusa_cor_em_formato_invalido(cliente, cor):
     resposta = cliente.post(
         "/materias",
         {"nome": "Cálculo", "cor": cor},
@@ -117,6 +117,17 @@ def test_criar_materia_recusa_cor_invalida(cliente, cor):
     )
     assert resposta.status_code == 400
     assert resposta.json()["erro"] == "cor_invalido"
+
+
+@pytest.mark.parametrize("cor", ["#123", "azul", "#GGGGGG", "8B7BFF"])
+def test_criar_materia_recusa_cor_que_nao_e_hexadecimal(cliente, cor):
+    resposta = cliente.post(
+        "/materias",
+        {"nome": "Cálculo", "cor": cor},
+        format="json",
+    )
+    assert resposta.status_code == 422
+    assert resposta.json()["erro"] == "cor_invalida"
 
 
 

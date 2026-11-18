@@ -225,5 +225,5 @@ class RepositorioCarteira(ABC):
 
     @abstractmethod
     def salvar(self, carteira: Carteira) -> None:
-        """Grava o saldo, os tipos desbloqueados e os escolhidos."""
+        """Grava o saldo e as cores desbloqueadas."""
         ...

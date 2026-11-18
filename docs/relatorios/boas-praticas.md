@@ -379,7 +379,7 @@ Cada item cita o arquivo e a classe ou função onde a prática foi aplicada, co
 
 ## Tratamento de erros nas bordas
 
-- **Erros traduzidos para HTTP num lugar só** (`backend/app/api/erros.py`, issue #12): as regras de negócio lançam exceções do domínio, e nenhuma view escolhe código HTTP para elas. O tratador configurado no DRF (`EXCEPTION_HANDLER`) faz a tradução para todas as rotas, com o mesmo formato de resposta (`{"erro", "mensagem"}`, mais `detalhes` nos erros de validação). Um erro inesperado vira um 500 genérico, com o detalhe só no log, sem expor nada ao cliente.
+- **Erros traduzidos para HTTP num lugar só** (`backend/app/api/erros.py`, issue #12): as regras de negócio lançam exceções do domínio, e nenhuma view escolhe código HTTP para elas. A tabela `STATUS_POR_ERRO_DOMINIO` e a função `resposta_erro_dominio` decidem o status (404 para o que não existe, 409 para conflito, 422 para regra violada) e o corpo (`{"erro", "mensagem"}`, com o código tirado do nome da exceção) para todas as rotas. O tratador configurado no DRF (`EXCEPTION_HANDLER`) usa essa função. Um erro inesperado vira um 500 genérico, com o detalhe só no log, sem expor nada ao cliente. Campos ausentes ou em formato errado são recusados antes, pelos serializers, com 400.
 
   ```python
   STATUS_POR_ERRO_DOMINIO = {
@@ -389,25 +389,28 @@ Cada item cita o arquivo e a classe ou função onde a prática foi aplicada, co
       ...
   }
 
+  def resposta_erro_dominio(erro: dominio.ErroDominio) -> Response:
+      status_http = STATUS_POR_ERRO_DOMINIO.get(type(erro), status.HTTP_400_BAD_REQUEST)
+      mensagem = str(erro) or "Erro de regra de negócio."
+      return _resposta(status_http, _codigo(erro), mensagem)
+
   def exception_handler(exc, context):
       # Parte 1: erros de domínio
       if isinstance(exc, dominio.ErroDominio):
-          ...
+          return resposta_erro_dominio(exc)
+      ...
       # Parte 3: erro inesperado -> 500 genérico, detalhe só no log
       logger.exception("Erro inesperado na view %s", context.get("view"))
   ```
 
-- **Erro da sessão tratado dentro da transação** (`backend/app/api/sessoes.py`, função `_responder`, issue #16): nas rotas de sessão, o erro de domínio é traduzido antes de sair da transação, e não pelo tratador central. É de propósito: carregar uma sessão abandonada já a poda e grava a poda, e se a exceção saísse da transação essa gravação seria desfeita. Sessão de outro estudante responde 404, igual a uma inexistente, para não revelar que ela existe.
+- **Erro da sessão tratado dentro da transação** (`backend/app/api/sessoes.py`, função `_responder`, issue #16): nas rotas de sessão, o erro de domínio é tratado antes de sair da transação. É de propósito: carregar uma sessão abandonada já a poda e grava a poda, e se a exceção saísse da transação essa gravação seria desfeita. A tradução continua sendo a do tratador central, porque `_responder` chama a mesma `resposta_erro_dominio`; assim a mesma exceção tem o mesmo status em qualquer rota. Sessão de outro estudante responde 404, igual a uma inexistente, para não revelar que ela existe.
 
   ```python
   with transaction.atomic():
       try:
           corpo = acao()
       except ErroDominio as erro:
-          codigo_http, codigo = ERROS_SESSAO.get(
-              type(erro), (status.HTTP_400_BAD_REQUEST, "dados_invalidos")
-          )
-          return Response({"erro": codigo, "mensagem": str(erro)}, status=codigo_http)
+          return resposta_erro_dominio(erro)
   ```
 
 - **Compra que não gasta o mesmo ATP duas vezes** (`backend/app/infra/repositorios/carteira.py`, `backend/app/domain/carteira.py` e `backend/app/api/loja.py`, issue #34): a compra roda numa transação, com a carteira reservada (`SELECT ... FOR UPDATE`) do carregamento até a gravação, e o saldo é um `PositiveIntegerField` (o banco recusa saldo negativo, a última barreira). As regras ficam no agregado `Carteira`, e os erros (`SaldoInsuficiente`, `CorJaDesbloqueada`) saem com a mensagem que a tela mostra.

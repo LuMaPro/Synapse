@@ -9,27 +9,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from app.api.erros import resposta_erro_dominio
 from app.application.loja import LojaService
 from app.application.materias import MateriaService
 from app.domain.entidades.materia import Materia
-from app.domain.excecoes import (
-    CorBloqueada,
-    CorInvalida,
-    ErroDominio,
-    MateriaJaExiste,
-    MateriaNaoEncontrada,
-    NomeMateriaInvalido,
-)
+from app.domain.excecoes import ErroDominio
 from app.domain.loja import Efeito, cor_por_hex
 from app.infra.repositorios import RepositorioCarteiraDjango, RepositorioMateriaDjango
-
-ERROS_MATERIA: dict[type[ErroDominio], tuple[int, str]] = {
-    MateriaNaoEncontrada: (status.HTTP_404_NOT_FOUND, "materia_nao_encontrada"),
-    MateriaJaExiste: (status.HTTP_409_CONFLICT, "materia_ja_existe"),
-    NomeMateriaInvalido: (status.HTTP_400_BAD_REQUEST, "nome_invalido"),
-    CorInvalida: (status.HTTP_400_BAD_REQUEST, "cor_invalido"),
-    CorBloqueada: (status.HTTP_409_CONFLICT, "cor_bloqueada"),
-}
 
 
 def _servico() -> MateriaService:
@@ -57,10 +43,8 @@ def _responder(acao: Callable[[], Any], status_sucesso: int) -> Response:
         try:
             corpo = acao()
         except ErroDominio as erro:
-            codigo_http, codigo = ERROS_MATERIA.get(
-                type(erro), (status.HTTP_400_BAD_REQUEST, "dados_invalidos")
-            )
-            return Response({"erro": codigo, "mensagem": str(erro)}, status=codigo_http)
+            # A mesma tradução do tratamento central de erros (`app/api/erros.py`).
+            return resposta_erro_dominio(erro)
     if corpo is None:
         return Response(status=status.HTTP_204_NO_CONTENT)
     return Response(corpo, status=status_sucesso)
@@ -142,10 +126,11 @@ _404 = OpenApiResponse(description="Matéria inexistente ou de outro estudante."
     request=CriarMateriaSerializer,
     responses={
         201: MateriaRespostaSerializer,
-        400: OpenApiResponse(description="Nome inválido ou cor fora da paleta."),
+        400: OpenApiResponse(description="Campos ausentes ou em formato inválido."),
         409: OpenApiResponse(
             description="Nome já cadastrado em outra matéria, ou cor não comprada."
         ),
+        422: OpenApiResponse(description="Nome inválido ou cor fora da paleta."),
     },
     tags=["Matérias"],
 )
@@ -187,11 +172,12 @@ def materias(request) -> Response:
     request=AtualizarMateriaSerializer,
     responses={
         200: MateriaRespostaSerializer,
-        400: OpenApiResponse(description="Dados inválidos ou cor fora da paleta."),
+        400: OpenApiResponse(description="Campos vazios ou em formato inválido."),
         404: _404,
         409: OpenApiResponse(
             description="Nome em conflito com outra matéria, ou cor ainda não comprada."
         ),
+        422: OpenApiResponse(description="Nome inválido ou cor fora da paleta."),
     },
     tags=["Matérias"],
 )
