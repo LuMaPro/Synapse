@@ -80,7 +80,7 @@ export function criarServidorFalso() {
     const saida = Date.parse(corpo.inicio)
     const retorno = corpo.fim ? Date.parse(corpo.fim) : null
     if (saida > agora() + TOLERANCIA_RELOGIO_MS || saida < s.inicio) {
-      return json(400, { erro: 'horario_invalido', mensagem: 'Horário inválido.' })
+      return json(422, { erro: 'horario_invalido', mensagem: 'Horário inválido.' })
     }
     if (s.modo === 'estrito') {
       s.estado = 'podada'

@@ -54,14 +54,22 @@ def _resposta(status_http: int, codigo: str, mensagem: str, detalhes=None) -> Re
     return Response(corpo, status=status_http)
 
 
+def resposta_erro_dominio(erro: dominio.ErroDominio) -> Response:
+    """A resposta HTTP de um erro de domínio, igual em todas as rotas.
+
+    O `exception_handler` a usa para os erros que saem das views. As rotas que
+    precisam tratar o erro ainda dentro da transação (ex.: `_responder`, em
+    `sessoes.py`) a chamam diretamente, para responder do mesmo jeito.
+    """
+    status_http = STATUS_POR_ERRO_DOMINIO.get(type(erro), status.HTTP_400_BAD_REQUEST)
+    mensagem = str(erro) or "Erro de regra de negócio."
+    return _resposta(status_http, _codigo(erro), mensagem)
+
+
 def exception_handler(exc, context):
     # Parte 1: erros de domínio
     if isinstance(exc, dominio.ErroDominio):
-        status_http = STATUS_POR_ERRO_DOMINIO.get(
-            type(exc), status.HTTP_400_BAD_REQUEST
-        )
-        mensagem = str(exc) or "Erro de regra de negócio."
-        return _resposta(status_http, _codigo(exc), mensagem)
+        return resposta_erro_dominio(exc)
 
     # Parte 2: erros que o DRF já conhece
     resposta = handler_padrao_drf(exc, context)

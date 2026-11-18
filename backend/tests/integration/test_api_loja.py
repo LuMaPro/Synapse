@@ -207,8 +207,8 @@ def test_criterio_materia_so_aceita_cor_gratuita_ou_comprada(cliente, relogio):
         "erro": "cor_bloqueada",
         "mensagem": "Compre a cor Magenta neon na loja para usá-la.",
     }
-    assert fora.status_code == 400
-    assert fora.json()["erro"] == "cor_invalido"
+    assert fora.status_code == 422
+    assert fora.json()["erro"] == "cor_invalida"
 
     _juntar_atp(cliente, relogio, 250)
     cliente.post("/loja/magenta_neon/comprar")

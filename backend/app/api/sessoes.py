@@ -15,6 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from app.api.erros import resposta_erro_dominio
 from app.api.periodo import DESCRICAO_PERIODO, FiltroPeriodoSerializer
 from app.application.conquistas import ConquistaService
 from app.application.loja import LojaService
@@ -24,16 +25,7 @@ from app.domain.carteira import atp_da_sessao
 from app.domain.entidades.neuronio import Neuronio
 from app.domain.entidades.sessao_foco import SessaoFoco
 from app.domain.eventos import PublicadorEventos, SessaoConcluida, SessaoPodada
-from app.domain.excecoes import (
-    DuracaoInvalida,
-    ErroDominio,
-    HorarioInvalido,
-    MateriaNaoEncontrada,
-    PoliticaInvalida,
-    SessaoAtivaExistente,
-    SessaoNaoEncontrada,
-    TransicaoInvalida,
-)
+from app.domain.excecoes import ErroDominio
 from app.domain.observadores import (
     AtualizadorRede,
     AvaliadorConquistas,
@@ -47,18 +39,6 @@ from app.infra.repositorios import (
     RepositorioRedeNeuralDjango,
     RepositorioSessaoDjango,
 )
-
-# Provisório até o tratamento de erros nas bordas da API (#12): status e código de
-# cada erro de domínio, aplicados num único lugar (`_responder`).
-ERROS_SESSAO: dict[type[ErroDominio], tuple[int, str]] = {
-    SessaoNaoEncontrada: (status.HTTP_404_NOT_FOUND, "sessao_nao_encontrada"),
-    MateriaNaoEncontrada: (status.HTTP_404_NOT_FOUND, "materia_nao_encontrada"),
-    SessaoAtivaExistente: (status.HTTP_409_CONFLICT, "sessao_ativa_existente"),
-    TransicaoInvalida: (status.HTTP_409_CONFLICT, "transicao_invalida"),
-    DuracaoInvalida: (status.HTTP_400_BAD_REQUEST, "duracao_invalida"),
-    HorarioInvalido: (status.HTTP_400_BAD_REQUEST, "horario_invalido"),
-    PoliticaInvalida: (status.HTTP_400_BAD_REQUEST, "modo_invalido"),
-}
 
 
 def _servico() -> SessaoService:
@@ -94,16 +74,14 @@ def _responder(acao: Callable[[], Any], status_sucesso: int) -> Response:
 
     O erro é tratado dentro da transação de propósito: os casos de uso só lançam
     erro de domínio antes das gravações principais, e o que já foi gravado (ex.: a
-    poda de uma sessão abandonada, feita ao carregá-la) precisa ser mantido.
+    poda de uma sessão abandonada, feita ao carregá-la) precisa ser mantido. A
+    tradução é a mesma do tratamento central de erros (`app/api/erros.py`).
     """
     with transaction.atomic():
         try:
             corpo = acao()
         except ErroDominio as erro:
-            codigo_http, codigo = ERROS_SESSAO.get(
-                type(erro), (status.HTTP_400_BAD_REQUEST, "dados_invalidos")
-            )
-            return Response({"erro": codigo, "mensagem": str(erro)}, status=codigo_http)
+            return resposta_erro_dominio(erro)
     if corpo is None:
         return Response(status=status.HTTP_204_NO_CONTENT)
     return Response(corpo, status=status_sucesso)
@@ -350,9 +328,10 @@ def _historico(request) -> Response:
     request=IniciarSessaoSerializer,
     responses={
         201: SessaoRespostaSerializer,
-        400: OpenApiResponse(description="Duração ou modo inválidos."),
+        400: OpenApiResponse(description="Campos ausentes ou em formato inválido."),
         404: OpenApiResponse(description="Matéria inexistente ou de outro estudante."),
         409: OpenApiResponse(description="Já existe uma sessão em andamento."),
+        422: OpenApiResponse(description="Duração fora das regras."),
     },
     tags=["Sessões de foco"],
 )
@@ -388,9 +367,10 @@ def ativa(request):
     request=InterrupcaoSerializer,
     responses={
         200: SessaoRespostaSerializer,
-        400: OpenApiResponse(description="Horários inválidos."),
+        400: OpenApiResponse(description="Campos ausentes ou em formato inválido."),
         404: _404,
         409: OpenApiResponse(description="A sessão já terminou."),
+        422: OpenApiResponse(description="Horários fora de ordem ou no futuro."),
     },
     tags=["Sessões de foco"],
 )

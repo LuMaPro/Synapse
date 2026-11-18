@@ -49,7 +49,7 @@ describe('serviço de autenticação (auth.ts) - casos de erro e exceções', ()
   })
 
   describe('cadastroMock - casos de erro', () => {
-    it('lança AuthError com código email_duplicado quando e-mail já existe', async () => {
+    it('lança AuthError com código email_ja_cadastrado quando e-mail já existe', async () => {
       await expect(
         cadastroMock({
           nome: 'Usuário Teste',
@@ -57,7 +57,7 @@ describe('serviço de autenticação (auth.ts) - casos de erro e exceções', ()
           senha: '123456',
         }),
       ).rejects.toMatchObject({
-        codigo: 'email_duplicado',
+        codigo: 'email_ja_cadastrado',
         message: 'E-mail já cadastrado. Tente fazer login ou use outro e-mail.',
       })
     })

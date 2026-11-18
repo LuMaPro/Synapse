@@ -81,17 +81,19 @@ def test_segunda_sessao_simultanea_retorna_409(cliente):
 
 
 @pytest.mark.parametrize(
-    ("corpo", "erro"),
+    ("corpo", "status_esperado", "erro"),
     [
-        ({"duracao_minutos": 7}, "duracao_invalida"),
-        ({"duracao_minutos": 25, "modo": "relaxado"}, "modo_invalido"),
-        ({}, "duracao_minutos_invalido"),
+        # Regra de domínio: o formato está certo, mas o valor não é aceito.
+        ({"duracao_minutos": 7}, 422, "duracao_invalida"),
+        # Formato: o serializer recusa antes de chegar ao domínio.
+        ({"duracao_minutos": 25, "modo": "relaxado"}, 400, "modo_invalido"),
+        ({}, 400, "duracao_minutos_invalido"),
     ],
 )
-def test_recusa_dados_invalidos_ao_iniciar(cliente, corpo, erro):
+def test_recusa_dados_invalidos_ao_iniciar(cliente, corpo, status_esperado, erro):
     resposta = cliente.post("/sessoes", corpo, format="json")
 
-    assert resposta.status_code == 400
+    assert resposta.status_code == status_esperado
     assert resposta.json()["erro"] == erro
 
 
