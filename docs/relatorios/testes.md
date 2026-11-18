@@ -41,8 +41,6 @@ Cada PR que adicionar testes registra aqui o que foi testado e em qual nível. A
 
 - **Erros da API e textos do Admin** (`backend/tests/integration/test_api_erros.py` e `test_modelos_str.py`, issue #43): o tratamento de erros devolve o formato da API para permissão negada (403), para os outros erros do DRF (405) e para um erro inesperado (500), que não mostra o detalhe ao cliente e só o registra no log. Cada model mostra um texto legível no Django Admin.
 
-### Testes de aceitação (E2E)
-
 ## Ferramentas
 
 ## O que foi coberto
