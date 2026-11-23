@@ -63,7 +63,7 @@ def _servico() -> SessaoService:
     # O relógio é lido a cada chamada, o que permite controlá-lo nos testes.
     return SessaoService(
         RepositorioSessaoDjango(),
-        publicador,  # <-- Injetamos o publicador aqui
+        publicador,
         relogio=lambda: agora(),
         materias=RepositorioMateriaDjango(),
     )

@@ -49,8 +49,8 @@ class SessaoService:
     antes de 5 min de foco: ela é apagada, sem neurônio e sem evento, para não encher
     o histórico e o banco de começos desistidos. O serviço só publica o evento
     (`SessaoConcluida` ou `SessaoPodada`, #24); quem coloca o neurônio na rede,
-    desbloqueia as conquistas (#32) e credita o ATP (#34), e no futuro atualiza as
-    estatísticas, são os observadores inscritos.
+    desbloqueia as conquistas (#32) e credita o ATP (#34) são os observadores
+    inscritos.
     """
 
     def __init__(

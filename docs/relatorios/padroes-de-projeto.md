@@ -196,7 +196,7 @@ publicador.inscrever(SessaoConcluida, avaliador)
 
 O evento leva o neurônio que a fábrica criou, para os observadores não precisarem buscá-lo de novo. As conquistas e o ATP entraram depois da rede, e o `SessaoService` não mudou em nenhuma das duas vezes.
 
-**Trade-off:** a ordem de inscrição importa. O avaliador de conquistas olha a rede, então precisa vir depois do atualizador da rede; isso está comentado onde eles são inscritos e coberto por um teste. Os observadores rodam na hora, dentro da mesma transação da conclusão: se creditar o ATP falhar, a conclusão inteira é desfeita, o que evita uma sessão concluída sem neurônio, mas deixa a resposta esperando todos eles. E a montagem do publicador é repetida em `backend/app/api/estatisticas.py`, porque as estatísticas também podem podar uma sessão abandonada; quem inscrever um observador novo precisa lembrar dos dois lugares.
+**Trade-off:** a ordem de inscrição importa. O avaliador de conquistas olha a rede, então precisa vir depois do atualizador da rede; isso está comentado onde eles são inscritos e coberto por um teste. Os observadores rodam na hora, dentro da mesma transação da conclusão: se creditar o ATP falhar, a conclusão inteira é desfeita, o que evita uma sessão concluída sem neurônio, mas deixa a resposta esperando todos eles. E a montagem do publicador é repetida em `backend/app/api/estatisticas.py`, porque as estatísticas também podem podar uma sessão abandonada, e em `backend/app/management/commands/podar_sessoes_orfas.py`, que só poda e por isso só inscreve o atualizador da rede; quem inscrever um observador novo precisa lembrar dos três lugares.
 
 **Testes:** `test_o_avaliador_precisa_vir_depois_do_atualizador_da_rede` em `backend/tests/unit/application/test_conquistas.py` (inscreve na ordem errada e mostra que nada é desbloqueado) e `test_publicar_evento_ignora_observadores_de_outros_tipos` em `backend/tests/unit/domain/test_eventos.py`.
 
@@ -307,7 +307,7 @@ A API entrega as versões com o Django (`backend/app/api/sessoes.py`), e os test
 ```python
 return SessaoService(
     RepositorioSessaoDjango(),
-    publicador,  # <-- Injetamos o publicador aqui
+    publicador,
     relogio=lambda: agora(),
     materias=RepositorioMateriaDjango(),
 )
@@ -318,7 +318,7 @@ return SessaoService(sessoes, publicador, relogio=relogio)
 
 O relógio injetado é o que permite testar "concluir antes da hora", "abandonada depois de duração + 5 min" e a sequência de dias sem esperar o tempo passar.
 
-**Trade-off:** a montagem é escrita à mão, e cada requisição monta o seu grafo de objetos (barato, porque os repositórios não guardam estado). Sem um contêiner, a montagem do publicador aparece em `api/sessoes.py` e em `api/estatisticas.py`. Uma biblioteca de contêiner resolveria isso, mas seria mais uma dependência para seis funções curtas.
+**Trade-off:** a montagem é escrita à mão, e cada requisição monta o seu grafo de objetos (barato, porque os repositórios não guardam estado). Sem um contêiner, a montagem do publicador aparece em `api/sessoes.py`, em `api/estatisticas.py` e no comando `podar_sessoes_orfas`. Uma biblioteca de contêiner resolveria isso, mas seria mais uma dependência para seis funções curtas.
 
 **Testes:** todos os testes de `backend/tests/unit/application/` montam os serviços com repositórios em memória, sem banco.
 
