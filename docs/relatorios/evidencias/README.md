@@ -1,18 +1,20 @@
 # Evidências: cobertura de testes (issue #43)
 
-Medido em 03/11/2026, na `main` com as mudanças da issue #43. A meta é **pelo menos 80%** em `app/domain` e `app/application`; o CI confere a meta a cada PR, no backend e no frontend.
+Medido pela primeira vez em 03/11/2026, com as mudanças da issue #43, e de novo em 23/11/2026, na `main` (commit `7e9e750`), para o relatório final de testes ([testes.md](../testes.md)). A meta é **pelo menos 80%** em `app/domain` e `app/application`; o CI confere a meta a cada PR, no backend e no frontend.
 
 ## Resumo
 
 ### Backend (pytest + pytest-cov 7 / coverage.py 7.16)
 
-747 testes, todos passando.
+756 testes, todos passando.
 
 | Camada | Instruções | Sem cobertura | Cobertura |
 |---|---:|---:|---:|
 | `app/domain` | 1077 | 0 | **100%** |
 | `app/application` | 307 | 0 | **100%** |
-| `app` inteiro (inclui `api` e `infra`) | 2464 | 0 | **100%** |
+| `app/infra` | 395 | 0 | **100%** |
+| `app/api` | 609 | 0 | **100%** |
+| `app` inteiro | 2458 | 0 | **100%** |
 
 As migrações ficam de fora da conta, porque são geradas pelo Django. Os métodos abstratos (`@abstractmethod`) também ficam de fora: só definem o contrato das interfaces (repositórios, `ObservadorSessao`, tipos de neurônio, políticas de interrupção, regras de formação) e não têm corpo para testar. É a coluna *excluded* do relatório.
 
