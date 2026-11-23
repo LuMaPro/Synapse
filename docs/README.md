@@ -18,7 +18,7 @@ Mapa dos entregáveis do projeto: onde cada um está e em que issue foi feito. P
 | Boas práticas de programação e POO (seção 2.5.1) | [relatorios/boas-praticas.md](relatorios/boas-praticas.md) | #44 | Em consolidação |
 | Padrões de projeto e trade-offs (seção 2.5.2) | [relatorios/padroes-de-projeto.md](relatorios/padroes-de-projeto.md) | #45 | Pronto |
 | Testes de software (seção 2.5.3) | [relatorios/testes.md](relatorios/testes.md) | #47 | Em consolidação |
-| Conceitos de POO aplicados (seção 2.5.4) | [relatorios/conceitos-poo.md](relatorios/conceitos-poo.md) | #46 | Em consolidação |
+| Conceitos de POO aplicados (seção 2.5.4) | [relatorios/conceitos-poo.md](relatorios/conceitos-poo.md) | #46 | Pronto |
 | Revisão final e release v1.0.0 | Tag `v1.0.0` no GitHub | #48 | Pendente |
 
 "Em consolidação" quer dizer que o relatório já tem o que cada PR registrou e falta a versão final da issue indicada.
