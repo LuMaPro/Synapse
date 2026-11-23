@@ -7,7 +7,7 @@ Mapa dos entregáveis do projeto: onde cada um está e em que issue foi feito. P
 | Entregável | Onde está | Issues | Situação |
 |---|---|---|---|
 | Escopo do problema socioeconômico | [escopo-do-problema.md](escopo-do-problema.md) | #6, #39 | Pronto |
-| Diagrama de casos de uso | [uml/casos-de-uso.puml](uml/casos-de-uso.puml) ([PNG](uml/casos-de-uso.png)) | #7, #41 | Rascunho; a versão final é a #41 |
+| Diagrama de casos de uso | [uml/casos-de-uso.puml](uml/casos-de-uso.puml) ([PNG](uml/casos-de-uso.png) e [SVG](uml/casos-de-uso.svg)) | #7, #41 | Pronto |
 | Diagrama de classes | [uml/classes.puml](uml/classes.puml), com PNG e SVG de cada vista em [uml/](uml) | #40 | Pronto |
 | Arquitetura | [arquitetura.md](arquitetura.md) | #39 | Pronto |
 | Identidade visual e protótipo das telas | [design/](design/README.md) | #8 | Pronto |
@@ -25,6 +25,8 @@ Mapa dos entregáveis do projeto: onde cada um está e em que issue foi feito. P
 
 ## Diagramas UML
 
+O [diagrama de casos de uso](uml/casos-de-uso.png) mostra o que a versão 1.0.0 faz, com três atores: o visitante (cadastro e login), o estudante (sessões de foco, rede, histórico, estatísticas, conquistas, matérias e loja) e o administrador (painel do Django e comando de poda das sessões abandonadas). Os `<<include>>` são os passos que sempre acontecem (concluir uma sessão forma o neurônio e rende ATP; desistir poda o neurônio), e os `<<extend>>`, os que dependem de uma condição, escrita entre colchetes (no modo estrito, qualquer saída da tela poda; no tolerante, só quando o tempo fora passa de 10% da sessão; a compra só sai com saldo suficiente).
+
 O diagrama de classes tem várias vistas, para caber na página:
 
 | Vista | Conteúdo |
@@ -38,7 +40,7 @@ O diagrama de classes tem várias vistas, para caber na página:
 | [Repositórios](uml/classes-repositorios.png) | Interfaces do domínio e implementações com o Django |
 | [Exceções](uml/classes-excecoes.png) | As exceções do domínio |
 
-Para gerar as imagens de novo, veja o cabeçalho de [uml/classes.puml](uml/classes.puml).
+Para gerar as imagens de novo, veja o cabeçalho de [uml/casos-de-uso.puml](uml/casos-de-uso.puml) e de [uml/classes.puml](uml/classes.puml).
 
 ## Organização da pasta
 

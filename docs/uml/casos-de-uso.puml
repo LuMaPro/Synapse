@@ -1,41 +1,120 @@
-@startuml
+@startuml casos-de-uso
+' Diagrama de casos de uso do Synapse (issue #41): o que a versão 1.0.0 faz de fato,
+' conferido com as rotas da API (backend/config/urls.py), as telas do frontend
+' (frontend/src/App.tsx) e o comando backend/app/management/commands/podar_sessoes_orfas.py.
+'
+' Para gerar o PNG e o SVG (na raiz do projeto, com o Docker aberto; no Git Bash,
+' comece a linha com MSYS_NO_PATHCONV=1 para o caminho /data não ser convertido):
+'   docker run --rm -v "$PWD/docs/uml:/data" -w /data plantuml/plantuml:1.2025.4 -tpng casos-de-uso.puml
+'   docker run --rm -v "$PWD/docs/uml:/data" -w /data plantuml/plantuml:1.2025.4 -tsvg casos-de-uso.puml
+
 left to right direction
+skinparam dpi 110
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam packageStyle rectangle
+skinparam rectangle {
+  BackgroundColor #FCFCFE
+  BorderColor #9AA0C3
+  FontSize 14
+}
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #4A4F6E
+  ArrowColor #4A4F6E
+  StereotypeFontSize 10
+}
+skinparam actor {
+  BackgroundColor #FFFFFF
+  BorderColor #4A4F6E
+}
+skinparam legend {
+  BackgroundColor #FFFDE7
+  BorderColor #C9B458
+  FontSize 12
+}
 
 actor "Visitante" as visitante
 actor "Estudante" as estudante
-actor "Sistema\n(relógio)" as sistema
+actor "Administrador" as admin
 
-package "Aplicação" {
+rectangle "Synapse" {
   usecase "Cadastrar-se" as UC_Cadastrar
   usecase "Entrar" as UC_Entrar
-  
-  usecase "Iniciar sessão de foco" as UC_Iniciar
+  usecase "Sair da conta" as UC_Sair
+
+  usecase "Iniciar sessão de foco\n(duração e modo)" as UC_Iniciar
+  usecase "Associar uma matéria" as UC_AssociarMateria
+  usecase "Registrar saída da tela" as UC_Saida
+  usecase "Retomar sessão\nem andamento" as UC_Retomar
+  usecase "Desistir da sessão" as UC_Desistir
+  usecase "Podar o neurônio" as UC_Podar
   usecase "Concluir sessão" as UC_Concluir
-  usecase "Abandonar sessão" as UC_Abandonar
-  usecase "Sofrer poda" as UC_Poda
-  
+  usecase "Formar neurônio\ne sinapses" as UC_Formar
+  usecase "Ganhar ATP" as UC_ATP
+  usecase "Desbloquear conquista" as UC_Desbloquear
+  usecase "Ver conquistas e\nsequência de dias" as UC_Conquistas
+
   usecase "Ver rede neural" as UC_Rede
-  usecase "Gerenciar matérias" as UC_Materias
-  usecase "Ver histórico" as UC_Historico
-  usecase "Ver estatísticas" as UC_Estatisticas
-  usecase "Ver conquistas" as UC_Conquistas
+  usecase "Filtrar a rede\n(período e matéria)" as UC_FiltrarRede
+  usecase "Ver histórico de sessões" as UC_Historico
+  usecase "Filtrar o histórico\n(período e resultado)" as UC_FiltrarHistorico
+  usecase "Ver estatísticas\n(dia, semana ou mês)" as UC_Estatisticas
+
+  usecase "Gerenciar matérias\n(criar, editar, remover)" as UC_Materias
+  usecase "Ver loja e saldo de ATP" as UC_Loja
+  usecase "Comprar cor" as UC_Comprar
+
+  usecase "Podar sessões abandonadas\n(manage.py podar_sessoes_orfas)" as UC_Varredura
+  usecase "Administrar dados\n(painel do Django)" as UC_Admin
 }
 
 visitante --> UC_Cadastrar
 visitante --> UC_Entrar
 
+estudante --> UC_Sair
 estudante --> UC_Iniciar
+estudante --> UC_Saida
+estudante --> UC_Retomar
+estudante --> UC_Desistir
+estudante --> UC_Concluir
+estudante --> UC_Conquistas
 estudante --> UC_Rede
-estudante --> UC_Materias
 estudante --> UC_Historico
 estudante --> UC_Estatisticas
-estudante --> UC_Conquistas
+estudante --> UC_Materias
+estudante --> UC_Loja
 
-' Relações de extend/include conforme a issue
-UC_Poda .> UC_Iniciar : <<extend>>
-UC_Concluir .> UC_Iniciar : <<extend>>
-UC_Abandonar .> UC_Iniciar : <<extend>>
+' Inclusões: a seta vai do caso base para o incluído.
+' Extensões: a seta vai da extensão para o caso base, com a condição entre colchetes.
+UC_Iniciar <.. UC_AssociarMateria : <<extend>>
+UC_Saida <.. UC_Podar : <<extend>>\n[estrito: qualquer saída;\ntolerante: passou de 10%]
+UC_Retomar <.. UC_Podar : <<extend>>\n[abandonada: duração\n+ 5 min sem concluir]
+UC_Desistir ..> UC_Podar : <<include>>
+UC_Concluir ..> UC_Formar : <<include>>
+UC_Concluir ..> UC_ATP : <<include>>
+UC_Concluir <.. UC_Desbloquear : <<extend>>\n[meta cumprida]
+UC_Conquistas <.. UC_Desbloquear : <<extend>>\n[meta já cumprida]
+UC_Rede <.. UC_FiltrarRede : <<extend>>
+UC_Historico <.. UC_FiltrarHistorico : <<extend>>
+UC_Loja <.. UC_Comprar : <<extend>>\n[saldo suficiente]
+UC_Podar <.. UC_Varredura : <<include>>
 
-sistema --> UC_Poda
-sistema --> UC_Concluir
+UC_Varredura <-- admin
+UC_Admin <-- admin
+' Só posiciona: deixa os dois casos do administrador na mesma coluna.
+UC_Varredura -[hidden]- UC_Admin
+
+legend bottom right
+  <b>Observações</b>
+  * Todos os casos do Estudante exigem estar autenticado (Entrar).
+  * Concluir sessão: no fim do tempo, o app pede a conclusão sozinho;
+    o servidor confere a hora pelo próprio relógio.
+  * Podar o neurônio: o neurônio fica cinza na rede, sem sinapses.
+    A sessão podada com menos de 5 min de foco é apagada:
+    não entra no histórico nem na rede.
+  * Sessão abandonada também é podada ao abrir o histórico
+    ou as estatísticas.
+endlegend
 @enduml
