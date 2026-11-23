@@ -18,6 +18,8 @@ A mesma regra pode aparecer em mais de um nível, cada um testando a sua parte. 
 
 Para conferir que os testes pegam erros de verdade, nas issues #20, #25, #26, #32 e #34 cada regra principal foi quebrada de propósito no código, e um teste falhou em cada caso. Depois a regra foi restaurada.
 
+Os testes de aceitação não ficam numa pasta à parte: cada critério de aceite das issues virou um teste no nível em que a regra está, com o nome começando por "critério" (`test_criterio_...` no backend, `it('critério: ...')` no frontend). São 54: 39 no backend, em 12 arquivos (ex.: `test_criterio_sessao_de_duas_horas_sem_poda`), e 15 nas telas e no service worker do frontend, em 7 arquivos.
+
 ### Testes unitários (backend)
 
 Os testes do domínio criam as entidades direto, sem Django, e conferem valores válidos e inválidos (com `pytest.mark.parametrize`), invariantes e eventos. Os testes dos serviços usam repositórios em memória (`backend/tests/repositorios.py`), que implementam as mesmas interfaces de `app/domain/repositorios.py`, e um relógio controlado pelo teste (o parâmetro `relogio` do `SessaoService`). Assim dá para testar a sessão concluída 1 segundo antes da hora ou podada aos 4:59 sem esperar e sem banco.
