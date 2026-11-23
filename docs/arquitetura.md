@@ -132,6 +132,13 @@ As migrações ficam em `backend/app/migrations/`, e o CI falha se um model muda
 | Repository | Interfaces em `domain/repositorios.py`, implementações em `infra/repositorios/` | Domínio sem ORM; testes com repositórios em memória |
 | Template Method | `RegraConquista` e subclasses (`domain/conquistas.py`) | Cada conquista só define o que medir |
 | Agregado (DDD) | `RedeNeural`, `Carteira` | Regras que envolvem vários objetos ao mesmo tempo |
+| Objeto de valor (DDD) | `Duracao` (`domain/duracao.py`), `Interrupcao`, `CorLoja` | Valores imutáveis que só existem válidos |
+| Injeção de dependência | Construtores dos serviços e `_servico()` em cada módulo de `api/` | Trocar repositórios e relógio nos testes |
+| Adapter | `ServicoSenhas` e `ServicoSenhasDjango` (`application/cadastro.py`, `infra/senhas.py`) | Senha validada e guardada com o Django, sem o caso de uso depender dele |
+| Fila de saída (Outbox) e receptor idempotente | Fila de avisos em `frontend/src/services/sessoes.ts`; aviso repetido ignorado em `SessaoFoco` | Saídas da tela chegam ao servidor mesmo sem rede |
+| Facade | `frontend/src/services/api.ts` | Token, renovação e erros da API num lugar só |
+| Provider (Context do React) | `AuthProvider` e `useAuth` (`frontend/src/contexts/`, `frontend/src/hooks/`) | Usuário logado disponível em todas as telas |
+| Estratégias de cache | `frontend/public/sw.js` | App abre sem rede; a API nunca vem do cache |
 
 O problema que cada padrão resolveu, as alternativas descartadas e os trade-offs estão em [relatorios/padroes-de-projeto.md](relatorios/padroes-de-projeto.md).
 
